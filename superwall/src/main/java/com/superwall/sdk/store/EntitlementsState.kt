@@ -123,6 +123,21 @@ data class EntitlementsState(
         ) : Updates({ state ->
                 state.copy(webEntitlements = entitlements)
             })
+
+        /**
+         * Drops everything the status and web redemptions granted the cleared user.
+         * [SetActive] only ever adds to [backingActive], so without this a new status
+         * would still carry the previous user's entitlements. Device and product
+         * entitlements belong to the install and are kept; the status is left for
+         * the caller to recompute.
+         */
+        object ClearUserEntitlements : Updates({ state ->
+            state.copy(
+                backingActive = emptySet(),
+                allTracked = emptySet(),
+                webEntitlements = emptySet(),
+            )
+        })
     }
 
     // -----------------------------------------------------------------------

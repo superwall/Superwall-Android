@@ -12,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 /**
  * Facade over the entitlements state held in a [StateActor].
@@ -35,7 +34,7 @@ class Entitlements(
 ) : EntitlementsContext {
     override val scope: CoroutineScope = actorScope
 
-    // -- Status flow (kept in sync with actor state for external collection) --
+    // -- Status flow, set alongside every status update in [setSubscriptionStatus] --
 
     private val _status: MutableStateFlow<SubscriptionStatus> =
         MutableStateFlow(actor.state.value.status)
@@ -48,12 +47,6 @@ class Entitlements(
      */
     val status: StateFlow<SubscriptionStatus>
         get() = _status.asStateFlow()
-
-    init {
-        scope.launch {
-            actor.state.collect { _status.value = it.status }
-        }
-    }
 
     private val snapshot get() = actor.state.value
 
@@ -138,6 +131,14 @@ class Entitlements(
      */
     internal fun setWebEntitlements(entitlements: Set<Entitlement>) {
         update(EntitlementsState.Updates.SetWebEntitlements(entitlements))
+    }
+
+    /**
+     * Forgets the entitlements of a user that was reset. The caller is expected to
+     * set a fresh status right after.
+     */
+    internal fun clearUserEntitlements() {
+        update(EntitlementsState.Updates.ClearUserEntitlements)
     }
 
     /**

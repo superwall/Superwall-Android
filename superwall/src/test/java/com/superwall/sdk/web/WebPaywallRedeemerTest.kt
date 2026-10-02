@@ -28,6 +28,7 @@ import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.storage.*
 import com.superwall.sdk.storage.LatestRedemptionResponse
+import com.superwall.sdk.storage.LatestWebCustomerInfo
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
 import io.mockk.Runs
@@ -59,7 +60,9 @@ class WebPaywallRedeemerTest {
             every { write(LastWebEntitlementsFetchDate, any()) } just Runs
         }
 
-    private var maxAge: () -> Long = { 1L }
+    // Polling runs on Dispatchers.IO and is never cancelled, so a short interval keeps
+    // every redeemer polling for the rest of the run.
+    private var maxAge: () -> Long = { 60_000L }
     private var mutableEntitlements = mutableSetOf<Entitlement>()
     private var webEntitlement = Entitlement("web_entitlement")
     private var normalEntitlement = Entitlement("normalEntitlement")
@@ -135,6 +138,8 @@ class WebPaywallRedeemerTest {
         },
         var getIntegrationPropsFn: () -> Map<String, Any> = { emptyMap() },
         var setWebEntitlementsFn: (Set<Entitlement>) -> Unit = {},
+        var clearUserEntitlementsFn: (() -> Unit)? = null,
+        var internallySetStatusFn: (SubscriptionStatus) -> Unit = this@WebPaywallRedeemerTest.setSubscriptionStatus,
     ) : WebPaywallRedeemer.Factory {
         override fun willRedeemLink() = willRedeemLinkFn()
 
@@ -152,9 +157,11 @@ class WebPaywallRedeemerTest {
 
         override suspend fun track(event: Trackable) = this@WebPaywallRedeemerTest.track(event)
 
-        override fun internallySetSubscriptionStatus(status: SubscriptionStatus) = this@WebPaywallRedeemerTest.setSubscriptionStatus(status)
+        override fun internallySetSubscriptionStatus(status: SubscriptionStatus) = internallySetStatusFn(status)
 
         override fun setWebEntitlements(entitlements: Set<Entitlement>) = setWebEntitlementsFn(entitlements)
+
+        override fun clearUserEntitlements() = clearUserEntitlementsFn?.invoke() ?: setWebEntitlementsFn(emptySet())
 
         override suspend fun isPaywallVisible(): Boolean = this@WebPaywallRedeemerTest.isPaywallVisible()
 
@@ -268,9 +275,10 @@ class WebPaywallRedeemerTest {
                     }
 
                     And("it publishes exactly the web entitlements it persisted") {
-                        // Polling also runs, but storage holds no redemption response in this
-                        // mock, so it must not publish entitlements it cannot persist.
-                        assertEquals(listOf(setOf(webEntitlement)), published.toList())
+                        // Polling may also publish from Dispatchers.IO; it persists the same
+                        // entitlement first, so every publish must match.
+                        assertTrue(published.isNotEmpty())
+                        assertTrue(published.all { it == setOf(webEntitlement) })
                     }
                 }
             }
@@ -1020,4 +1028,198 @@ class WebPaywallRedeemerTest {
             }
         }
     }
+    @Test
+    fun `reset drops the user's web entitlements while their response is still stored`() {
+        Given("user A has a web entitlement in their status and a device-owned code") {
+            val userAWeb = Entitlement("userA_web", isActive = true)
+            val deviceEntitlement = Entitlement("device_play", isActive = true)
+            val purchaser = PurchaserInfo("userA", email = null, storeIdentifiers = StoreIdentifiers.Stripe("123", emptyList()))
+            val userAResponse =
+                WebRedemptionResponse(
+                    codes =
+                        listOf(
+                            RedemptionResult.Success(
+                                code = "userA_code",
+                                redemptionInfo =
+                                    RedemptionInfo(
+                                        ownership = RedemptionOwnership.AppUser(appUserId = "userA"),
+                                        purchaserInfo = purchaser,
+                                        entitlements = listOf(userAWeb),
+                                    ),
+                            ),
+                            RedemptionResult.Success(
+                                code = "device_code",
+                                redemptionInfo =
+                                    RedemptionInfo(
+                                        ownership = RedemptionOwnership.Device(deviceId = "device"),
+                                        purchaserInfo = purchaser,
+                                        entitlements = emptyList(),
+                                    ),
+                            ),
+                        ),
+                    customerInfo =
+                        CustomerInfo(
+                            subscriptions = emptyList(),
+                            nonSubscriptions = emptyList(),
+                            userId = "userA",
+                            entitlements = listOf(userAWeb),
+                            isPlaceholder = false,
+                        ),
+                )
+            val storage =
+                object : Storage {
+                    val values = mutableMapOf<String, Any>()
+
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T> read(storable: Storable<T>): T? = values[storable.key] as T?
+
+                    override fun <T : Any> write(
+                        storable: Storable<T>,
+                        data: T,
+                    ) {
+                        values[storable.key] = data
+                    }
+
+                    override fun <T : Any> delete(storable: Storable<T>) {
+                        values.remove(storable.key)
+                    }
+
+                    override fun clean() = values.clear()
+                }
+            storage.write(LatestRedemptionResponse, userAResponse)
+            storage.write(LatestWebCustomerInfo, userAResponse.customerInfo!!)
+
+            val entitlements =
+                com.superwall.sdk.store.makeEntitlements(
+                    storage,
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
+                )
+            entitlements.activeDeviceEntitlements = setOf(deviceEntitlement)
+            entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(deviceEntitlement, userAWeb)))
+            getActiveDeviceEntitlements = { setOf(deviceEntitlement) }
+            redeemer =
+                WebPaywallRedeemer(
+                    context,
+                    IOScope(testDispatcher),
+                    deepLinkReferrer,
+                    network,
+                    storage,
+                    customerInfoManager = mockk(relaxed = true),
+                    factory =
+                        TestFactory(
+                            setWebEntitlementsFn = { entitlements.setWebEntitlements(it) },
+                            clearUserEntitlementsFn = { entitlements.clearUserEntitlements() },
+                            // Mirrors Superwall.internallySetSubscriptionStatus: status plus web entitlements.
+                            internallySetStatusFn = {
+                                val active = (it as? SubscriptionStatus.Active)?.entitlements.orEmpty() + entitlements.web
+                                entitlements.setSubscriptionStatus(SubscriptionStatus.Active(active))
+                            },
+                        ),
+                )
+
+            When("Superwall.reset clears the user's redemptions without wiping the stored response") {
+                redeemer.clear(RedemptionOwnershipType.AppUser)
+
+                Then("the status keeps only the device entitlement") {
+                    assertEquals(SubscriptionStatus.Active(setOf(deviceEntitlement)), entitlements.status.value)
+                }
+                And("user A's entitlement is gone from web, active and all") {
+                    assertEquals(emptySet<Entitlement>(), entitlements.web)
+                    assertEquals(setOf("device_play"), entitlements.active.map { it.id }.toSet())
+                    assertTrue(entitlements.all.none { it.id == "userA_web" })
+                }
+                And("the stored response keeps the device code but no entitlements") {
+                    val saved = storage.read(LatestRedemptionResponse)!!
+                    assertEquals(listOf("device_code"), saved.codes.map { it.code })
+                    assertEquals(emptyList<Entitlement>(), saved.customerInfo!!.entitlements)
+                }
+                And("the polled web customer info is dropped") {
+                    assertEquals(null, storage.read(LatestWebCustomerInfo))
+                }
+            }
+        }
+    }
+    @Test
+    fun `polling keeps web entitlements found without a stored redemption response`() =
+        runTest(testDispatcher) {
+            Given("a user who bought on web but never redeemed on this device") {
+                val polledWeb = Entitlement("polled_web", isActive = true)
+                val storage =
+                    object : Storage {
+                        val values = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T> read(storable: Storable<T>): T? = values[storable.key] as T?
+
+                        override fun <T : Any> write(
+                            storable: Storable<T>,
+                            data: T,
+                        ) {
+                            values[storable.key] = data
+                        }
+
+                        override fun <T : Any> delete(storable: Storable<T>) {
+                            values.remove(storable.key)
+                        }
+
+                        override fun clean() = values.clear()
+                    }
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.failure(Exception("no referral"))
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } returns Either.Failure(NetworkError.Unknown(Error("nothing to redeem")))
+                coEvery { network.webEntitlementsByUserId(any(), any()) } returns
+                    Either.Success(
+                        WebEntitlements(
+                            customerInfo =
+                                CustomerInfo(
+                                    subscriptions = emptyList(),
+                                    nonSubscriptions = emptyList(),
+                                    userId = "test_user",
+                                    entitlements = listOf(polledWeb),
+                                    isPlaceholder = false,
+                                ),
+                        ),
+                    )
+                val entitlements =
+                    com.superwall.sdk.store.makeEntitlements(
+                        storage,
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
+                    )
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        customerInfoManager = mockk(relaxed = true),
+                        factory = TestFactory(setWebEntitlementsFn = { entitlements.setWebEntitlements(it) }),
+                    )
+
+                When("the redemption check fails and polling finds the entitlement") {
+                    redeemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+                    // Polling runs on Dispatchers.IO, outside the test scheduler.
+                    val deadline = System.currentTimeMillis() + 5_000
+                    while (entitlements.web.isEmpty() && System.currentTimeMillis() < deadline) {
+                        Thread.sleep(10)
+                    }
+
+                    Then("it is published as a web entitlement") {
+                        assertEquals(setOf(polledWeb), entitlements.web)
+                    }
+                    And("it is stored so a cold start restores it") {
+                        val stored = storage.read(LatestRedemptionResponse)!!
+                        assertEquals(emptyList<RedemptionResult>(), stored.codes)
+                        assertEquals(listOf(polledWeb), stored.customerInfo!!.entitlements)
+                        assertEquals(
+                            setOf(polledWeb),
+                            com.superwall.sdk.store
+                                .createInitialEntitlementsState(storage)
+                                .webEntitlements,
+                        )
+                    }
+                }
+            }
+        }
 }

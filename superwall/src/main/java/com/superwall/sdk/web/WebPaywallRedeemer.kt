@@ -24,6 +24,7 @@ import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.RedemptionResult.PaywallInfo.PaywallProduct
 import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.network.Network
@@ -81,6 +82,9 @@ class WebPaywallRedeemer(
         fun internallySetSubscriptionStatus(status: SubscriptionStatus)
 
         fun setWebEntitlements(entitlements: Set<Entitlement>)
+
+        /** Drops the entitlements granted to a user that is being cleared. */
+        fun clearUserEntitlements() = setWebEntitlements(emptySet())
 
         suspend fun isPaywallVisible(): Boolean
 
@@ -462,26 +466,20 @@ class WebPaywallRedeemer(
                     }
                 }
 
-        // Create a new response with the filtered codes and entitlements
-        // (we do not need to check source here as they are all web)
-
+        // Drop the cleared codes and every web entitlement. The entitlements aren't tied
+        // to a code, so the remaining codes get theirs back from the re-redeem below.
         val withUserCodesRemoved =
             latestResponse?.copy(
                 codes = latestResponse.codes.filterNot { it in userCodesToRemove.orEmpty() },
+                customerInfo = latestResponse.customerInfo?.copy(entitlements = emptyList()),
             )
-
-        // Get active entitlements that remain after removing web sources or ones from the web
         if (withUserCodesRemoved != null) {
             storage.write(LatestRedemptionResponse, withUserCodesRemoved)
-            factory.setWebEntitlements(
-                withUserCodesRemoved.customerInfo
-                    ?.entitlements
-                    ?.filter { it.isActive }
-                    ?.toSet() ?: emptySet(),
-            )
-        } else {
-            factory.setWebEntitlements(emptySet())
         }
+        // Web customer info from polling belongs to the cleared user too
+        storage.delete(LatestWebCustomerInfo)
+        factory.clearUserEntitlements()
+        customerInfoManager.updateMergedCustomerInfo()
         factory.internallySetSubscriptionStatus(
             SubscriptionStatus.Active(
                 factory.getActiveDeviceEntitlements(),
@@ -518,32 +516,35 @@ class WebPaywallRedeemer(
                                 val existingWebEntitlements =
                                     latestRedeemResponse?.customerInfo?.entitlements?.toSet() ?: emptySet()
 
-                                // Update customerInfo with new entitlements if response exists
-                                if (latestRedeemResponse != null) {
-                                    val updatedCustomerInfo =
-                                        latestRedeemResponse.customerInfo?.copy(
-                                            entitlements = newEntitlements.toList(),
-                                        ) ?: CustomerInfo(
-                                            subscriptions = emptyList(),
-                                            nonSubscriptions = emptyList(),
-                                            userId = "",
-                                            entitlements = newEntitlements.toList(),
-                                            isPlaceholder = false,
-                                        )
-                                    val updatedResponse =
-                                        latestRedeemResponse.copy(
+                                // Store the new entitlements even if nothing was redeemed on this
+                                // device yet (e.g. bought on web, then identified here). Without a
+                                // stored response they'd never reach the web entitlements, and the
+                                // next status sync would drop them.
+                                val updatedCustomerInfo =
+                                    latestRedeemResponse?.customerInfo?.copy(
+                                        entitlements = newEntitlements.toList(),
+                                    ) ?: CustomerInfo(
+                                        subscriptions = emptyList(),
+                                        nonSubscriptions = emptyList(),
+                                        userId = "",
+                                        entitlements = newEntitlements.toList(),
+                                        isPlaceholder = false,
+                                    )
+                                val updatedResponse =
+                                    latestRedeemResponse?.copy(customerInfo = updatedCustomerInfo)
+                                        ?: WebRedemptionResponse(
+                                            codes = emptyList(),
                                             customerInfo = updatedCustomerInfo,
                                         )
-                                    storage.write(
-                                        LatestRedemptionResponse,
-                                        updatedResponse,
-                                    )
-                                    // Publish only what was persisted, so the cached web
-                                    // entitlements always match what a cold start restores.
-                                    factory.setWebEntitlements(
-                                        newEntitlements.filter { it.isActive }.toSet(),
-                                    )
-                                }
+                                storage.write(
+                                    LatestRedemptionResponse,
+                                    updatedResponse,
+                                )
+                                // Publish only what was persisted, so the cached web
+                                // entitlements always match what a cold start restores.
+                                factory.setWebEntitlements(
+                                    newEntitlements.filter { it.isActive }.toSet(),
+                                )
 
                                 // Trigger CustomerInfo merge
                                 customerInfoManager.updateMergedCustomerInfo()

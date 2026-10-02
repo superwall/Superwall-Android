@@ -1274,6 +1274,16 @@ class DependencyContainer(
         this.entitlements.setWebEntitlements(entitlements)
     }
 
+    override fun clearUserEntitlements() {
+        // With an external purchase controller or in test mode the status isn't ours to
+        // recompute, so only the web entitlements are cleared.
+        if (makeHasExternalPurchaseController() || testMode.isTestMode) {
+            entitlements.setWebEntitlements(emptySet())
+        } else {
+            entitlements.clearUserEntitlements()
+        }
+    }
+
     override fun internallySetSubscriptionStatus(status: SubscriptionStatus) {
         Superwall.instance.internallySetSubscriptionStatus(status)
     }

@@ -782,9 +782,8 @@ class Superwall(
                 }.filterNotNull()
                 .filter { it.first != null } // Drops the cached/initial emission
                 .collect { (previous, newValue) ->
-                    // Save and handle the new value
+                    // Entitlements already persisted the new value when it was set
                     val oldValue = previous ?: SubscriptionStatus.Unknown
-                    dependencyContainer.storage.write(StoredSubscriptionStatus, newValue)
                     dependencyContainer.delegateAdapter.subscriptionStatusDidChange(
                         oldValue,
                         newValue,
