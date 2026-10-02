@@ -25,6 +25,11 @@ jobs:
 
     runs-on: android-large-runner
 
+    outputs:
+      version: ${{ steps.version.outputs.prop }}
+      released: ${{ steps.release.outcome == 'success' }}
+      prerelease: ${{ steps.prerelease.outputs.status }}
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -174,3 +179,14 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  # Lets Flutter, Expo and KMP open a bump PR for this version. Called directly
+  # because the release above is created with GITHUB_TOKEN, which never fires
+  # `release` events for other workflows.
+  notify_wrappers:
+    needs: build
+    if: needs.build.outputs.released == 'true' && needs.build.outputs.prerelease == 'false'
+    uses: ./.github/workflows/notify-wrappers.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+    secrets: inherit
