@@ -147,12 +147,9 @@ class SubscriptionStatusDelegateOverrideTest {
                     )
                 }
                 And("the overridden status is what gets persisted last") {
-                    verify {
-                        storage.write(
-                            StoredSubscriptionStatus,
-                            match { it.ids() == setOf("pro", "custom") },
-                        )
-                    }
+                    val writes = mutableListOf<SubscriptionStatus>()
+                    verify { storage.write(StoredSubscriptionStatus, capture(writes)) }
+                    assertEquals(setOf("pro", "custom"), writes.last().ids())
                 }
             }
         }
@@ -201,9 +198,9 @@ class SubscriptionStatusDelegateOverrideTest {
                     )
                 }
                 And("the narrowed status is what gets persisted last") {
-                    verify {
-                        storage.write(StoredSubscriptionStatus, match { it.ids() == setOf("pro") })
-                    }
+                    val writes = mutableListOf<SubscriptionStatus>()
+                    verify { storage.write(StoredSubscriptionStatus, capture(writes)) }
+                    assertEquals(setOf("pro"), writes.last().ids())
                 }
                 // Active statuses only ever add to `entitlements.active`; it is cleared by
                 // Inactive/Unknown. Same as before the actor refactor. Pinned so a change
