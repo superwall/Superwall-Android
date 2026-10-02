@@ -1,6 +1,7 @@
 package com.superwall.sdk.web
 
 import android.content.Context
+import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -42,6 +43,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -131,6 +134,7 @@ class WebPaywallRedeemerTest {
             )
         },
         var getIntegrationPropsFn: () -> Map<String, Any> = { emptyMap() },
+        var setWebEntitlementsFn: (Set<Entitlement>) -> Unit = {},
     ) : WebPaywallRedeemer.Factory {
         override fun willRedeemLink() = willRedeemLinkFn()
 
@@ -149,6 +153,8 @@ class WebPaywallRedeemerTest {
         override suspend fun track(event: Trackable) = this@WebPaywallRedeemerTest.track(event)
 
         override fun internallySetSubscriptionStatus(status: SubscriptionStatus) = this@WebPaywallRedeemerTest.setSubscriptionStatus(status)
+
+        override fun setWebEntitlements(entitlements: Set<Entitlement>) = setWebEntitlementsFn(entitlements)
 
         override suspend fun isPaywallVisible(): Boolean = this@WebPaywallRedeemerTest.isPaywallVisible()
 
@@ -239,6 +245,8 @@ class WebPaywallRedeemerTest {
                     )
                 } returns Either.Success(response)
 
+                val published = java.util.concurrent.CopyOnWriteArrayList<Set<Entitlement>>()
+
                 When("creating redeemer and advancing scheduler") {
                     redeemer =
                         WebPaywallRedeemer(
@@ -248,7 +256,7 @@ class WebPaywallRedeemerTest {
                             network,
                             storage,
                             customerInfoManager = mockk(relaxed = true),
-                            factory = TestFactory(),
+                            factory = TestFactory(setWebEntitlementsFn = { published.add(it) }),
                         )
                     testScheduler.advanceUntilIdle()
 
@@ -256,8 +264,13 @@ class WebPaywallRedeemerTest {
                         verify(exactly = 1) {
                             storage.write(LatestRedemptionResponse, response)
                         }
-                        println(mutableEntitlements)
                         assert(mutableEntitlements == setOf(webEntitlement, normalEntitlement))
+                    }
+
+                    And("it publishes exactly the web entitlements it persisted") {
+                        // Polling also runs, but storage holds no redemption response in this
+                        // mock, so it must not publish entitlements it cannot persist.
+                        assertEquals(listOf(setOf(webEntitlement)), published.toList())
                     }
                 }
             }
@@ -926,4 +939,85 @@ class WebPaywallRedeemerTest {
                 }
             }
         }
+
+    @Test
+    fun `user switch clears web entitlements in Entitlements through the factory`() {
+        Given("user A's web redemption is stored and restored into Entitlements on start") {
+            val userAWeb = Entitlement("userA_web", isActive = true)
+            val userAResponse =
+                WebRedemptionResponse(
+                    codes =
+                        listOf(
+                            RedemptionResult.Success(
+                                code = "userA_code",
+                                redemptionInfo =
+                                    RedemptionInfo(
+                                        ownership = RedemptionOwnership.AppUser(appUserId = "userA"),
+                                        purchaserInfo =
+                                            PurchaserInfo(
+                                                "userA",
+                                                email = null,
+                                                storeIdentifiers = StoreIdentifiers.Stripe("123", emptyList()),
+                                            ),
+                                        entitlements = listOf(userAWeb),
+                                    ),
+                            ),
+                        ),
+                    customerInfo =
+                        CustomerInfo(
+                            subscriptions = emptyList(),
+                            nonSubscriptions = emptyList(),
+                            userId = "userA",
+                            entitlements = listOf(userAWeb),
+                            isPlaceholder = false,
+                        ),
+                )
+            val storage =
+                object : Storage {
+                    val values = mutableMapOf<String, Any>()
+
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T> read(storable: Storable<T>): T? = values[storable.key] as T?
+
+                    override fun <T : Any> write(
+                        storable: Storable<T>,
+                        data: T,
+                    ) {
+                        values[storable.key] = data
+                    }
+
+                    override fun <T : Any> delete(storable: Storable<T>) {
+                        values.remove(storable.key)
+                    }
+
+                    override fun clean() = values.clear()
+                }
+            storage.write(LatestRedemptionResponse, userAResponse)
+
+            val entitlementsScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined)
+            val entitlements = com.superwall.sdk.store.makeEntitlements(storage, entitlementsScope)
+            // Wire the redeemer to Entitlements the way DependencyContainer.setWebEntitlements does.
+            redeemer =
+                WebPaywallRedeemer(
+                    context,
+                    IOScope(testDispatcher),
+                    deepLinkReferrer,
+                    network,
+                    storage,
+                    customerInfoManager = mockk(relaxed = true),
+                    factory = TestFactory(setWebEntitlementsFn = { entitlements.setWebEntitlements(it) }),
+                )
+            assertEquals(setOf(userAWeb), entitlements.web)
+
+            When("Superwall.reset wipes storage and then clears the user's redemptions") {
+                storage.clean()
+                redeemer.clear(RedemptionOwnershipType.AppUser)
+
+                Then("user A's web entitlements are gone from Entitlements") {
+                    assertEquals(emptySet<Entitlement>(), entitlements.web)
+                    assertTrue(entitlements.active.none { it.id == "userA_web" })
+                }
+            }
+        }
+    }
 }

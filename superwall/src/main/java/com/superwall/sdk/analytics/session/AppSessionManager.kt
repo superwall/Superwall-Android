@@ -6,7 +6,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
-import com.superwall.sdk.config.models.getConfig
+import com.superwall.sdk.config.getConfig
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.UserAttributesEventFactory
 import com.superwall.sdk.misc.IOScope

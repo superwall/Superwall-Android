@@ -924,7 +924,7 @@ internal class DebugViewActivity : AppCompatActivity() {
         ) {
             val key = UUID.randomUUID().toString()
             Superwall.instance.dependencyContainer
-                .makeViewStore()
+                .makeViewRegistry()
                 .storeView(key, view)
 
             val intent =
@@ -962,7 +962,7 @@ internal class DebugViewActivity : AppCompatActivity() {
         }
         val view =
             Superwall.instance.dependencyContainer
-                .makeViewStore()
+                .makeViewRegistry()
                 .retrieveView(key) ?: run {
                 finish() // Close the activity if the view associated with the key is not found
                 return

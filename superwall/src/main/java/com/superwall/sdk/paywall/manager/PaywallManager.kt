@@ -38,13 +38,16 @@ class PaywallManager(
             return _cache!!
         }
 
+    /** Narrow view of the cache for Activities and debug UI. */
+    internal val viewRegistry: PaywallViewRegistry by lazy { cache.asRegistry() }
+
     private fun createCache(): PaywallViewCache {
         val cache: PaywallViewCache = factory.makeCache()
         _cache = cache
         return cache
     }
 
-    fun removePaywallView(identifier: PaywallIdentifier) {
+    suspend fun removePaywallView(identifier: PaywallIdentifier) {
         cache.removePaywallView(identifier)
     }
 

@@ -28,6 +28,7 @@ import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.Assignments
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.customer.CustomerInfoManager
@@ -52,11 +53,11 @@ import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
-import com.superwall.sdk.misc.primitives.DebugInterceptor
 import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.misc.sha256Hex
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
@@ -75,8 +76,10 @@ import com.superwall.sdk.network.SubscriptionService
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.paywall.manager.PaywallCacheState
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.manager.PaywallViewRegistry
 import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.dismiss
@@ -278,7 +281,7 @@ class DependencyContainer(
                 json = json(),
                 _apiKey = apiKey
             )
-        entitlements = Entitlements(storage)
+        entitlements = Entitlements(storage, actorScope = ioScope)
         val options = options ?: SuperwallOptions()
         testMode =
             TestMode(
@@ -295,7 +298,8 @@ class DependencyContainer(
                         else -> "https://superwall.com"
                     }
                 },
-                track = { Superwall.instance.track(it) },
+                tracker = { Superwall.instance.track(it) },
+                ioScope = ioScope,
             )
         testModeTransactionHandler =
             TestModeTransactionHandler(
@@ -463,8 +467,8 @@ class DependencyContainer(
         // actions (fetch, refresh, reset, reevaluate test mode) through a single
         // FIFO queue, so applying a new config can never race with a variant pick.
         val configActor =
-            SequentialActor<com.superwall.sdk.config.ConfigContext, com.superwall.sdk.config.models.ConfigState>(
-                com.superwall.sdk.config.models.ConfigState.None,
+            SequentialActor<com.superwall.sdk.config.ConfigContext, ConfigState>(
+                ConfigState.None,
                 ioScope,
             )
         // DebugInterceptor.install(configActor, name = "Config")
@@ -491,9 +495,6 @@ class DependencyContainer(
                 identityManager = { identityManager },
                 setSubscriptionStatus = { status ->
                     entitlements.setSubscriptionStatus(status)
-                },
-                activateTestMode = { config, justActivated ->
-                    testMode.activate(config, justActivated)
                 },
                 actor = configActor,
             )
@@ -909,6 +910,7 @@ class DependencyContainer(
             activityProvider!!,
             deviceHelper,
             configManager.options.paywalls.loadingColor,
+            actor = SequentialActor(PaywallCacheState(), ioScope),
         )
 
     override fun activePaywallId(): String? =
@@ -1123,6 +1125,12 @@ class DependencyContainer(
     override fun makeViewStore(): ViewStorageViewModel =
         vmProvider[ViewStorageViewModel::class.java]
 
+    /**
+     * The only way Activities and debug UI should reach paywall views, so the
+     * cache and ViewStorage stay in sync. Internal because the registry is.
+     */
+    internal fun makeViewRegistry(): PaywallViewRegistry = paywallManager.viewRegistry
+
     private var _mainScope: MainScope? = null
     private var _ioScope: IOScope? = null
 
@@ -1260,6 +1268,10 @@ class DependencyContainer(
 
     override suspend fun track(event: Trackable) {
         Superwall.instance.track(event)
+    }
+
+    override fun setWebEntitlements(entitlements: Set<Entitlement>) {
+        this.entitlements.setWebEntitlements(entitlements)
     }
 
     override fun internallySetSubscriptionStatus(status: SubscriptionStatus) {
