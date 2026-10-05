@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Nu există nimic de gestionat pentru această achiziție.</string>
     <string name="superwall_customer_center_detail_managed_through">Gestionează acest abonament prin %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Gestionează acest abonament acolo unde l-ai cumpărat.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

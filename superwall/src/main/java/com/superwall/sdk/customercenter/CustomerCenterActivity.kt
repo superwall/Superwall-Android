@@ -87,6 +87,7 @@ class CustomerCenterActivity : AppCompatActivity() {
         }
         session = current
         current.activity.set(this)
+        sessionHost()?.sessionAttached(current)
         detailPurchaseId = savedInstanceState?.getString(STATE_DETAIL_PURCHASE_ID)
         tint =
             CustomerCenterTint.resolve(
@@ -410,7 +411,7 @@ class CustomerCenterActivity : AppCompatActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(14), dp(12), dp(14))
+            setPaddingRelative(dp(16), dp(14), dp(12), dp(14))
             tag = "customer_center.purchase.${purchase.productId ?: purchase.id}"
             addView(column, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             addView(
@@ -421,7 +422,7 @@ class CustomerCenterActivity : AppCompatActivity() {
             )
             if (showsChevron) {
                 addView(
-                    text("›", 22f, secondary = true).apply { setPadding(dp(8), 0, 0, 0) },
+                    text("›", 22f, secondary = true).apply { setPaddingRelative(dp(8), 0, 0, 0) },
                 )
             }
         }
@@ -497,7 +498,7 @@ class CustomerCenterActivity : AppCompatActivity() {
             LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(16), dp(10), dp(8), dp(10))
+                setPaddingRelative(dp(16), dp(10), dp(8), dp(10))
             }
         val labels =
             LinearLayout(this).apply {
@@ -578,7 +579,7 @@ class CustomerCenterActivity : AppCompatActivity() {
             LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(20), dp(8), dp(8), dp(8))
+                setPaddingRelative(dp(20), dp(8), dp(8), dp(8))
             }
         header.addView(
             text(CustomerCenterPathTitles.surveyTitle(survey, path, strings), 18f, bold = true),

@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Nie ma nic do zarządzania w tym zakupie.</string>
     <string name="superwall_customer_center_detail_managed_through">Zarządzaj tą subskrypcją przez %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Zarządzaj tą subskrypcją tam, gdzie ją kupiono.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

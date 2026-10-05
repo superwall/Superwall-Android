@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Der er intet at administrere for dette køb.</string>
     <string name="superwall_customer_center_detail_managed_through">Administrer dette abonnement via %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Administrer dette abonnement dér, hvor du købte det.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

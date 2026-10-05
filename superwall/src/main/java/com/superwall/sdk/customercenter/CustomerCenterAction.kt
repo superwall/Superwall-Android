@@ -70,6 +70,11 @@ sealed class CustomerCenterAction {
  */
 enum class CustomerCenterRefundStatus {
     SUCCESS,
+
+    /**
+     * Not reported on Android, where the SDK can't see the customer back out of Google Play's
+     * page. Kept so a `when` over this enum, and the events it names, match the iOS SDK's.
+     */
     USER_CANCELLED,
     ERROR,
     ;

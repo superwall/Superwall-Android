@@ -49,6 +49,12 @@ class CustomerCenterStringsTest {
                     .listFiles { file -> file.name.startsWith("values-") }!!
                     .mapNotNull { dir -> File(dir, "superwall_customer_center_strings.xml").takeIf { it.exists() } }
             Then("there's a translation for each of the iOS SDK's languages") { assertTrue(translations.size >= 40) }
+            Then("each translates every English key") {
+                for (file in translations) {
+                    val missing = english.keys - strings(file).keys
+                    assertTrue("${file.parentFile.name} is missing $missing", missing.isEmpty())
+                }
+            }
             Then("each only uses known keys, with the same placeholders") {
                 for (file in translations) {
                     strings(file).forEach { (key, value) ->

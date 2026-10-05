@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Tiada apa-apa untuk diurus bagi pembelian ini.</string>
     <string name="superwall_customer_center_detail_managed_through">Urus langganan ini melalui %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Urus langganan ini di tempat anda membelinya.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

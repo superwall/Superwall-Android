@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Não há nada para gerenciar nesta compra.</string>
     <string name="superwall_customer_center_detail_managed_through">Gerencie esta assinatura pelo %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Gerencie esta assinatura onde você a comprou.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

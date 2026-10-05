@@ -1,8 +1,5 @@
 package com.superwall.sdk.analytics.internal.trackable
 
-import com.superwall.sdk.customercenter.CustomerCenterRefundStatus
-import com.superwall.sdk.customercenter.CustomerCenterScreenType
-import com.superwall.sdk.customercenter.CustomerCenterUrls
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.paywall.view.webview.messaging.PageViewData
 import com.superwall.sdk.analytics.superwall.TransactionProduct
@@ -10,6 +7,9 @@ import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.config.options.toMap
+import com.superwall.sdk.customercenter.CustomerCenterRefundStatus
+import com.superwall.sdk.customercenter.CustomerCenterScreenType
+import com.superwall.sdk.customercenter.CustomerCenterUrls
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory

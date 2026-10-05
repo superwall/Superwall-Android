@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">אין מה לנהל ברכישה זו.</string>
     <string name="superwall_customer_center_detail_managed_through">נהלו את המינוי הזה דרך %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">נהלו את המינוי הזה במקום שבו רכשתם אותו.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Tässä ostoksessa ei ole mitään hallittavaa.</string>
     <string name="superwall_customer_center_detail_managed_through">Hallitse tätä tilausta palvelussa %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Hallitse tätä tilausta siellä, mistä ostit sen.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

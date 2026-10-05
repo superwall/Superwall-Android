@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Bu satın alma için yönetilecek bir şey yok.</string>
     <string name="superwall_customer_center_detail_managed_through">Bu aboneliği %1$s üzerinden yönetin.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Bu aboneliği satın aldığınız yerden yönetin.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

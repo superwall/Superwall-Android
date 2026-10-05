@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Tidak ada yang perlu dikelola untuk pembelian ini.</string>
     <string name="superwall_customer_center_detail_managed_through">Kelola langganan ini melalui %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Kelola langganan ini di tempat Anda membelinya.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

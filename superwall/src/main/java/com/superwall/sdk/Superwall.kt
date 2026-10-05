@@ -1,7 +1,5 @@
 package com.superwall.sdk
 
-import com.superwall.sdk.customercenter.CustomerCenterConfiguration
-import com.superwall.sdk.customercenter.CustomerCenterDelegate
 import android.app.Application
 import android.content.ComponentCallbacks2
 import android.content.Context
@@ -21,6 +19,8 @@ import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.customercenter.CustomerCenterConfiguration
+import com.superwall.sdk.customercenter.CustomerCenterDelegate
 import com.superwall.sdk.deeplinks.DeepLinkRouter
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult

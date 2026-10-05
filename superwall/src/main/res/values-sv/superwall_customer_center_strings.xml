@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Det finns inget att hantera för det här köpet.</string>
     <string name="superwall_customer_center_detail_managed_through">Hantera den här prenumerationen via %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Hantera den här prenumerationen där du köpte den.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

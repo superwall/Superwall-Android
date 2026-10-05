@@ -995,12 +995,10 @@ class TransactionManager(
      * Attempt to restore purchases.
      *
      * @param paywallView The paywall view that initiated the restore or null if initiated externally.
-     * @return A [RestorationResult] indicating the result of the restoration.
-     */
-    /**
      * @param presentsFailureAlert When `false`, suppresses the SDK's own restore-failure and
      *   restore-from-web prompts. Used by callers, such as the Customer Center, that present their
      *   own restore-outcome UI.
+     * @return A [RestorationResult] indicating the result of the restoration.
      */
     suspend fun tryToRestorePurchases(
         paywallView: PaywallView?,
@@ -1091,25 +1089,25 @@ class TransactionManager(
                     paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty(),
                 ),
             )
-            if (!presentsFailureAlert) {
-                // The caller shows its own outcome.
-            } else if (webToAppEnabled) {
-                askToRestoreFromWeb()
-            } else {
-                paywallView?.showAlert(
-                    title =
-                        factory
-                            .makeSuperwallOptions()
-                            .paywalls.restoreFailed.title,
-                    message =
-                        factory
-                            .makeSuperwallOptions()
-                            .paywalls.restoreFailed.message,
-                    closeActionTitle =
-                        factory
-                            .makeSuperwallOptions()
-                            .paywalls.restoreFailed.closeButtonTitle,
-                )
+            if (presentsFailureAlert) {
+                if (webToAppEnabled) {
+                    askToRestoreFromWeb()
+                } else {
+                    paywallView?.showAlert(
+                        title =
+                            factory
+                                .makeSuperwallOptions()
+                                .paywalls.restoreFailed.title,
+                        message =
+                            factory
+                                .makeSuperwallOptions()
+                                .paywalls.restoreFailed.message,
+                        closeActionTitle =
+                            factory
+                                .makeSuperwallOptions()
+                                .paywalls.restoreFailed.closeButtonTitle,
+                    )
+                }
             }
         }
         return restorationResult

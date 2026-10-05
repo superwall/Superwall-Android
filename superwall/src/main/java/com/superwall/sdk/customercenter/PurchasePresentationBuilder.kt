@@ -33,7 +33,7 @@ internal class PurchasePresentationBuilder(
             (customerInfo.subscriptions.map { it.productId } + customerInfo.nonSubscriptions.map { it.productId }).toSet()
         val entitlementOnly =
             customerInfo.entitlements
-                .filter { it.isActive && it.productIds.none(knownProductIds::contains) }
+                .filter { it.isActive && it.linkedProductIds.none(knownProductIds::contains) }
                 .map(::entitlementPresentation)
         return (subs + nonSubs + entitlementOnly).map { purchase ->
             purchase.copy(isAwaitingCatalogue = purchase.productId?.let(awaitingCatalogue::contains) ?: false)
@@ -233,12 +233,18 @@ internal class PurchasePresentationBuilder(
     }
 }
 
+/**
+ * The products that unlock this entitlement. [Entitlement.productIds] is only filled in on some
+ * shapes, so the product of the transaction that last unlocked it counts too.
+ */
+internal val Entitlement.linkedProductIds: Set<String>
+    get() = productIds + listOfNotNull(latestProductId)
+
 /** Every entitlement each product unlocks, as the customer's entitlements describe it. */
 internal fun CustomerInfo.entitlementsByProductId(): Map<String, Set<Entitlement>> {
     val result = mutableMapOf<String, MutableSet<Entitlement>>()
     for (entitlement in entitlements) {
-        val productIds = entitlement.productIds + listOfNotNull(entitlement.latestProductId)
-        for (productId in productIds) {
+        for (productId in entitlement.linkedProductIds) {
             result.getOrPut(productId) { mutableSetOf() }.add(entitlement)
         }
     }

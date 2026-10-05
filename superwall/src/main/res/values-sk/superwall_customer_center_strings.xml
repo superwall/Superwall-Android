@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Pri tomto nákupe nie je čo spravovať.</string>
     <string name="superwall_customer_center_detail_managed_through">Toto predplatné spravujte cez %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Toto predplatné spravujte tam, kde ste ho kúpili.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

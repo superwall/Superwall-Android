@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">이 구매에는 관리할 항목이 없습니다.</string>
     <string name="superwall_customer_center_detail_managed_through">이 구독은 %1$s에서 관리하세요.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">이 구독은 구매한 곳에서 관리하세요.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

@@ -66,4 +66,5 @@
     <string name="superwall_customer_center_detail_nothing_to_manage">Ehhez a vásárláshoz nincs mit kezelni.</string>
     <string name="superwall_customer_center_detail_managed_through">Kezeld ezt az előfizetést itt: %1$s.</string>
     <string name="superwall_customer_center_detail_managed_where_bought">Kezeld ezt az előfizetést ott, ahol megvásároltad.</string>
+    <string name="superwall_customer_center_store_app_store">App Store</string>
 </resources>

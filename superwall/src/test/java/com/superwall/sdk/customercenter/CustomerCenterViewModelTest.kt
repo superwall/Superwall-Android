@@ -414,6 +414,54 @@ class CustomerCenterViewModelTest {
         }
 
     @Test
+    fun `a survey holds the rows until the action it gates has finished`() =
+        Given("a restore path behind a survey, and a restore that doesn't finish") {
+            val survey =
+                CustomerCenterConfiguration.FeedbackSurvey(
+                    id = "why_restore",
+                    options = listOf(CustomerCenterConfiguration.FeedbackSurvey.Option("new_phone")),
+                )
+            val config =
+                CustomerCenterConfiguration.default.copy(
+                    noPurchasesScreen = Screen(paths = listOf(Path.restore(survey = survey))),
+                )
+            val callbacks = CustomerCenterCallbacks(shouldRestore = { kotlinx.coroutines.awaitCancellation() })
+            harness(customerInfo(), configuration = config, callbacks = callbacks) { h ->
+                h.viewModel.load()
+                val restore = h.viewModel.paths(null).single()
+
+                When("restore is tapped") { h.viewModel.onPathTapped(restore, null) }
+                Then("the rows stay busy behind the survey") {
+                    assertEquals(CustomerCenterSheet.Survey(restore.id), h.state().sheet)
+                    assertEquals(restore.id, h.state().busyPathId)
+                }
+
+                When("the survey is answered and restore is tapped again") {
+                    h.viewModel.onSurveyAnswered("new_phone")
+                    h.viewModel.onPathTapped(restore, null)
+                }
+                Then("the second tap is ignored while the first restore runs") {
+                    assertEquals(1, h.events<InternalSuperwallEvent.CustomerCenterAction>().size)
+                    assertEquals(restore.id, h.state().busyPathId)
+                    assertNull(h.state().sheet)
+                }
+            }
+        }
+
+    @Test
+    fun `cancelling a survey frees the rows`() =
+        Given("a survey showing for a tapped path") {
+            harness(customerInfo(subscriptions = listOf(subscription()))) { h ->
+                h.viewModel.load()
+                val purchase = h.state().purchases.single()
+                h.viewModel.screenShown(purchase.id)
+                h.viewModel.onPathTapped(h.viewModel.paths(purchase, false).first { it.id == "manage_subscription" }, purchase)
+                When("the survey is cancelled") { h.viewModel.sheetDismissed() }
+                Then("no row is busy") { assertNull(h.state().busyPathId) }
+            }
+        }
+
+    @Test
     fun `dismissal is reported once`() =
         Given("a presented Customer Center") {
             var dismissals = 0

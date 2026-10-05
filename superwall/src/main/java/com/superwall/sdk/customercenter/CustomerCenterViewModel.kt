@@ -261,7 +261,11 @@ internal class CustomerCenterViewModel(
     fun detailEmptyState(purchase: PurchasePresentation): DetailEmptyState? =
         DetailEmptyStateResolver.resolve(purchase, hasActions = paths(purchase, isScreenLevel = false).isNotEmpty())
 
-    /** Runs the tapped path. Ignored while another path's action is still running. */
+    /**
+     * Runs the tapped path. Ignored while another path's action is still running, which includes
+     * one waiting on its survey: the rows stay disabled behind the survey, and until the action it
+     * gates has finished.
+     */
     fun onPathTapped(
         resolved: ResolvedPath,
         purchase: PurchasePresentation?,
@@ -274,7 +278,8 @@ internal class CustomerCenterViewModel(
             try {
                 select(resolved, purchase, screen)
             } finally {
-                _state.update { it.copy(busyPathId = null) }
+                // A survey now holds the action; answering or cancelling it releases the rows.
+                if (pendingAction == null) _state.update { it.copy(busyPathId = null) }
             }
         }
     }
@@ -312,28 +317,46 @@ internal class CustomerCenterViewModel(
         val survey = pendingSurvey ?: return
         val action = pendingAction ?: return
         val (resolved, purchase) = action
+        val screen = sheetOwner
+        // Taken before anything suspends, so a second answer can't act twice.
+        pendingSurvey = null
+        pendingAction = null
+        _state.update { it.copy(sheet = null, busyPathId = resolved.id) }
+        try {
+            reportSurveyAnswer(survey.second, optionId, resolved, purchase)
+            perform(resolved, purchase, screen)
+        } finally {
+            _state.update { it.copy(busyPathId = null) }
+        }
+    }
+
+    private suspend fun reportSurveyAnswer(
+        survey: CustomerCenterConfiguration.FeedbackSurvey,
+        optionId: String,
+        resolved: ResolvedPath,
+        purchase: PurchasePresentation?,
+    ) {
         val customerCenterAction = CustomerCenterAction.from(resolved.path.type)
-        callbacks.didCompleteSurvey?.invoke(survey.second.id, optionId, customerCenterAction, resolved.path.id)
+        callbacks.didCompleteSurvey?.invoke(survey.id, optionId, customerCenterAction, resolved.path.id)
         dependencies.tracker.track(
             InternalSuperwallEvent.CustomerCenterSurveyResponse(
-                surveyId = survey.second.id,
+                surveyId = survey.id,
                 optionId = optionId,
                 action = customerCenterAction,
                 pathId = resolved.path.id,
                 productId = purchase?.productId,
             ),
         )
-        val screen = sheetOwner
-        pendingSurvey = null
-        pendingAction = null
-        _state.update { it.copy(sheet = null) }
-        perform(resolved, purchase, screen)
     }
 
     fun cancelSurvey() {
+        val wasPending = pendingAction != null
         pendingSurvey = null
         pendingAction = null
-        _state.update { if (it.sheet is CustomerCenterSheet.Survey) it.copy(sheet = null) else it }
+        _state.update {
+            val sheet = if (it.sheet is CustomerCenterSheet.Survey) null else it.sheet
+            it.copy(sheet = sheet, busyPathId = if (wasPending) null else it.busyPathId)
+        }
     }
 
     /** Call when a sheet other than the survey is dismissed. */
@@ -537,6 +560,12 @@ internal class CustomerCenterViewModel(
     // endregion
 
     // region Dismissal
+
+    /** Stops the view model's work without reporting a dismissal, for a presentation that never opened. */
+    fun close() {
+        didDismiss = true
+        scope.cancel()
+    }
 
     /** Call once the Customer Center is gone for good. Only the first call has any effect. */
     fun dismiss() {

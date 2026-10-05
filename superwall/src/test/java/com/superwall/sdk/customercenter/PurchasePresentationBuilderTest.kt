@@ -139,6 +139,21 @@ class PurchasePresentationBuilderTest {
         }
 
     @Test
+    fun `an entitlement linked only by its latest product isn't shown twice`() =
+        Given("an entitlement whose only link to a listed subscription is its latest product") {
+            val info =
+                customerInfo(
+                    subscriptions = listOf(subscription()),
+                    entitlements = listOf(entitlement("pro", latestProductId = "monthly")),
+                )
+            val rows = When("building") { builder.build(info, emptyMap()) }
+            Then("there is one row, for the subscription") {
+                assertEquals(1, rows.size)
+                assertTrue(rows.single().kind is PurchaseKind.Subscription)
+            }
+        }
+
+    @Test
     fun `one-off purchases each get a row and don't open a detail screen`() =
         Given("two purchases of the same consumable") {
             val info =
