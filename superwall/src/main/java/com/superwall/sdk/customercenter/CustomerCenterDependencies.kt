@@ -22,12 +22,14 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
 import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
 import com.superwall.sdk.store.testmode.models.SuperwallProductsResponse
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.lang.ref.WeakReference
 import java.util.Date
@@ -113,7 +115,7 @@ internal data class CustomerCenterDependencies(
             CustomerCenterDependencies(
                 customerInfo = LiveCustomerInfoProvider(container),
                 products = LiveProductsProvider(container),
-                restore = LiveRestorer,
+                restore = LiveRestorer(container),
                 urlOpener = LiveUrlOpener(container.context, activity),
                 tracker = LiveEventTracker,
                 environment = LiveEnvironment(container, configuration.support.webManagementUrl),
@@ -135,7 +137,9 @@ private class LiveCustomerInfoProvider(
     }
 
     override suspend fun refreshPurchases(): CustomerInfo {
-        container.storeManager.loadPurchasedProducts(container.entitlements.entitlementsByProductId)
+        withContext(container.ioScope().coroutineContext) {
+            container.storeManager.loadPurchasedProducts(container.entitlements.entitlementsByProductId)
+        }
         return fetchCustomerInfo()
     }
 
@@ -157,11 +161,14 @@ private class LiveProductsProvider(
 ) : CustomerCenterProductsProviding {
     override suspend fun products(ids: Set<String>): Map<String, ProductDisplayInfo> {
         if (ids.isEmpty()) return emptyMap()
+        // On the SDK's IO scope, as the view model runs on the main thread: for a product Google
+        // Play doesn't know, this falls back to a request to the Superwall catalogue.
         val fetched =
-            Superwall.instance
-                .getProducts(*ids.toTypedArray())
-                .getOrNull()
-                .orEmpty()
+            withContext(container.ioScope().coroutineContext) {
+                withErrorTracking { container.storeManager.getProductsWithoutPaywall(ids.toList()) }
+                    .getSuccess()
+                    .orEmpty()
+            }
         val resolved =
             ids
                 .mapNotNull { id ->
@@ -181,7 +188,7 @@ private class LiveProductsProvider(
                 CatalogueCache.shared.products {
                     // Bounded deliberately: the cards show placeholders until this answers.
                     withTimeoutOrNull(CATALOGUE_TIMEOUT_MS) {
-                        when (val result = container.network.getSuperwallProducts()) {
+                        when (val result = withContext(container.ioScope().coroutineContext) { container.network.getSuperwallProducts() }) {
                             is Either.Success -> result.value
                             is Either.Failure -> throw result.error
                         }
@@ -310,12 +317,16 @@ internal class CatalogueCache(
     }
 }
 
-private object LiveRestorer : CustomerCenterRestoring {
+private class LiveRestorer(
+    private val container: DependencyContainer,
+) : CustomerCenterRestoring {
     override suspend fun restorePurchases(): RestorationResult =
-        Superwall.instance.dependencyContainer.transactionManager.tryToRestorePurchases(
-            paywallView = null,
-            presentsFailureAlert = false,
-        )
+        withContext(container.ioScope().coroutineContext) {
+            container.transactionManager.tryToRestorePurchases(
+                paywallView = null,
+                presentsFailureAlert = false,
+            )
+        }
 }
 
 private class LiveUrlOpener(
@@ -375,9 +386,7 @@ private class LiveEnvironment(
         get() = WebManagementUrlResolver.resolve(webManagementOverride, container.restoreUrl())
     override val originalDownloadDate: Date? get() = container.deviceHelper.appInstallDateValue
     override val locale: Locale
-        get() =
-            container.context.resources.configuration.locales
-                .get(0) ?: Locale.getDefault()
+        get() = container.context.primaryLocale()
 }
 
 // endregion

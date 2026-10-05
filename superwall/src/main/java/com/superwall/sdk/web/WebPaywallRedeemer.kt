@@ -502,7 +502,7 @@ class WebPaywallRedeemer(
      * next poll is too far off.
      */
     suspend fun refreshWebEntitlements() {
-        withContext(Dispatchers.IO) {
+        withContext(ioScope.coroutineContext) {
             checkForWebEntitlements(factory.getUserId(), factory.getDeviceId())
                 .fold(
                     onFailure = {

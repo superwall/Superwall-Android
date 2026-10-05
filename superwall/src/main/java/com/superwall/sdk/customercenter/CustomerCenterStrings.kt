@@ -1,6 +1,7 @@
 package com.superwall.sdk.customercenter
 
 import android.content.Context
+import androidx.core.os.ConfigurationCompat
 import com.superwall.sdk.R
 import java.util.Locale
 
@@ -29,9 +30,7 @@ internal class CustomerCenterStrings(
          * declaring a string of the same name. Falls back to English, then the key.
          */
         fun bundled(context: Context): CustomerCenterStrings {
-            val locale =
-                context.resources.configuration.locales
-                    .get(0) ?: Locale.getDefault()
+            val locale = context.primaryLocale()
             return CustomerCenterStrings(locale) { key ->
                 val id = resourceIds[key]
                 val value = id?.let { runCatching { context.getString(it) }.getOrNull() }
@@ -184,3 +183,9 @@ internal class CustomerCenterStrings(
             )
     }
 }
+
+/**
+ * The first of the user's preferred locales. Read through [ConfigurationCompat], as
+ * `Configuration.getLocales()` only exists from API 24 and the SDK supports API 23.
+ */
+internal fun Context.primaryLocale(): Locale = ConfigurationCompat.getLocales(resources.configuration)[0] ?: Locale.getDefault()
