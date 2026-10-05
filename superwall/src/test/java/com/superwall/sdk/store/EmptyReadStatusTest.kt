@@ -381,4 +381,113 @@ class EmptyReadStatusTest {
             }
         }
     }
+
+    // The status carries config-shaped entitlements: no product ids, no store,
+    // no expiry. The device records hold full config ids, and Play reports raw
+    // ones, so these exercise both namespaces as they meet in production.
+    private fun configShaped(id: String) = Entitlement(id = id, isActive = true)
+
+    private fun deviceRecord(
+        id: String,
+        fullProductId: String,
+        expiresAt: Date? = tomorrow,
+    ) = entitlement(id, productIds = setOf(fullProductId), expiresAt = expiresAt)
+
+    @Test
+    fun `a mapping failure keeps a config-shaped entitlement whose purchase is still active`() {
+        Given("a config-shaped entitlement backed by a device record with a full product id") {
+            val current = SubscriptionStatus.Active(setOf(configShaped("pro")))
+            val records = setOf(deviceRecord("pro", "pro_sub:monthly:sw-auto"))
+
+            When("the read returns the raw Play id but produces no entitlements") {
+                val result =
+                    resolveStatusForEmptyRead(
+                        currentStatus = current,
+                        deviceRecords = records,
+                        activeProductIds = setOf("pro_sub"),
+                        readReturnedPurchases = true,
+                        readFailed = false,
+                        now = now,
+                    )
+
+                Then("the raw and full ids line up and the subscriber stays active") {
+                    assertEquals(setOf("pro"), activeIds(result))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a config-shaped entitlement whose purchase is gone is refuted`() {
+        Given("a config-shaped entitlement backed by a device record with a full product id") {
+            val current = SubscriptionStatus.Active(setOf(configShaped("pro")))
+            val records = setOf(deviceRecord("pro", "pro_sub:monthly:sw-auto"))
+
+            When("the read returns only an unrelated purchase") {
+                val result =
+                    resolveStatusForEmptyRead(
+                        currentStatus = current,
+                        deviceRecords = records,
+                        activeProductIds = setOf("something_else"),
+                        readReturnedPurchases = true,
+                        readFailed = false,
+                        now = now,
+                    )
+
+                Then("the read answered for it and it goes inactive") {
+                    assertEquals(SubscriptionStatus.Inactive, result)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `an entitlement with no known product ids is not refuted`() {
+        Given("a dated Play entitlement nothing tells us the products of") {
+            val current =
+                SubscriptionStatus.Active(setOf(entitlement("pro", productIds = emptySet())))
+
+            When("the read returns an unrelated purchase and no entitlements") {
+                val result =
+                    resolveStatusForEmptyRead(
+                        currentStatus = current,
+                        deviceRecords = emptySet(),
+                        activeProductIds = setOf("something_else"),
+                        readReturnedPurchases = true,
+                        readFailed = false,
+                        now = now,
+                    )
+
+                Then("not knowing what unlocks it is not an answer, so it stays") {
+                    assertEquals(setOf("pro"), activeIds(result))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `an inactive entitlement does not ride along with one that holds`() {
+        Given("a live subscription next to an entitlement flagged inactive") {
+            val current =
+                SubscriptionStatus.Active(
+                    setOf(entitlement("live"), entitlement("stale", isActive = false)),
+                )
+
+            When("the read fails") {
+                val result =
+                    resolveStatusForEmptyRead(
+                        currentStatus = current,
+                        deviceRecords = emptySet(),
+                        activeProductIds = emptySet(),
+                        readReturnedPurchases = false,
+                        readFailed = true,
+                        now = now,
+                    )
+
+                Then("only the active one is published") {
+                    assertEquals(setOf("live"), activeIds(result))
+                }
+            }
+        }
+    }
 }

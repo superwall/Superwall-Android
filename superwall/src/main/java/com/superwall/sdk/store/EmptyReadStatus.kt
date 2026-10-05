@@ -1,5 +1,6 @@
 package com.superwall.sdk.store
 
+import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.product.Store
@@ -33,6 +34,18 @@ import java.util.Date
  * read refuted is dropped, and one whose expiry is already behind us is
  * dropped as well, because time passing needs no read to confirm it.
  *
+ * Requiring an expiry date to hold the status means some subscribers are
+ * still demoted by a non-answer: lifetime unlocks, and any entitlement whose
+ * device record has no date because product details couldn't be fetched when
+ * the receipts were last processed. Holding those up would have nothing to
+ * bound it, so they keep the old behaviour.
+ *
+ * The expiry is checked against the device clock, so a held-up status ends
+ * when local time passes the entitlement's expiry date, not when Play next
+ * answers. A billing client that never becomes ready keeps the status held
+ * until then. That is the same trade-off iOS makes, and the first read that
+ * does answer still demotes straight away.
+ *
  * Web entitlements are merged back in from the redeem cache by
  * `Superwall.internallySetSubscriptionStatus`, which is authoritative for
  * them, so a lapsed web record comes straight back until the web poll says
@@ -42,8 +55,8 @@ import java.util.Date
  * @param deviceRecords The entitlements from the stored device
  * `CustomerInfo`. The status carries config-shaped entitlements, which have
  * no expiry date and often no store, so the dates come from here.
- * @param activeProductIds The product ids of the purchases the read reported
- * as purchased.
+ * @param activeProductIds The raw Play product ids of the purchases the read
+ * reported as purchased.
  * @param readReturnedPurchases Whether the read came back with any purchases
  * at all.
  * @param readFailed Whether either query failed after its retries.
@@ -73,6 +86,15 @@ internal fun resolveStatusForEmptyRead(
 
     fun storeOf(entitlement: Entitlement): Store? = entitlement.store ?: recordsById[entitlement.id]?.store
 
+    // Config-shaped entitlements carry no product ids, and the device records
+    // hold full config ids (`sub:basePlan:offer`). Play reports raw product
+    // ids, so compare on the subscription id.
+    fun productIdsOf(entitlement: Entitlement): Set<String> =
+        entitlement.productIds
+            .ifEmpty { recordsById[entitlement.id]?.productIds.orEmpty() }
+            .map { DecomposedProductIds.from(it).subscriptionId }
+            .toSet()
+
     fun isLapsed(entitlement: Entitlement): Boolean {
         val expiresAt = expiryOf(entitlement) ?: return false
         return !expiresAt.after(now)
@@ -85,9 +107,15 @@ internal fun resolveStatusForEmptyRead(
         if (readFailed || storeOf(entitlement) != Store.PLAY_STORE) {
             return false
         }
+        // Not knowing what unlocks an entitlement is not the same as the read
+        // saying nothing does, so leave it alone.
+        val productIds = productIdsOf(entitlement)
+        if (productIds.isEmpty()) {
+            return false
+        }
         // A still-purchased product that unlocks this entitlement means the
         // empty entitlement set is a mapping failure rather than an answer.
-        return entitlement.productIds.none { it in activeProductIds }
+        return productIds.none { it in activeProductIds }
     }
 
     val holdsStatus =
@@ -100,6 +128,11 @@ internal fun resolveStatusForEmptyRead(
 
     // The entitlement that holds the status always survives, so this is never
     // empty.
-    val survivors = currentStatus.entitlements.filterNot { isRefuted(it) || isLapsed(it) }.toSet()
+    // An entitlement already flagged inactive isn't carried into an Active
+    // status, matching the path where the read does produce entitlements.
+    val survivors =
+        currentStatus.entitlements
+            .filter { it.isActive && !isRefuted(it) && !isLapsed(it) }
+            .toSet()
     return SubscriptionStatus.Active(survivors)
 }

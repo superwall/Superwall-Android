@@ -27,6 +27,7 @@ import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.models.customer.toSet
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.product.Store
 import com.superwall.sdk.storage.LatestDeviceCustomerInfo
 import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
@@ -74,6 +75,7 @@ class AutomaticPurchaseController(
                 logLevel = LogLevel.error,
                 scope = LogScope.nativePurchaseController,
                 message = "Unable to read the stored device entitlements.",
+                error = e,
             )
             emptySet()
         }
@@ -507,10 +509,11 @@ class AutomaticPurchaseController(
         readReturnedPurchases: Boolean,
         readFailed: Boolean,
     ): SubscriptionStatus {
+        val deviceRecords = deviceEntitlementRecords()
         val resolved =
             resolveStatusForEmptyRead(
                 currentStatus = entitlementsInfo().status.value,
-                deviceRecords = deviceEntitlementRecords(),
+                deviceRecords = deviceRecords,
                 activeProductIds = activeProductIds,
                 readReturnedPurchases = readReturnedPurchases,
                 readFailed = readFailed,
@@ -518,8 +521,25 @@ class AutomaticPurchaseController(
 
         // Keep the device view in step with the status we are about to publish,
         // or `Entitlements.active` would go on serving whatever we just dropped.
+        // Only Play entitlements belong here: web ones live in `Entitlements.web`,
+        // and `WebPaywallRedeemer.clear()` relies on this set holding none.
+        // A config-shaped entitlement with no store and no device record is
+        // still a device one unless the web set claims it.
+        val storeById = deviceRecords.associate { it.id to it.store }
+        val webIds = entitlementsInfo().web.map { it.id }.toSet()
         entitlementsInfo().activeDeviceEntitlements =
-            if (resolved is SubscriptionStatus.Active) resolved.entitlements else emptySet()
+            if (resolved is SubscriptionStatus.Active) {
+                resolved.entitlements
+                    .filter {
+                        when (it.store ?: storeById[it.id]) {
+                            Store.PLAY_STORE -> true
+                            null -> it.id !in webIds
+                            else -> false
+                        }
+                    }.toSet()
+            } else {
+                emptySet()
+            }
 
         if (resolved is SubscriptionStatus.Active) {
             Logger.debug(
