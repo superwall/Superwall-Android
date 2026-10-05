@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.8.5
+
+## Fixes
+- Fix subscribers with an unexpired subscription being reported as inactive when Google Play fails to answer a purchase query, for example when the billing client isn't ready at launch. A query that succeeds and reports no purchases still deactivates straight away.
+- Fix subscribers being reported as inactive when Google Play returns an active purchase whose product no longer maps to an entitlement in config. A lost mapping is no longer treated as the subscription ending.
+
 ## 2.8.4
 
 ## Fixes
