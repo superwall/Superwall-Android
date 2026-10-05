@@ -168,14 +168,23 @@ internal object CustomerCenterPathResolver {
 }
 
 internal object PlayStoreLinks {
+    /** Google Play's list of the customer's subscriptions. */
+    const val SUBSCRIPTIONS = "https://play.google.com/store/account/subscriptions"
+
     /**
      * Google Play's page for one subscription. Play identifies the subscription by its product
-     * id, without any base plan or offer the SDK's full identifier carries.
+     * id, without any base plan or offer the SDK's full identifier carries. Without a product id
+     * or package, a deep link would open on no subscription, so this falls back to the list of
+     * the customer's subscriptions.
      */
     fun subscription(
         productId: String,
         packageName: String,
-    ): String = "https://play.google.com/store/account/subscriptions?sku=${productId.substringBefore(':')}&package=$packageName"
+    ): String {
+        val sku = productId.substringBefore(':').trim()
+        if (sku.isEmpty() || packageName.isBlank()) return SUBSCRIPTIONS
+        return "$SUBSCRIPTIONS?sku=$sku&package=$packageName"
+    }
 
     /** Where Google Play takes refund requests. */
     const val ORDER_HISTORY = "https://play.google.com/store/account/orderhistory"

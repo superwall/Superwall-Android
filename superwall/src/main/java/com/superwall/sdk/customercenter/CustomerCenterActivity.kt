@@ -233,6 +233,8 @@ class CustomerCenterActivity : AppCompatActivity() {
             // a detail screen for nothing.
             detailPurchaseId = null
         }
+        // Before the sheet renders, so a sheet that left with its detail screen isn't shown.
+        viewModel.screenShown(detailPurchaseId)
         backCallback.isEnabled = detail != null
         renderToolbar(state, detail)
 
@@ -244,7 +246,7 @@ class CustomerCenterActivity : AppCompatActivity() {
             else -> renderNoPurchases(state)
         }
 
-        renderSheet(state.sheet)
+        renderSheet(viewModel.state.value.sheet)
         renderRestoreResult(state.restoreState)
     }
 

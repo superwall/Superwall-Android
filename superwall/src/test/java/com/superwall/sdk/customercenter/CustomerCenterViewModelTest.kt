@@ -174,6 +174,85 @@ class CustomerCenterViewModelTest {
         }
 
     @Test
+    fun `a survey leaves with the detail screen that asked for it`() =
+        Given("a survey asked for on a subscription's detail screen") {
+            harness(customerInfo(subscriptions = listOf(subscription()))) { h ->
+                h.viewModel.load()
+                val purchase = h.state().purchases.single()
+                h.viewModel.screenShown(purchase.id)
+                h.viewModel.select(h.viewModel.paths(purchase, false).first { it.id == "manage_subscription" }, purchase)
+
+                When("the detail screen leaves the stack") { h.viewModel.screenShown(null) }
+                Then("the survey goes with it and answering it later does nothing") {
+                    assertNull(h.state().sheet)
+                    assertNull(h.viewModel.pendingSurvey)
+                    h.viewModel.answerSurvey("too_expensive")
+                    assertTrue(h.opener.opened.isEmpty())
+                    assertTrue(h.events<InternalSuperwallEvent.CustomerCenterSurveyResponse>().isEmpty())
+                }
+            }
+        }
+
+    @Test
+    fun `a sheet asked for after its screen has gone is dropped`() =
+        Given("a path tapped on a detail screen the customer has since left") {
+            harness(customerInfo(subscriptions = listOf(subscription()))) { h ->
+                h.viewModel.load()
+                val purchase = h.state().purchases.single()
+                val manage = h.viewModel.paths(purchase, false).first { it.id == "manage_subscription" }
+                h.viewModel.screenShown(purchase.id)
+                h.viewModel.screenShown(null)
+
+                When("its action asks for the survey") { h.viewModel.select(manage, purchase, screen = purchase.id) }
+                Then("no survey shows over the root and nothing opens") {
+                    assertNull(h.state().sheet)
+                    assertNull(h.viewModel.pendingSurvey)
+                    assertTrue(h.opener.opened.isEmpty())
+                }
+            }
+        }
+
+    @Test
+    fun `a root sheet stays while a detail screen covers it`() =
+        Given("a sheet asked for on the root screen") {
+            val config = CustomerCenterConfiguration.default.copy(support = Support(email = "help@app.com"))
+            harness(customerInfo(subscriptions = listOf(subscription())), configuration = config) { h ->
+                h.viewModel.load()
+                h.opener.opens = false
+                h.viewModel.contactSupport()
+                val purchase = h.state().purchases.single()
+
+                When("a detail screen opens and closes") {
+                    h.viewModel.screenShown(purchase.id)
+                    h.viewModel.screenShown(null)
+                }
+                Then("the sheet is still there") {
+                    assertEquals(CustomerCenterSheet.NoMailApp("help@app.com"), h.state().sheet)
+                }
+            }
+        }
+
+    @Test
+    fun `a screen keeps its survey through a customer info update`() =
+        Given("a survey showing on a subscription's detail screen") {
+            harness(customerInfo(subscriptions = listOf(subscription()))) { h ->
+                h.viewModel.load()
+                val purchase = h.state().purchases.single()
+                h.viewModel.screenShown(purchase.id)
+                h.viewModel.select(h.viewModel.paths(purchase, false).first { it.id == "manage_subscription" }, purchase)
+
+                When("customer info updates with the same subscription") {
+                    h.customerInfo.updates.emit(customerInfo(subscriptions = listOf(subscription())))
+                }
+                Then("the survey is still showing and still acts when answered") {
+                    assertEquals(CustomerCenterSheet.Survey("manage_subscription"), h.state().sheet)
+                    h.viewModel.answerSurvey("too_expensive")
+                    assertEquals(1, h.opener.opened.size)
+                }
+            }
+        }
+
+    @Test
     fun `restore can be vetoed`() =
         Given("a host that declines restores") {
             harness(customerInfo(), callbacks = CustomerCenterCallbacks(shouldRestore = { false })) { h ->

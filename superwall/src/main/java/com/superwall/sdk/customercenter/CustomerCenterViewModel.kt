@@ -119,6 +119,15 @@ internal class CustomerCenterViewModel(
         private set
     private var pendingAction: Pair<ResolvedPath, PurchasePresentation?>? = null
 
+    /** The purchase whose detail screen is on top, or `null` for the root screen. */
+    private var visibleScreen: String? = null
+
+    /**
+     * The detail screen that asked for the current sheet, or `null` when the root did. A sheet
+     * leaves with its screen, rather than moving to whatever is on top once that screen has gone.
+     */
+    private var sheetOwner: String? = null
+
     val userId: String get() = dependencies.environment.userId
     val originalDownloadDate get() = dependencies.environment.originalDownloadDate
     val locale get() = dependencies.environment.locale
@@ -259,18 +268,25 @@ internal class CustomerCenterViewModel(
     ) {
         if (_state.value.busyPathId != null) return
         _state.update { it.copy(busyPathId = resolved.id) }
+        // Captured now: by the time the action asks for a sheet, the customer may have gone back.
+        val screen = visibleScreen
         scope.launch {
             try {
-                select(resolved, purchase)
+                select(resolved, purchase, screen)
             } finally {
                 _state.update { it.copy(busyPathId = null) }
             }
         }
     }
 
+    /**
+     * @param screen The screen the path was tapped on: the purchase whose detail screen it was,
+     *   or `null` for the root.
+     */
     suspend fun select(
         resolved: ResolvedPath,
         purchase: PurchasePresentation?,
+        screen: String? = visibleScreen,
     ) {
         val action = CustomerCenterAction.from(resolved.path.type)
         callbacks.didSelectAction?.invoke(action, resolved.path.id, purchase?.publicPurchase)
@@ -279,12 +295,13 @@ internal class CustomerCenterViewModel(
         )
         val survey = resolved.path.survey
         if (survey != null && survey.options.isNotEmpty() && !resolved.destination.isWebManagement) {
+            if (!isOnStack(screen)) return
             pendingSurvey = resolved.path to survey
             pendingAction = resolved to purchase
-            _state.update { it.copy(sheet = CustomerCenterSheet.Survey(resolved.path.id)) }
+            showSheet(CustomerCenterSheet.Survey(resolved.path.id), screen)
             return
         }
-        perform(resolved, purchase)
+        perform(resolved, purchase, screen)
     }
 
     fun onSurveyAnswered(optionId: String) {
@@ -306,10 +323,11 @@ internal class CustomerCenterViewModel(
                 productId = purchase?.productId,
             ),
         )
+        val screen = sheetOwner
         pendingSurvey = null
         pendingAction = null
         _state.update { it.copy(sheet = null) }
-        perform(resolved, purchase)
+        perform(resolved, purchase, screen)
     }
 
     fun cancelSurvey() {
@@ -330,6 +348,7 @@ internal class CustomerCenterViewModel(
     private suspend fun perform(
         resolved: ResolvedPath,
         purchase: PurchasePresentation?,
+        screen: String?,
     ) {
         val opener = dependencies.urlOpener
         val packageName = dependencies.environment.packageName
@@ -344,8 +363,7 @@ internal class CustomerCenterViewModel(
             is ResolvedPathDestination.WebManage -> {
                 refreshesOnResume = opener.open(destination.url, inApp = true)
             }
-            ResolvedPathDestination.WebManageUnavailable ->
-                _state.update { it.copy(sheet = CustomerCenterSheet.WebManageUnavailable) }
+            ResolvedPathDestination.WebManageUnavailable -> showSheet(CustomerCenterSheet.WebManageUnavailable, screen)
             is ResolvedPathDestination.Refund -> {
                 val opened = opener.open(PlayStoreLinks.ORDER_HISTORY)
                 refreshesOnResume = opened
@@ -354,9 +372,54 @@ internal class CustomerCenterViewModel(
                     if (opened) CustomerCenterRefundStatus.SUCCESS else CustomerCenterRefundStatus.ERROR,
                 )
             }
-            ResolvedPathDestination.ContactSupport -> contactSupport()
+            ResolvedPathDestination.ContactSupport -> contactSupport(screen)
             is ResolvedPathDestination.Url -> opener.open(destination.url, inApp = destination.inApp)
             is ResolvedPathDestination.Custom -> Unit
+        }
+    }
+
+    // endregion
+
+    // region Screens
+
+    /**
+     * Call whenever the Customer Center's screen changes.
+     * @param purchaseId The purchase whose detail screen is now on top, or `null` for the root.
+     */
+    fun screenShown(purchaseId: String?) {
+        if (visibleScreen == purchaseId) return
+        val left = visibleScreen
+        visibleScreen = purchaseId
+        // Only a detail screen can leave the stack: the root stays underneath it.
+        if (left != null && sheetOwner == left && _state.value.sheet != null) abandonSheet()
+    }
+
+    /** Whether [screen] is still on the stack: the root always is, a detail screen while it's on top. */
+    private fun isOnStack(screen: String?): Boolean = screen == null || screen == visibleScreen
+
+    /** Shows [sheet] for [screen], unless that screen has left the stack while the action ran. */
+    private fun showSheet(
+        sheet: CustomerCenterSheet,
+        screen: String?,
+    ) {
+        if (!isOnStack(screen)) {
+            if (sheet is CustomerCenterSheet.Survey) cancelSurvey()
+            return
+        }
+        sheetOwner = screen
+        _state.update { it.copy(sheet = sheet) }
+    }
+
+    /**
+     * Drops a sheet whose screen has left the stack, say because its purchase went away in a
+     * refresh, along with what asking for it set up. Left in place, a survey's answer would still
+     * act on a purchase the customer can no longer see.
+     */
+    private fun abandonSheet() {
+        if (_state.value.sheet is CustomerCenterSheet.Survey) {
+            cancelSurvey()
+        } else {
+            _state.update { it.copy(sheet = null) }
         }
     }
 
@@ -464,10 +527,10 @@ internal class CustomerCenterViewModel(
      * happens here at tap time: when nothing can take the email, the address is shown instead so
      * the user can still reach support manually.
      */
-    fun contactSupport() {
+    fun contactSupport(screen: String? = visibleScreen) {
         val url = supportMailtoUrl ?: return
         if (!dependencies.urlOpener.open(url)) {
-            _state.update { it.copy(sheet = CustomerCenterSheet.NoMailApp(configuration.support.email.orEmpty().trim())) }
+            showSheet(CustomerCenterSheet.NoMailApp(configuration.support.email.orEmpty().trim()), screen)
         }
     }
 

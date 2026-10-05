@@ -215,4 +215,20 @@ class CustomerCenterPathResolverTest {
                 assertNull(DetailEmptyStateResolver.resolve(appStore, hasActions = true))
             }
         }
+
+    @Test
+    fun `a Play subscription link without a product opens the subscription list`() =
+        Given("a subscription with no product id") {
+            Then("the link falls back to the list of subscriptions") {
+                assertEquals(PlayStoreLinks.SUBSCRIPTIONS, PlayStoreLinks.subscription("", "com.example.app"))
+                assertEquals(PlayStoreLinks.SUBSCRIPTIONS, PlayStoreLinks.subscription(":base", "com.example.app"))
+                assertEquals(PlayStoreLinks.SUBSCRIPTIONS, PlayStoreLinks.subscription("monthly", ""))
+            }
+            Then("a product id still deep links to its page") {
+                assertEquals(
+                    "https://play.google.com/store/account/subscriptions?sku=monthly&package=com.example.app",
+                    PlayStoreLinks.subscription("monthly:base", "com.example.app"),
+                )
+            }
+        }
 }
