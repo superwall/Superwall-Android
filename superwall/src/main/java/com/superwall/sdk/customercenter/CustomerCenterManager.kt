@@ -1,5 +1,6 @@
 package com.superwall.sdk.customercenter
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -38,6 +39,8 @@ internal class CustomerCenterManager(
     private val postDelayed: (delayMillis: Long, action: () -> Unit) -> Unit = { delayMillis, action ->
         Handler(Looper.getMainLooper()).postDelayed(action, delayMillis)
     },
+    private val makeDependencies: (CustomerCenterConfiguration, activity: () -> Activity?) -> CustomerCenterDependencies =
+        { configuration, activity -> CustomerCenterDependencies.live(container, configuration, activity) },
 ) : CustomerCenterSessionHost {
     internal class Session(
         val viewModel: CustomerCenterViewModel,
@@ -81,7 +84,7 @@ internal class CustomerCenterManager(
         val viewModel =
             CustomerCenterViewModel(
                 configuration = resolved,
-                dependencies = CustomerCenterDependencies.live(container, resolved, activityReference::get),
+                dependencies = makeDependencies(resolved, activityReference::get),
                 strings = CustomerCenterStrings.bundled(context),
                 scope = MainScope(Dispatchers.Main.immediate),
                 callbacks = CustomerCenterCallbacks.from(delegate),

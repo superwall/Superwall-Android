@@ -43,6 +43,13 @@ internal interface CustomerCenterCustomerInfoProviding {
      */
     suspend fun refreshPurchases(): CustomerInfo
 
+    /**
+     * Reloads web purchases from Superwall before returning customer info. Use after the customer
+     * comes back from a web management page, where the next scheduled check can be a day away.
+     * The merged result can land after this returns; [updates] delivers it.
+     */
+    suspend fun refreshWebPurchases(): CustomerInfo
+
     /** Customer info as it changes, not including the current value. */
     val updates: Flow<CustomerInfo>
 }
@@ -129,6 +136,11 @@ private class LiveCustomerInfoProvider(
 
     override suspend fun refreshPurchases(): CustomerInfo {
         container.storeManager.loadPurchasedProducts(container.entitlements.entitlementsByProductId)
+        return fetchCustomerInfo()
+    }
+
+    override suspend fun refreshWebPurchases(): CustomerInfo {
+        container.reedemer.refreshWebEntitlements()
         return fetchCustomerInfo()
     }
 

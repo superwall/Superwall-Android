@@ -2,8 +2,12 @@ package com.superwall.sdk.customercenter
 
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.product.Store
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -107,10 +111,10 @@ internal class CustomerCenterViewModel(
     private var updateWarningDismissed = false
 
     /**
-     * Set when the customer is sent to a store page. Google Play doesn't tell the app about
-     * changes made there, so purchases are reloaded when they come back.
+     * Set when the customer is sent to a store or web management page. Neither tells the app about
+     * changes made there, so purchases are reloaded from the same place when they come back.
      */
-    private var refreshesOnResume = false
+    private var refreshOnResume: PurchaseSource? = null
 
     /** Active entitlement identifiers from the latest [CustomerInfo], for support diagnostics. */
     private var activeEntitlementIds: List<String> = emptyList()
@@ -378,18 +382,18 @@ internal class CustomerCenterViewModel(
         when (val destination = resolved.destination) {
             ResolvedPathDestination.Restore -> performRestore()
             is ResolvedPathDestination.PlayStoreManage -> {
-                refreshesOnResume = opener.open(PlayStoreLinks.subscription(destination.productId, packageName))
+                refreshOnResume = PurchaseSource.PLAY_STORE.takeIf { opener.open(PlayStoreLinks.subscription(destination.productId, packageName)) }
             }
             is ResolvedPathDestination.ChangePlan -> {
-                refreshesOnResume = opener.open(PlayStoreLinks.subscription(destination.productId, packageName))
+                refreshOnResume = PurchaseSource.PLAY_STORE.takeIf { opener.open(PlayStoreLinks.subscription(destination.productId, packageName)) }
             }
             is ResolvedPathDestination.WebManage -> {
-                refreshesOnResume = opener.open(destination.url, inApp = true)
+                refreshOnResume = PurchaseSource.WEB.takeIf { opener.open(destination.url, inApp = true) }
             }
             ResolvedPathDestination.WebManageUnavailable -> showSheet(CustomerCenterSheet.WebManageUnavailable, screen)
             is ResolvedPathDestination.Refund -> {
                 val opened = opener.open(PlayStoreLinks.ORDER_HISTORY)
-                refreshesOnResume = opened
+                refreshOnResume = PurchaseSource.PLAY_STORE.takeIf { opened }
                 refundDidFinish(
                     destination.productId,
                     if (opened) CustomerCenterRefundStatus.SUCCESS else CustomerCenterRefundStatus.ERROR,
@@ -456,11 +460,24 @@ internal class CustomerCenterViewModel(
         }
         _state.update { it.copy(restoreState = CustomerCenterRestoreState.RESTORING) }
         val minimumDuration = scope.async { delay(minimumRestoreDurationMs) }
-        val result = dependencies.restore.restorePurchases()
-        minimumDuration.await()
-        val info = dependencies.customerInfo.fetchCustomerInfo()
-        apply(info, refetchProducts = true)
-        val restored = result is RestorationResult.Restored && hasAnyPurchases(info)
+        val restored =
+            try {
+                val result = dependencies.restore.restorePurchases()
+                minimumDuration.await()
+                val info = dependencies.customerInfo.fetchCustomerInfo()
+                apply(info, refetchProducts = true)
+                result is RestorationResult.Restored && hasAnyPurchases(info)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                // Reported as nothing found rather than left on the restoring overlay, which
+                // would block the screen for good. That alert can be dismissed to try again, and
+                // offers support.
+                Logger.debug(LogLevel.error, LogScope.customerCenter, "Restoring purchases failed.", error = e)
+                false
+            } finally {
+                minimumDuration.cancel()
+            }
         _state.update {
             it.copy(restoreState = if (restored) CustomerCenterRestoreState.RESTORED else CustomerCenterRestoreState.NOT_FOUND)
         }
@@ -487,11 +504,21 @@ internal class CustomerCenterViewModel(
 
     // region Returning from a store page
 
+    /** Where purchases are reloaded from when the customer comes back. */
+    private enum class PurchaseSource { PLAY_STORE, WEB }
+
     /** Call when the Customer Center comes back to the foreground. */
     fun onResume() {
-        if (!refreshesOnResume) return
-        refreshesOnResume = false
-        scope.launch { apply(dependencies.customerInfo.refreshPurchases(), refetchProducts = true) }
+        val source = refreshOnResume ?: return
+        refreshOnResume = null
+        scope.launch {
+            val info =
+                when (source) {
+                    PurchaseSource.PLAY_STORE -> dependencies.customerInfo.refreshPurchases()
+                    PurchaseSource.WEB -> dependencies.customerInfo.refreshWebPurchases()
+                }
+            apply(info, refetchProducts = true)
+        }
     }
 
     // endregion

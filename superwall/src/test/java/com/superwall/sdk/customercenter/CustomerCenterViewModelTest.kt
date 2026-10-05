@@ -265,6 +265,43 @@ class CustomerCenterViewModelTest {
         }
 
     @Test
+    fun `a restore that throws doesn't leave the overlay up`() =
+        Given("a restore that fails with an error") {
+            harness(customerInfo()) { h ->
+                h.viewModel.load()
+                h.restorer.error = IllegalStateException("Billing unavailable")
+                val restore = h.viewModel.paths(null).single()
+
+                When("restore is tapped") { h.viewModel.onPathTapped(restore, null) }
+                Then("it ends on the dismissible nothing-found alert and the rows are free again") {
+                    assertEquals(CustomerCenterRestoreState.NOT_FOUND, h.state().restoreState)
+                    assertNull(h.state().busyPathId)
+                }
+            }
+        }
+
+    @Test
+    fun `coming back from web management reloads web purchases`() =
+        Given("an active web subscription with a management page") {
+            val environment = FakeEnvironment(webManagementUrl = "https://example.com/manage")
+            harness(customerInfo(subscriptions = listOf(subscription(store = Store.STRIPE))), environment = environment) { h ->
+                h.viewModel.load()
+                val purchase = h.state().purchases.single()
+                h.viewModel.select(h.viewModel.paths(purchase, false).first { it.id == "manage_subscription" }, purchase)
+
+                When("the customer comes back, twice") {
+                    h.viewModel.onResume()
+                    h.viewModel.onResume()
+                }
+                Then("web purchases are reloaded once, and Google Play's aren't") {
+                    assertEquals("https://example.com/manage" to true, h.opener.opened.single())
+                    assertEquals(1, h.customerInfo.webRefreshCount)
+                    assertEquals(0, h.customerInfo.refreshCount)
+                }
+            }
+        }
+
+    @Test
     fun `restore reports whether it found anything`() =
         Given("a customer with no purchases") {
             harness(customerInfo()) { h ->

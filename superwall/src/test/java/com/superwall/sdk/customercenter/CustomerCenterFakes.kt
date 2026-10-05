@@ -11,12 +11,18 @@ internal class FakeCustomerInfo(
     var info: CustomerInfo,
 ) : CustomerCenterCustomerInfoProviding {
     var refreshCount = 0
+    var webRefreshCount = 0
     override val updates = MutableSharedFlow<CustomerInfo>()
 
     override suspend fun fetchCustomerInfo() = info
 
     override suspend fun refreshPurchases(): CustomerInfo {
         refreshCount += 1
+        return info
+    }
+
+    override suspend fun refreshWebPurchases(): CustomerInfo {
+        webRefreshCount += 1
         return info
     }
 }
@@ -39,9 +45,11 @@ internal class FakeRestorer(
     var result: RestorationResult = RestorationResult.Restored(),
 ) : CustomerCenterRestoring {
     var count = 0
+    var error: Throwable? = null
 
     override suspend fun restorePurchases(): RestorationResult {
         count += 1
+        error?.let { throw it }
         return result
     }
 }
