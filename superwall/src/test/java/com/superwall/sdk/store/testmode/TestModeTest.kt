@@ -1150,7 +1150,12 @@ class TestModeTest {
             // Relaxed mockk's generic `read` defaults to `Any`, which can't cast to TestModeSettings.
             every { storage.read(com.superwall.sdk.storage.StoredTestModeSettings) } returns null
             val entitlements = mockk<com.superwall.sdk.store.Entitlements>(relaxed = true)
-            val tracked = mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>()
+            // Events are tracked from their own coroutine on the IO pool, so they can land after
+            // `activate` returns. Collect them in a channel and wait for each one.
+            val modalEvents =
+                kotlinx.coroutines.channels.Channel<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State>(
+                    kotlinx.coroutines.channels.Channel.UNLIMITED,
+                )
             val activity = mockk<android.app.Activity>(relaxed = true)
             val activityProvider = mockk<com.superwall.sdk.misc.ActivityProvider>(relaxed = true).also {
                 every { it.getCurrentActivity() } returns activity
@@ -1181,9 +1186,18 @@ class TestModeTest {
                     activityTracker = { null },
                     apiKey = { "test-api-key" },
                     dashboardBaseUrl = { "https://dash" },
-                    tracker = { tracked.add(it) },
+                    tracker = {
+                        if (it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal) {
+                            modalEvents.send(it.state)
+                        }
+                    },
                     showModal = { _, _, _, _, _, _, savedSettings ->
                         capturedSavedSettings.add(savedSettings)
+                        // Open is tracked before the modal shows.
+                        assertEquals(
+                            com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State.Open,
+                            modalEvents.receive(),
+                        )
                         modalResult
                     },
                 )
@@ -1219,17 +1233,12 @@ class TestModeTest {
             assertTrue("Subscribed selection must grant an active entitlement", granted.all { it.isActive })
             verify(exactly = 1) { entitlements.setSubscriptionStatus(status) }
 
-            // Open is tracked before showModal, Close after — verify both the
-            // emission and ordering.
-            val modalEvents =
-                tracked.filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal>()
+            // Close is tracked after the modal, and nothing else follows.
             assertEquals(
-                listOf(
-                    com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State.Open,
-                    com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State.Close,
-                ),
-                modalEvents.map { it.state },
+                com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State.Close,
+                modalEvents.receive(),
             )
+            assertTrue(modalEvents.tryReceive().isFailure)
 
             // savedSettings forwarded to the modal launcher (null on first run —
             // storage mock returns null for read).
