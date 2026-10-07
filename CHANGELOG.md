@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Fixes
 - Fix subscribers with an unexpired subscription being reported as inactive when Google Play fails to answer a purchase query, for example when the billing client isn't ready at launch. A query that succeeds and reports no purchases still deactivates straight away.
 - Fix subscribers being reported as inactive when Google Play returns an active purchase whose product no longer maps to an entitlement in config. A lost mapping is no longer treated as the subscription ending.
+- Fix purchases being refunded by Google Play for not being acknowledged when they did not complete through the billing flow callback, for example a pending purchase that settled while the app was closed, the app being killed mid-purchase, or a Play Store promo code. The `AutomaticPurchaseController` now acknowledges any unacknowledged purchase whenever it syncs the subscription status, including on launch, and retries acknowledgements that fail.
 
 ## 2.8.4
 

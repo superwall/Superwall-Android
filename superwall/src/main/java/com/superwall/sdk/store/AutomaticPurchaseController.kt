@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 import kotlin.time.Duration.Companion.seconds
 
@@ -117,6 +118,9 @@ class AutomaticPurchaseController(
 
     private val connectionState = MutableStateFlow(ConnectionState.Connecting)
     private val purchaseResults = MutableStateFlow<PurchaseResult?>(null)
+
+    // Purchase tokens with an acknowledgement in flight
+    private val acknowledgingTokens = ConcurrentHashMap.newKeySet<String>()
 
     // how long before the data source tries to reconnect to Google play
     private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
@@ -416,6 +420,11 @@ class AutomaticPurchaseController(
             }
         val failed = subscriptionPurchases == null || inAppPurchases == null
         val allPurchases = (subscriptionPurchases ?: emptyList()) + (inAppPurchases ?: emptyList())
+
+        // Purchases that completed outside the billing flow callback (pending ones that
+        // settled, process death mid-flow, Play Store promo codes, failed acknowledgements)
+        // only surface here. Play refunds them after 3 days if left unacknowledged.
+        acknowledgePurchasesIfNecessary(allPurchases)
         val hasActivePurchaseOrSubscription =
             allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
         val activeProductIds =
@@ -583,24 +592,54 @@ class AutomaticPurchaseController(
 
     private fun acknowledgePurchasesIfNecessary(purchases: List<Purchase>) {
         purchases
-            .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && it.isAcknowledged == false }
+            .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && !it.isAcknowledged }
+            // The flow callback and the sync that follows it can see the same purchase
+            .filter { acknowledgingTokens.add(it.purchaseToken) }
             .forEach { purchase ->
-                val acknowledgePurchaseParams =
-                    AcknowledgePurchaseParams
-                        .newBuilder()
-                        .setPurchaseToken(purchase.purchaseToken)
-                        .build()
-
-                billingClient?.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
-                    if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.nativePurchaseController,
-                            message = "Unable to acknowledge purchase.",
-                        )
+                scope.launch {
+                    try {
+                        val acknowledged =
+                            retryOrNull(MAX_RETRIES) { acknowledgePurchase(purchase.purchaseToken).getOrThrow() } != null
+                        if (!acknowledged) {
+                            Logger.debug(
+                                logLevel = LogLevel.error,
+                                scope = LogScope.nativePurchaseController,
+                                message = "Unable to acknowledge purchase, will retry on next sync.",
+                                info = mapOf("order_id" to (purchase.orderId ?: "")),
+                            )
+                        }
+                    } finally {
+                        acknowledgingTokens.remove(purchase.purchaseToken)
                     }
                 }
             }
+    }
+
+    private suspend fun acknowledgePurchase(purchaseToken: String): Result<Unit> {
+        withTimeoutOrNull(CONNECTION_TIMEOUT_MS) { connectionState.first { it != ConnectionState.Connecting } }
+        val billingClient =
+            billingClient?.takeIf { it.isReady }
+                ?: return Result.failure(IllegalStateException("Billing client not ready"))
+
+        val deferred = CompletableDeferred<Result<Unit>>()
+        val params =
+            AcknowledgePurchaseParams
+                .newBuilder()
+                .setPurchaseToken(purchaseToken)
+                .build()
+        billingClient.acknowledgePurchase(params) { billingResult ->
+            deferred.complete(
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Throwable("Acknowledge failed with code ${billingResult.responseCode}"))
+                },
+            )
+        }
+
+        return withTimeoutOrNull(QUERY_TIMEOUT_MS) {
+            deferred.await()
+        } ?: Result.failure(IllegalStateException("Acknowledge purchase timed out"))
     }
 
 //endregion
