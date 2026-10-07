@@ -16,6 +16,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.store.abstractions.product.ApiStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -24,6 +25,7 @@ import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
 import com.superwall.sdk.store.testmode.models.SuperwallProductsResponse
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -34,6 +36,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.lang.ref.WeakReference
 import java.util.Date
 import java.util.Locale
+import kotlin.coroutines.CoroutineContext
 
 internal interface CustomerCenterCustomerInfoProviding {
     suspend fun fetchCustomerInfo(): CustomerInfo
@@ -125,6 +128,13 @@ internal data class CustomerCenterDependencies(
 
 // region Live adapters
 
+/**
+ * The SDK's IO dispatcher and error handling, without [IOScope]'s own job: the work stays a child
+ * of the caller, so a timeout or cancellation around it still reaches it.
+ */
+private val DependencyContainer.io: CoroutineContext
+    get() = ioScope().coroutineContext.minusKey(Job)
+
 private class LiveCustomerInfoProvider(
     private val container: DependencyContainer,
 ) : CustomerCenterCustomerInfoProviding {
@@ -137,14 +147,14 @@ private class LiveCustomerInfoProvider(
     }
 
     override suspend fun refreshPurchases(): CustomerInfo {
-        withContext(container.ioScope().coroutineContext) {
+        withContext(container.io) {
             container.storeManager.loadPurchasedProducts(container.entitlements.entitlementsByProductId)
         }
         return fetchCustomerInfo()
     }
 
     override suspend fun refreshWebPurchases(): CustomerInfo {
-        container.reedemer.refreshWebEntitlements()
+        withContext(container.io) { container.reedemer.refreshWebEntitlements() }
         return fetchCustomerInfo()
     }
 
@@ -164,7 +174,7 @@ private class LiveProductsProvider(
         // On the SDK's IO scope, as the view model runs on the main thread: for a product Google
         // Play doesn't know, this falls back to a request to the Superwall catalogue.
         val fetched =
-            withContext(container.ioScope().coroutineContext) {
+            withContext(container.io) {
                 withErrorTracking { container.storeManager.getProductsWithoutPaywall(ids.toList()) }
                     .getSuccess()
                     .orEmpty()
@@ -188,7 +198,7 @@ private class LiveProductsProvider(
                 CatalogueCache.shared.products {
                     // Bounded deliberately: the cards show placeholders until this answers.
                     withTimeoutOrNull(CATALOGUE_TIMEOUT_MS) {
-                        when (val result = withContext(container.ioScope().coroutineContext) { container.network.getSuperwallProducts() }) {
+                        when (val result = withContext(container.io) { container.network.getSuperwallProducts() }) {
                             is Either.Success -> result.value
                             is Either.Failure -> throw result.error
                         }
@@ -321,7 +331,7 @@ private class LiveRestorer(
     private val container: DependencyContainer,
 ) : CustomerCenterRestoring {
     override suspend fun restorePurchases(): RestorationResult =
-        withContext(container.ioScope().coroutineContext) {
+        withContext(container.io) {
             container.transactionManager.tryToRestorePurchases(
                 paywallView = null,
                 presentsFailureAlert = false,
