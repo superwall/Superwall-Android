@@ -2,6 +2,8 @@ package com.superwall.sdk.analytics.superwall
 
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
+import com.superwall.sdk.customercenter.CustomerCenterRefundStatus
+import com.superwall.sdk.customercenter.CustomerCenterScreenType
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -477,6 +479,51 @@ sealed class SuperwallEvent {
     class TestModeModalClose : SuperwallEvent() {
         override val rawName: String
             get() = SuperwallEvents.TestModeModalClose.rawName
+    }
+
+    // / When the Customer Center is presented.
+    data class CustomerCenterOpen(
+        val screen: CustomerCenterScreenType,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.CustomerCenterOpen.rawName
+    }
+
+    // / When the Customer Center is dismissed.
+    class CustomerCenterClose : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.CustomerCenterClose.rawName
+    }
+
+    // / When the user taps a path in the Customer Center.
+    data class CustomerCenterAction(
+        val action: com.superwall.sdk.customercenter.CustomerCenterAction,
+        val pathId: String,
+        val productId: String?,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.CustomerCenterAction.rawName
+    }
+
+    // / When the user answers a Customer Center survey.
+    data class CustomerCenterSurveyResponse(
+        val surveyId: String,
+        val optionId: String,
+        val action: com.superwall.sdk.customercenter.CustomerCenterAction,
+        val pathId: String,
+        val productId: String?,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.CustomerCenterSurveyResponse.rawName
+    }
+
+    // / When a refund request started from the Customer Center completes.
+    data class CustomerCenterRefundRequest(
+        val productId: String,
+        val status: CustomerCenterRefundStatus,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.CustomerCenterRefundRequest.rawName
     }
 
     object RedemptionComplete : SuperwallPlacement() {

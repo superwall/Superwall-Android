@@ -494,69 +494,79 @@ class WebPaywallRedeemer(
             }
     }
 
+    /**
+     * Fetches the customer's web entitlements once, as each poll does, and applies them: the
+     * merged customer info and subscription status are updated when they've changed. For when
+     * something outside the app, such as a web management page, may have changed them and the
+     * next poll is too far off. Makes a network request, so call it off the main thread.
+     */
+    suspend fun refreshWebEntitlements() {
+        checkForWebEntitlements(factory.getUserId(), factory.getDeviceId())
+            .fold(
+                onFailure = {
+                    it.printStackTrace()
+                },
+                onSuccess = { newEntitlements ->
+                    Logger.debug(
+                        logLevel = LogLevel.debug,
+                        scope = LogScope.webEntitlements,
+                        message = "Discovered web entitlements",
+                        info =
+                            mapOf("entitlements" to newEntitlements.map { it.id }.joinToString(",")),
+                    )
+
+                    val latestRedeemResponse =
+                        storage.read(LatestRedemptionResponse)
+                    val existingWebEntitlements =
+                        latestRedeemResponse?.customerInfo?.entitlements?.toSet() ?: emptySet()
+
+                    // Update customerInfo with new entitlements if response exists
+                    if (latestRedeemResponse != null) {
+                        val updatedCustomerInfo =
+                            latestRedeemResponse.customerInfo?.copy(
+                                entitlements = newEntitlements.toList(),
+                            ) ?: CustomerInfo(
+                                subscriptions = emptyList(),
+                                nonSubscriptions = emptyList(),
+                                userId = "",
+                                entitlements = newEntitlements.toList(),
+                                isPlaceholder = false,
+                            )
+                        val updatedResponse =
+                            latestRedeemResponse.copy(
+                                customerInfo = updatedCustomerInfo,
+                            )
+                        storage.write(
+                            LatestRedemptionResponse,
+                            updatedResponse,
+                        )
+                        // Publish only what was persisted, so the cached web
+                        // entitlements always match what a cold start restores.
+                        factory.setWebEntitlements(
+                            newEntitlements.filter { it.isActive }.toSet(),
+                        )
+                    }
+
+                    // Trigger CustomerInfo merge
+                    customerInfoManager.updateMergedCustomerInfo()
+
+                    if (existingWebEntitlements.filter { it.isActive } != newEntitlements.filter { it.isActive }) {
+                        factory.internallySetSubscriptionStatus(
+                            SubscriptionStatus.Active(
+                                newEntitlements.filter { it.isActive }.toSet() + factory.getActiveDeviceEntitlements(),
+                            ),
+                        )
+                    }
+                },
+            )
+    }
+
     private fun startPolling(maxAge: Long = factory.maxAge()) {
         pollingJob?.cancel()
         pollingJob =
             (ioScope + Dispatchers.IO).launch {
                 while (true) {
-                    checkForWebEntitlements(factory.getUserId(), factory.getDeviceId())
-                        .fold(
-                            onFailure = {
-                                it.printStackTrace()
-                            },
-                            onSuccess = { newEntitlements ->
-                                Logger.debug(
-                                    logLevel = LogLevel.debug,
-                                    scope = LogScope.webEntitlements,
-                                    message = "Discovered web entitlements",
-                                    info =
-                                        mapOf("entitlements" to newEntitlements.map { it.id }.joinToString(",")),
-                                )
-
-                                val latestRedeemResponse =
-                                    storage.read(LatestRedemptionResponse)
-                                val existingWebEntitlements =
-                                    latestRedeemResponse?.customerInfo?.entitlements?.toSet() ?: emptySet()
-
-                                // Update customerInfo with new entitlements if response exists
-                                if (latestRedeemResponse != null) {
-                                    val updatedCustomerInfo =
-                                        latestRedeemResponse.customerInfo?.copy(
-                                            entitlements = newEntitlements.toList(),
-                                        ) ?: CustomerInfo(
-                                            subscriptions = emptyList(),
-                                            nonSubscriptions = emptyList(),
-                                            userId = "",
-                                            entitlements = newEntitlements.toList(),
-                                            isPlaceholder = false,
-                                        )
-                                    val updatedResponse =
-                                        latestRedeemResponse.copy(
-                                            customerInfo = updatedCustomerInfo,
-                                        )
-                                    storage.write(
-                                        LatestRedemptionResponse,
-                                        updatedResponse,
-                                    )
-                                    // Publish only what was persisted, so the cached web
-                                    // entitlements always match what a cold start restores.
-                                    factory.setWebEntitlements(
-                                        newEntitlements.filter { it.isActive }.toSet(),
-                                    )
-                                }
-
-                                // Trigger CustomerInfo merge
-                                customerInfoManager.updateMergedCustomerInfo()
-
-                                if (existingWebEntitlements.filter { it.isActive } != newEntitlements.filter { it.isActive }) {
-                                    factory.internallySetSubscriptionStatus(
-                                        SubscriptionStatus.Active(
-                                            newEntitlements.filter { it.isActive }.toSet() + factory.getActiveDeviceEntitlements(),
-                                        ),
-                                    )
-                                }
-                            },
-                        )
+                    refreshWebEntitlements()
                     delay(maxAge)
                 }
             }

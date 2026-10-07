@@ -19,6 +19,8 @@ import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.customercenter.CustomerCenterConfiguration
+import com.superwall.sdk.customercenter.CustomerCenterDelegate
 import com.superwall.sdk.deeplinks.DeepLinkRouter
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
@@ -1381,6 +1383,39 @@ class Superwall(
         purchases: List<Purchase>,
     ) {
         observe(PurchasingObserverState.PurchaseResult(billingResult, purchases))
+    }
+
+    /**
+     * Presents the Customer Center, a self-service screen where users can view and manage their
+     * subscriptions, request refunds, restore purchases, and contact support.
+     *
+     * Only one Customer Center can be presented at a time; calling this while one is already
+     * presented does nothing. Call it from the main thread.
+     *
+     * @param configuration Overrides [SuperwallOptions.customerCenter] for this presentation.
+     * `null` uses the value configured via [SuperwallOptions].
+     * @param delegate Receives Customer Center events. Retained while the Customer Center is
+     * presented.
+     * @param onDismiss Called after the Customer Center is dismissed.
+     */
+    @JvmOverloads
+    fun presentCustomerCenter(
+        configuration: CustomerCenterConfiguration? = null,
+        delegate: CustomerCenterDelegate? = null,
+        onDismiss: (() -> Unit)? = null,
+    ) {
+        dependencyContainer.customerCenterManager.present(configuration, delegate, onDismiss)
+    }
+
+    /**
+     * Dismisses a Customer Center presented via [presentCustomerCenter]. Does nothing if none is
+     * presented. Call it from the main thread.
+     *
+     * @param completion Called once the Customer Center has been dismissed.
+     */
+    @JvmOverloads
+    fun dismissCustomerCenter(completion: (() -> Unit)? = null) {
+        dependencyContainer.customerCenterManager.dismiss(completion)
     }
 
     /**

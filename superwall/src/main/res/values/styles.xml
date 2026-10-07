@@ -9,4 +9,11 @@
     <style name="MessageTextStyle">
         <item name="android:textSize">15sp</item>
     </style>
+
+    <!-- Customer Center. A host app can restyle it by overriding this style. -->
+    <style name="Theme.Superwall.CustomerCenter" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/superwall_customer_center_background</item>
+        <item name="android:statusBarColor">@color/superwall_customer_center_background</item>
+        <item name="android:navigationBarColor">@color/superwall_customer_center_background</item>
+    </style>
 </resources>

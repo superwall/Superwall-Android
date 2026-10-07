@@ -4,6 +4,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.8.5
 
+## Enhancements
+- Adds the Customer Center, a self-service screen where users can view and restore their purchases, cancel or change a Google Play subscription, request a refund, manage a web subscription and contact support. Present it with `Superwall.instance.presentCustomerCenter()`, dismiss it with `Superwall.instance.dismissCustomerCenter()`, and configure it with `SuperwallOptions.customerCenter`.
+- Adds `CustomerCenterDelegate` and the `customerCenter_open`, `customerCenter_close`, `customerCenter_action`, `customerCenter_surveyResponse` and `customerCenter_refundRequest` events.
+
 ## Fixes
 - Fix subscribers with an unexpired subscription being reported as inactive when Google Play fails to answer a purchase query, for example when the billing client isn't ready at launch. A query that succeeds and reports no purchases still deactivates straight away.
 - Fix subscribers being reported as inactive when Google Play returns an active purchase whose product no longer maps to an entitlement in config. A lost mapping is no longer treated as the subscription ending.

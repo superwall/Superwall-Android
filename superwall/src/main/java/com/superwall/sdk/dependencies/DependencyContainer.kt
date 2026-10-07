@@ -32,6 +32,7 @@ import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.customer.CustomerInfoManager
+import com.superwall.sdk.customercenter.CustomerCenterManager
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
@@ -221,6 +222,9 @@ class DependencyContainer(
     internal val testMode: TestMode
     internal val testModeTransactionHandler: TestModeTransactionHandler
     internal lateinit var customerInfoManager: CustomerInfoManager
+
+    /** Owns the Customer Center presentation. Built on first use, from the main thread. */
+    internal val customerCenterManager: CustomerCenterManager by lazy { CustomerCenterManager(this) }
     lateinit var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()
