@@ -100,6 +100,17 @@ class SuperwallOptions() {
     // You can also change this at runtime via [com.superwall.sdk.Superwall.eventTrackingBehavior].
     var eventTrackingBehavior: EventTrackingBehavior = EventTrackingBehavior.ALL
 
+    // The user's consent for ad measurement, reported to Superwall as the device
+    // attributes `adUserDataConsent` and `adPersonalizationConsent` and forwarded with
+    // conversions uploaded to ad networks such as Google Ads.
+    //
+    // Defaults to granted for both. Apps with users in the EEA, UK or Switzerland must
+    // set this from their consent flow. Both are reported as denied while
+    // [eventTrackingBehavior] is [EventTrackingBehavior.NONE].
+    //
+    // You can also change this at runtime via [com.superwall.sdk.Superwall.adConsent].
+    var adConsent: AdConsent = AdConsent()
+
     // Enables the sending of non-Superwall tracked events and properties back to the Superwall servers.
     // Defaults to `true`.
     //
@@ -192,6 +203,7 @@ internal fun SuperwallOptions.toMap(): Map<String, Any> =
         // backends/dashboards still reading it don't treat opted-out clients as the
         // default. Mirrors the deprecated property (true only for `ALL`).
         "is_external_data_collection_enabled" to (eventTrackingBehavior == EventTrackingBehavior.ALL),
+        "ad_consent" to adConsent.toMap(),
         localeIdentifier?.let { "locale_identifier" to it },
         "is_game_controller_enabled" to isGameControllerEnabled,
         "logging" to logging.toMap(),

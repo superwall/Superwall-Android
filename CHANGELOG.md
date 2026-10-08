@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 - Adds the Customer Center, a self-service screen where users can view and restore their purchases, cancel or change a Google Play subscription, request a refund, manage a web subscription and contact support. Present it with `Superwall.instance.presentCustomerCenter()`, dismiss it with `Superwall.instance.dismissCustomerCenter()`, and configure it with `SuperwallOptions.customerCenter`.
 - Adds `CustomerCenterDelegate` and the `customerCenter_open`, `customerCenter_close`, `customerCenter_action`, `customerCenter_surveyResponse` and `customerCenter_refundRequest` events.
+- Adds `SuperwallOptions.adConsent` and `Superwall.instance.adConsent` for reporting the user's ad measurement consent (`AdConsent(adUserData, adPersonalization)`, each a `ConsentStatus` of `GRANTED` or `DENIED`). It is sent as the `adUserDataConsent` and `adPersonalizationConsent` device attributes and forwarded with the conversions Superwall uploads to Google Ads. Both default to granted; apps with users in the EEA, UK or Switzerland must set them from their consent flow. Both are reported as denied when `eventTrackingBehavior` is `NONE`.
 
 ## Fixes
 - Fix subscribers with an unexpired subscription being reported as inactive when Google Play fails to answer a purchase query, for example when the billing client isn't ready at launch. A query that succeeds and reports no purchases still deactivates straight away.

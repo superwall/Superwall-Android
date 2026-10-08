@@ -16,6 +16,8 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.Tier
+import com.superwall.sdk.config.options.AdConsent
+import com.superwall.sdk.config.options.effective
 import com.superwall.sdk.dependencies.ActiveEntitlementsFactory
 import com.superwall.sdk.dependencies.CustomerInfoFactory
 import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
@@ -610,13 +612,22 @@ class DeviceHelper(
             totalPaywallViews.toString(),
             reviewRequestCount.toString(),
             factory.storefrontCountryCode() ?: "",
+            effectiveAdConsent.adUserData.raw,
+            effectiveAdConsent.adPersonalization.raw,
         ).joinToString("|")
+
+    private val effectiveAdConsent: AdConsent
+        get() =
+            factory.makeSuperwallOptions().let {
+                it.adConsent.effective(it.eventTrackingBehavior)
+            }
 
     private suspend fun buildDeviceTemplate(
         identityInfo: IdentityInfo,
         volatileFields: VolatileTemplateFields,
-    ): DeviceTemplate =
-        DeviceTemplate(
+    ): DeviceTemplate {
+        val adConsent = effectiveAdConsent
+        return DeviceTemplate(
             publicApiKey = storage.apiKey,
             platform = "Android",
             appUserId = identityInfo.appUserId ?: "",
@@ -678,7 +689,10 @@ class DeviceHelper(
             reviewRequestCount = reviewRequestCount,
             kotlinVersion = kotlinVersion,
             storeFrontCountryCode = factory.storefrontCountryCode(),
+            adUserDataConsent = adConsent.adUserData.raw,
+            adPersonalizationConsent = adConsent.adPersonalization.raw,
         )
+    }
 
     suspend fun getTemplateDevice(): Map<String, Any> {
         return withErrorTracking {

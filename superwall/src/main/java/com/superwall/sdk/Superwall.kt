@@ -17,6 +17,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.config.options.AdConsent
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.customercenter.CustomerCenterConfiguration
@@ -186,6 +187,31 @@ class Superwall(
             }
 
             ioScope.launch {
+                track(dependencyContainer.makeConfigAttributes())
+            }
+        }
+
+    /**
+     * The user's consent for ad measurement, forwarded with conversions that Superwall
+     * uploads to ad networks such as Google Ads.
+     *
+     * Defaults to granted. Apps with users in the EEA, UK or Switzerland must set this
+     * from their consent flow. Changes are sent to Superwall straight away.
+     *
+     * You can also set the initial value via [SuperwallOptions.adConsent] before calling
+     * [configure].
+     */
+    var adConsent: AdConsent
+        get() = options.adConsent
+        set(newValue) {
+            options.adConsent = newValue
+
+            if (options.eventTrackingBehavior == EventTrackingBehavior.NONE) {
+                return
+            }
+
+            ioScope.launch {
+                track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
                 track(dependencyContainer.makeConfigAttributes())
             }
         }
