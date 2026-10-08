@@ -1,8 +1,5 @@
 package com.superwall.sdk
 
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.Mutex
-import java.util.concurrent.atomic.AtomicLong
 import android.app.Application
 import android.content.ComponentCallbacks2
 import android.content.Context
@@ -20,6 +17,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.config.options.AdConsentPublisher
 import com.superwall.sdk.config.options.AdConsent
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -171,6 +169,7 @@ class Superwall(
     var eventTrackingBehavior: EventTrackingBehavior
         get() = options.eventTrackingBehavior
         set(newValue) {
+            val wasNone = options.eventTrackingBehavior == EventTrackingBehavior.NONE
             options.eventTrackingBehavior = newValue
 
             dependencyContainer.eventsQueue.setTrackingBehavior(newValue)
@@ -186,6 +185,13 @@ class Superwall(
             // When opting out entirely, don't emit the config-attributes event —
             // it would otherwise transmit attributes right after the opt-out.
             if (newValue == EventTrackingBehavior.NONE) {
+                return
+            }
+
+            // Nothing was sent while tracking was off, so ad consent changed in the
+            // meantime hasn't reached Superwall. Re-send it with the config attributes.
+            if (wasNone) {
+                adConsentPublisher.publish()
                 return
             }
 
@@ -213,22 +219,17 @@ class Superwall(
                 return
             }
 
-            // Re-sends run one at a time and drop superseded assignments, so an older
-            // snapshot can never be tracked after a newer one.
-            val generation = adConsentGeneration.incrementAndGet()
-            ioScope.launch {
-                adConsentMutex.withLock {
-                    if (generation != adConsentGeneration.get()) {
-                        return@withLock
-                    }
-                    track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
-                    track(dependencyContainer.makeConfigAttributes())
-                }
-            }
+            adConsentPublisher.publish()
         }
 
-    private val adConsentGeneration = AtomicLong()
-    private val adConsentMutex = Mutex()
+    private val adConsentPublisher by lazy {
+        AdConsentPublisher(
+            scope = ioScope,
+            track = { track(it) },
+            makeDeviceAttributes = { dependencyContainer.makeSessionDeviceAttributes() },
+            makeConfigAttributes = { dependencyContainer.makeConfigAttributes() },
+        )
+    }
 
     /**
      * The presented paywall view.
