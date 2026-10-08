@@ -75,15 +75,19 @@ class SuperwallOptions() {
 
         class Developer : NetworkEnvironment("superwall.dev")
 
-        class Custom(
-            override val baseHost: String,
-            override val collectorHost: String,
-            override val scheme: String,
-            override val port: Int?,
-            override val subscriptionHost: String = baseHost,
-            override val enrichmentHost: String = baseHost,
-            override val mmpHost: String = baseHost,
-        ) : NetworkEnvironment(baseHost)
+        // The optional hosts default to the same `*.superwall.dev` hosts a `Custom`
+        // environment used before they could be overridden.
+        class Custom
+            @JvmOverloads
+            constructor(
+                override val baseHost: String,
+                override val collectorHost: String,
+                override val scheme: String,
+                override val port: Int?,
+                override val subscriptionHost: String = "subscriptions-api.superwall.dev",
+                override val enrichmentHost: String = "enrichment-api.superwall.dev",
+                override val mmpHost: String = "mmp.superwall.dev",
+            ) : NetworkEnvironment(baseHost)
     }
 
     // **WARNING:**: Determines which network environment your SDK should use.

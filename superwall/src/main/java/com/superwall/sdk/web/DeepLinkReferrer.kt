@@ -162,6 +162,8 @@ class DeepLinkReferrer(
             val rawReferrer =
                 withTimeoutOrNull(timeout) {
                     while (readyReferrerClient == null) {
+                        // The connection failed for good, so waiting won't help.
+                        if (referrerClient == null) return@withTimeoutOrNull null
                         delay(50)
                     }
                     readyReferrerClient?.installReferrer?.installReferrer?.toString()

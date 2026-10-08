@@ -144,15 +144,6 @@ object DidCompleteMMPInstallAttributionRequest : Storable<Boolean> {
         get() = Boolean.serializer()
 }
 
-/**
- * The decoded MMP `acquisition_*` payload from the last successful install match,
- * cached so it can be re-applied to a new user's attributes after [com.superwall.sdk.Superwall.reset].
- *
- * Install-scoped: the install source doesn't change when one user logs out and another logs in
- * on the same device. The backend match only runs within the 7-day install window, so re-matching
- * after a reset can't be relied on — caching the resolved payload lets us repopulate the new user
- * deterministically, without re-hitting the backend.
- */
 /** The install-referrer redemption code already handed to the redeemer, so it's redeemed once per install. */
 object RedeemedInstallReferrerCode : Storable<String> {
     override val key: String
@@ -165,6 +156,15 @@ object RedeemedInstallReferrerCode : Storable<String> {
         get() = String.serializer()
 }
 
+/**
+ * The decoded MMP `acquisition_*` payload from the last successful install match,
+ * cached so it can be re-applied to a new user's attributes after [com.superwall.sdk.Superwall.reset].
+ *
+ * Install-scoped: the install source doesn't change when one user logs out and another logs in
+ * on the same device. The backend match only runs within the 7-day install window, so re-matching
+ * after a reset can't be relied on — caching the resolved payload lets us repopulate the new user
+ * deterministically, without re-hitting the backend.
+ */
 object MMPAcquisitionData : Storable<Map<String, JsonElement>> {
     override val key: String
         get() = "store.mmpAcquisitionData"

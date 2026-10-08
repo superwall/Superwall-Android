@@ -765,6 +765,16 @@ class Superwall(
                         val hadTrackedAppInstallBeforeConfigure =
                             dependencyContainer.storage.read(DidTrackAppInstall) ?: false
 
+                        // The eligibility check runs before anything else can stall, whatever
+                        // the config or tracking setting says: it records that this install may
+                        // be matched, which a later launch relies on if this one is killed before
+                        // config arrives. Only the request waits for config to enable the MMP.
+                        val shouldMatchInstall =
+                            dependencyContainer.storage.shouldAttemptInitialMMPInstallAttributionMatch(
+                                hadTrackedAppInstallBeforeConfigure = hadTrackedAppInstallBeforeConfigure,
+                                appInstalledAtMillis = dependencyContainer.deviceHelper.appInstalledAtMillis,
+                            )
+
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }
@@ -783,15 +793,7 @@ class Superwall(
                             ).awaitAll()
                         }
 
-                        // The eligibility check runs whatever the config or tracking setting
-                        // says: it records that this install may be matched, which a later
-                        // launch relies on. Only the request waits for config to enable the MMP.
-                        if (
-                            dependencyContainer.storage.shouldAttemptInitialMMPInstallAttributionMatch(
-                                hadTrackedAppInstallBeforeConfigure = hadTrackedAppInstallBeforeConfigure,
-                                appInstalledAtMillis = dependencyContainer.deviceHelper.appInstalledAtMillis,
-                            )
-                        ) {
+                        if (shouldMatchInstall) {
                             dependencyContainer.mmpAttributionManager.matchInstallOnceEnabled {
                                 // Skip matching when the app has opted out of all event collection.
                                 // The `/api/match` call and the `acquisition_*` attribute writes

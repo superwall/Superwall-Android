@@ -164,7 +164,13 @@ class WebPaywallRedeemer(
                             return@fold
                         }
                         redeem(RedeemType.Code(code))
-                        storage.write(RedeemedInstallReferrerCode, code)
+                        // Only a redemption the server answered is stored with the code, so a
+                        // failed request is retried on the next launch.
+                        val redeemed =
+                            storage.read(LatestRedemptionResponse)?.allCodes?.any { it.code == code } == true
+                        if (redeemed) {
+                            storage.write(RedeemedInstallReferrerCode, code)
+                        }
                     },
                     onFailure = { throw it },
                 )
