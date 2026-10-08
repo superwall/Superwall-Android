@@ -28,6 +28,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -38,6 +39,8 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -55,6 +58,11 @@ internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
 // requests stop waiting on a connection that may never come (e.g. a broken Play Store).
 // Reconnecting carries on in the background and a later successful setup makes it available.
 internal const val MAX_TRANSIENT_SETUP_FAILURES = 3
+
+// How long a product query may take, connection time included, before it fails. Play
+// normally answers within a couple of seconds; this is a backstop so a callback that
+// never arrives can't leave paywalls waiting on their products for the life of the process.
+internal const val PRODUCTS_QUERY_TIMEOUT_MS = 15_000L
 
 class GoogleBillingWrapper(
     val context: Context,
@@ -237,6 +245,11 @@ class GoogleBillingWrapper(
             reconnectionAlreadyScheduled = false
 
             billingClient?.let {
+                // A second startConnection while one is in flight is answered with
+                // DEVELOPER_ERROR and does nothing; the in-flight one still calls back.
+                if (it.connectionState == BillingClient.ConnectionState.CONNECTING) {
+                    return
+                }
                 if (!it.isReady) {
                     Logger.debug(
                         LogLevel.debug,
@@ -293,39 +306,51 @@ class GoogleBillingWrapper(
         val missingFullProductIds =
             fullProductIds - cachedProducts.map { it.fullIdentifier }.toSet()
 
-        return suspendCoroutine { continuation ->
-            getProducts(
-                missingFullProductIds,
-                object : GetStoreProductsCallback {
-                    override fun onReceived(storeProducts: Set<StoreProduct>) {
-                        // Update cache with fetched products and collect their identifiers
-                        val foundProductIds =
-                            storeProducts.map { product ->
-                                productsCache[product.fullIdentifier] = Either.Success(product)
-                                product.fullIdentifier
+        return try {
+            withTimeout(PRODUCTS_QUERY_TIMEOUT_MS) {
+                suspendCancellableCoroutine { continuation ->
+                    getProducts(
+                        missingFullProductIds,
+                        object : GetStoreProductsCallback {
+                            override fun onReceived(storeProducts: Set<StoreProduct>) {
+                                // Update cache with fetched products and collect their identifiers
+                                val foundProductIds =
+                                    storeProducts.map { product ->
+                                        productsCache[product.fullIdentifier] = Either.Success(product)
+                                        product.fullIdentifier
+                                    }
+
+                                // Identify and handle missing products
+                                missingFullProductIds
+                                    .filterNot { it in foundProductIds }
+                                    .forEach { fullProductId ->
+                                        productsCache[fullProductId] =
+                                            Either.Failure(Exception("Failed to query product details for $fullProductId"))
+                                    }
+
+                                // Combine cached products (now including the newly fetched ones) with the fetched products
+                                val allProducts = cachedProducts + storeProducts
+                                // A late answer to a request that already timed out is ignored here,
+                                // but the products it carried are now cached for the next request.
+                                if (continuation.isActive) continuation.resume(allProducts)
                             }
 
-                        // Identify and handle missing products
-                        missingFullProductIds
-                            .filterNot { it in foundProductIds }
-                            .forEach { fullProductId ->
-                                productsCache[fullProductId] =
-                                    Either.Failure(Exception("Failed to query product details for $fullProductId"))
+                            override fun onError(error: BillingError) {
+                                // Billing errors aren't cached so a later request can retry. Setup-time
+                                // unavailability is remembered in [availability]; a BillingNotAvailable
+                                // returned by a query isn't, so the next load queries billing again.
+                                if (continuation.isActive) continuation.resumeWithException(error)
                             }
-
-                        // Combine cached products (now including the newly fetched ones) with the fetched products
-                        val allProducts = cachedProducts + storeProducts
-                        continuation.resume(allProducts)
-                    }
-
-                    override fun onError(error: BillingError) {
-                        // Billing errors aren't cached so a later request can retry. Setup-time
-                        // unavailability is remembered in [availability]; a BillingNotAvailable
-                        // returned by a query isn't, so the next load queries billing again.
-                        continuation.resumeWithException(error)
-                    }
-                },
-            )
+                        },
+                    )
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            val message =
+                "Timed out after ${PRODUCTS_QUERY_TIMEOUT_MS}ms waiting for Google Play to return " +
+                    "products: ${missingFullProductIds.joinToString()}"
+            Logger.debug(LogLevel.error, LogScope.productsManager, message)
+            throw BillingError.Timeout(message)
         }
     }
 
@@ -496,6 +521,11 @@ class GoogleBillingWrapper(
             LogScope.productsManager,
             "Billing client disconnected",
         )
+        // Requests already on the queue only run from a setup callback, and a request that
+        // finds the client disconnected re-queues itself, so reconnect for either to finish.
+        if (serviceRequests.isNotEmpty()) {
+            retryBillingServiceConnectionWithExponentialBackoff()
+        }
     }
 
     /**
@@ -639,12 +669,22 @@ class GoogleBillingWrapper(
                 }
 
                 BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
-                    // Billing service is already trying to connect. Don't do anything.
+                    // Reported when startConnection is called while a connection is already in
+                    // flight. That connection delivers its own result, so there's nothing to do
+                    // while it's still connecting (or already connected). If it has since
+                    // dropped, no callback is coming for the queued requests, so reconnect.
                     Logger.debug(
                         LogLevel.error,
                         LogScope.productsManager,
                         "Billing client error, developer error: ${billingResult.responseCode}",
                     )
+                    val connectionState = billingClient?.connectionState
+                    if (connectionState != BillingClient.ConnectionState.CONNECTING &&
+                        connectionState != BillingClient.ConnectionState.CONNECTED &&
+                        serviceRequests.isNotEmpty()
+                    ) {
+                        retryBillingServiceConnectionWithExponentialBackoff()
+                    }
                 }
             }
         }

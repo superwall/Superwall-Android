@@ -268,6 +268,7 @@ class PaywallManagerExperimentIsolationTest {
         override fun setup(
             url: PaywallURL,
             onRenderCrashed: (Boolean, Int) -> Unit,
+            onLoadFailed: (com.superwall.sdk.paywall.view.webview.WebviewError) -> Unit,
         ) = Unit
 
         override fun evaluate(

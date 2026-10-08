@@ -86,4 +86,62 @@ class BillingClientUseCaseTest {
             assertEquals(0, useCase.executeCount)
         }
     }
+
+    @Test
+    fun requestsThatFindTheClientDisconnectedAreRequeuedBeforeFailing() {
+        var receivedError: BillingError? = null
+        val useCase =
+            object : BillingClientUseCase<Unit>(
+                useCaseParams = Params(),
+                onError = { receivedError = it },
+                executeRequestOnUIThread = { _, request -> request(null) },
+            ) {
+                var executeCount = 0
+
+                override fun executeAsync() {
+                    executeCount++
+                    retryWhenClientReconnects()
+                }
+
+                override fun onOk(received: Unit) = Unit
+            }
+
+        useCase.run()
+
+        assertEquals(MAX_CLIENT_NOT_READY_RETRIES + 1, useCase.executeCount)
+        assertTrue(receivedError is BillingError.WithCode)
+        assertEquals(BillingClient.BillingResponseCode.SERVICE_DISCONNECTED, receivedError?.code)
+    }
+
+    @Test
+    fun productQueryWithoutAReadyClientIsRequeuedInsteadOfDropped() {
+        var receivedError: BillingError? = null
+        var received: List<Any>? = null
+        var queued = 0
+        val useCase =
+            QueryProductDetailsUseCase(
+                useCaseParams =
+                    QueryProductDetailsUseCaseParams(
+                        subscriptionIds = setOf("product"),
+                        decomposedProductIdsBySubscriptionId = mutableMapOf(),
+                        productType = BillingClient.ProductType.SUBS,
+                        appInBackground = false,
+                    ),
+                onReceive = { received = it },
+                onError = { receivedError = it },
+                // The client is never ready: every attempt is turned away.
+                withConnectedClient = { null },
+                executeRequestOnUIThread = { _, request ->
+                    queued++
+                    request(null)
+                },
+            )
+
+        useCase.run()
+
+        assertEquals(MAX_CLIENT_NOT_READY_RETRIES + 1, queued)
+        assertEquals(null, received)
+        assertTrue(receivedError is BillingError.WithCode)
+        assertEquals(BillingClient.BillingResponseCode.SERVICE_DISCONNECTED, receivedError?.code)
+    }
 }

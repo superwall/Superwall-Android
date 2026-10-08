@@ -113,6 +113,8 @@ class SWWebView(
     var onRenderCrashed: (didCrash: Boolean, priority: Int) -> Unit =
         { i, e -> }
 
+    private var onLoadFailed: (WebviewError) -> Unit = {}
+
     private companion object ChromeClient : WebChromeClient() {
         const val MAX_LOAD_RETRIES = 3
         val posterBmp by lazy { createBitmap(10, 10) }
@@ -465,24 +467,45 @@ class SWWebView(
                                         }
                                     },
                                 )
-                                if (lastLoadedUrl != null) {
-                                    when (lastWebViewClient) {
-                                        is WebviewFallbackClient -> {
-                                            // NO-OP as it has internal fallback
-                                        }
+                                val error = it.webviewError
+                                val outOfAttempts =
+                                    when (error) {
+                                        is WebviewError.NoUrls,
+                                        is WebviewError.AllUrlsFailed,
+                                        is WebviewError.MaxAttemptsReached,
+                                        -> true
 
-                                        is DefaultWebviewClient -> {
-                                            if (loadRetryCount < MAX_LOAD_RETRIES) {
-                                                loadRetryCount += 1
-                                                log(
-                                                    "Paywall loading failed - retrying $lastLoadedUrl",
-                                                )
-                                                loadUrl(lastLoadedUrl!!)
+                                        is WebviewError.NetworkError ->
+                                            when (lastWebViewClient) {
+                                                is WebviewFallbackClient -> {
+                                                    // NO-OP as it has internal fallback; it reports
+                                                    // AllUrlsFailed/MaxAttemptsReached when that runs out.
+                                                    false
+                                                }
+
+                                                is DefaultWebviewClient -> {
+                                                    if (lastLoadedUrl == null) {
+                                                        false
+                                                    } else if (loadRetryCount < MAX_LOAD_RETRIES) {
+                                                        loadRetryCount += 1
+                                                        log(
+                                                            "Paywall loading failed - retrying $lastLoadedUrl",
+                                                        )
+                                                        loadUrl(lastLoadedUrl!!)
+                                                        false
+                                                    } else {
+                                                        true
+                                                    }
+                                                }
+
+                                                else -> false
                                             }
-                                        }
 
-                                        else -> {}
+                                        is WebviewError.Timeout -> false
                                     }
+                                if (outOfAttempts) {
+                                    log("Paywall loading failed - no attempts left for ${delegate?.state?.paywall?.identifier}")
+                                    onLoadFailed(error)
                                 }
                             }
 
@@ -640,8 +663,10 @@ class SWWebView(
     override fun setup(
         url: PaywallURL,
         onRenderCrashed: (Boolean, Int) -> Unit,
+        onLoadFailed: (WebviewError) -> Unit,
     ) {
         this.onRenderCrashed = onRenderCrashed
+        this.onLoadFailed = onLoadFailed
         scrollEnabled = delegate?.state?.paywall?.isScrollEnabled ?: true
         loadRetryCount = 0
         mainScope.launch {

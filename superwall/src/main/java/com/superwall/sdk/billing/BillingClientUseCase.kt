@@ -17,6 +17,10 @@ internal const val RETRY_TIMER_MAX_TIME_MILLISECONDS = 1000L * 60L * 15L // 15 m
 private const val FOREGROUND_BACKOFF_START_MILLISECONDS = 250L
 private const val FOREGROUND_BACKOFF_MAX_ATTEMPTS = 2
 
+// How many times a request is put back on the queue after finding the billing client
+// disconnected when it came to run, before it fails instead.
+internal const val MAX_CLIENT_NOT_READY_RETRIES = 3
+
 internal interface UseCaseParams {
     val appInBackground: Boolean
 }
@@ -36,6 +40,7 @@ internal abstract class BillingClientUseCase<T>(
     private var retryAttempt: Int = 0
     private var retryBackoffMilliseconds = RETRY_TIMER_START_MILLISECONDS
     private var foregroundBackoffAttempt: Int = 0
+    private var clientNotReadyRetries: Int = 0
 
     fun run(delayMilliseconds: Long = 0) {
         executeRequestOnUIThread(delayMilliseconds) { connectionError ->
@@ -50,6 +55,38 @@ internal abstract class BillingClientUseCase<T>(
     abstract fun executeAsync()
 
     abstract fun onOk(received: T)
+
+    /**
+     * The billing client lost its connection between this request being taken off the
+     * queue and it running. Put it back on the queue, which reconnects and runs it once
+     * the client is ready again. A request that keeps finding the client disconnected
+     * fails, so its caller never waits on a callback that isn't coming.
+     */
+    protected fun retryWhenClientReconnects() {
+        if (clientNotReadyRetries < MAX_CLIENT_NOT_READY_RETRIES) {
+            clientNotReadyRetries++
+            Logger.debug(
+                logLevel = LogLevel.warn,
+                scope = LogScope.productsManager,
+                message =
+                    "Billing client not ready, re-queueing request " +
+                        "($clientNotReadyRetries/$MAX_CLIENT_NOT_READY_RETRIES).",
+            )
+            run()
+        } else {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.productsManager,
+                message = "Billing client not ready after $clientNotReadyRetries retries, failing request.",
+            )
+            onError(
+                BillingError.WithCode(
+                    code = BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
+                    description = "Billing client was not ready after $clientNotReadyRetries retries.",
+                ),
+            )
+        }
+    }
 
     fun processResult(
         billingResult: BillingResult,

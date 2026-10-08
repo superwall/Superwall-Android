@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.After
@@ -229,8 +230,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
@@ -257,8 +259,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED),
@@ -402,8 +405,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
@@ -442,8 +446,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(ids) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
@@ -475,8 +480,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     // SERVICE_UNAVAILABLE retries connection but does NOT drain requests
                     capturedStateListener?.onBillingSetupFinished(
@@ -777,7 +783,7 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    advanceUntilIdle()
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(
@@ -811,7 +817,7 @@ class GoogleBillingWrapperTest {
                         runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                     }
 
-                advanceUntilIdle()
+                runCurrent()
 
                 When("SERVICE_UNAVAILABLE occurs (requests stay in queue)") {
                     capturedStateListener?.onBillingSetupFinished(

@@ -410,6 +410,7 @@ class PaywallMessageHandlerTest {
         override fun setup(
             url: com.superwall.sdk.models.paywall.PaywallURL,
             onRenderCrashed: (Boolean, Int) -> Unit,
+            onLoadFailed: (com.superwall.sdk.paywall.view.webview.WebviewError) -> Unit,
         ) {
         }
 
