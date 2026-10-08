@@ -3,7 +3,7 @@ package com.superwall.sdk.config.options
 /**
  * Whether the user has granted or denied a consent signal.
  */
-enum class ConsentStatus(
+enum class AdConsentStatus(
     val raw: String,
 ) {
     GRANTED("granted"),
@@ -20,11 +20,11 @@ enum class ConsentStatus(
  * - [adUserData]: consent to send user data to the ad network for advertising.
  * - [adPersonalization]: consent to use that data for personalized advertising.
  *
- * Both default to [ConsentStatus.GRANTED].
+ * Both default to [AdConsentStatus.GRANTED].
  */
 data class AdConsent(
-    val adUserData: ConsentStatus = ConsentStatus.GRANTED,
-    val adPersonalization: ConsentStatus = ConsentStatus.GRANTED,
+    val adUserData: AdConsentStatus = AdConsentStatus.GRANTED,
+    val adPersonalization: AdConsentStatus = AdConsentStatus.GRANTED,
 )
 
 /**
@@ -33,7 +33,7 @@ data class AdConsent(
  */
 internal fun AdConsent.effective(eventTrackingBehavior: EventTrackingBehavior): AdConsent =
     if (eventTrackingBehavior == EventTrackingBehavior.NONE) {
-        AdConsent(adUserData = ConsentStatus.DENIED, adPersonalization = ConsentStatus.DENIED)
+        AdConsent(adUserData = AdConsentStatus.DENIED, adPersonalization = AdConsentStatus.DENIED)
     } else {
         this
     }

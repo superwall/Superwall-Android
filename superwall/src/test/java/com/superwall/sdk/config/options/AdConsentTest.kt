@@ -13,21 +13,21 @@ class AdConsentTest {
             val options = SuperwallOptions()
 
             Then("both consent signals are granted") {
-                assertEquals(AdConsent(ConsentStatus.GRANTED, ConsentStatus.GRANTED), options.adConsent)
+                assertEquals(AdConsent(AdConsentStatus.GRANTED, AdConsentStatus.GRANTED), options.adConsent)
             }
         }
     }
 
     @Test
     fun `consent statuses match the wire format`() {
-        assertEquals("granted", ConsentStatus.GRANTED.raw)
-        assertEquals("denied", ConsentStatus.DENIED.raw)
+        assertEquals("granted", AdConsentStatus.GRANTED.raw)
+        assertEquals("denied", AdConsentStatus.DENIED.raw)
     }
 
     @Test
     fun `effective consent is unchanged unless tracking is none`() {
         Given("a consent with personalization denied") {
-            val consent = AdConsent(adPersonalization = ConsentStatus.DENIED)
+            val consent = AdConsent(adPersonalization = AdConsentStatus.DENIED)
 
             When("tracking is ALL or SUPERWALL_ONLY") {
                 Then("the consent is reported as set") {
@@ -47,7 +47,7 @@ class AdConsentTest {
                 val effective = consent.effective(EventTrackingBehavior.NONE)
 
                 Then("both signals are denied") {
-                    assertEquals(AdConsent(ConsentStatus.DENIED, ConsentStatus.DENIED), effective)
+                    assertEquals(AdConsent(AdConsentStatus.DENIED, AdConsentStatus.DENIED), effective)
                 }
             }
         }
@@ -57,7 +57,7 @@ class AdConsentTest {
     fun `toMap encodes ad consent`() {
         Given("options with ad user data denied") {
             val options = SuperwallOptions()
-            options.adConsent = AdConsent(adUserData = ConsentStatus.DENIED)
+            options.adConsent = AdConsent(adUserData = AdConsentStatus.DENIED)
 
             When("converting the options to a map") {
                 val map = options.toMap()

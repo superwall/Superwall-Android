@@ -9,7 +9,7 @@ import com.superwall.sdk.When
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.config.options.AdConsent
-import com.superwall.sdk.config.options.ConsentStatus
+import com.superwall.sdk.config.options.AdConsentStatus
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.identity.IdentityInfo
@@ -128,8 +128,8 @@ class DeviceHelperAdConsentTest {
                 When("ad consent is changed at runtime") {
                     options.adConsent =
                         AdConsent(
-                            adUserData = ConsentStatus.DENIED,
-                            adPersonalization = ConsentStatus.GRANTED,
+                            adUserData = AdConsentStatus.DENIED,
+                            adPersonalization = AdConsentStatus.GRANTED,
                         )
                     val second = deviceHelper.getTemplateDevice()
 

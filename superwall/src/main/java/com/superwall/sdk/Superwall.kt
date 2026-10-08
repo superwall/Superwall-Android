@@ -1,5 +1,8 @@
 package com.superwall.sdk
 
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.Mutex
+import java.util.concurrent.atomic.AtomicLong
 import android.app.Application
 import android.content.ComponentCallbacks2
 import android.content.Context
@@ -210,11 +213,22 @@ class Superwall(
                 return
             }
 
+            // Re-sends run one at a time and drop superseded assignments, so an older
+            // snapshot can never be tracked after a newer one.
+            val generation = adConsentGeneration.incrementAndGet()
             ioScope.launch {
-                track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
-                track(dependencyContainer.makeConfigAttributes())
+                adConsentMutex.withLock {
+                    if (generation != adConsentGeneration.get()) {
+                        return@withLock
+                    }
+                    track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
+                    track(dependencyContainer.makeConfigAttributes())
+                }
             }
         }
+
+    private val adConsentGeneration = AtomicLong()
+    private val adConsentMutex = Mutex()
 
     /**
      * The presented paywall view.
