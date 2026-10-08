@@ -53,7 +53,6 @@ import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallErrors
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
@@ -315,41 +314,38 @@ class PaywallView(
         }
 
         val timeout = factory.makeSuperwallOptions().paywalls.timeoutAfter
+        loadTimeoutJob?.cancel()
         if (timeout != null) {
-            ioScope.launch {
-                val msg =
-                    "Timeout triggered - paywall wasn't loaded in ${timeout.inWholeSeconds} seconds"
-                controller.currentState
-                    .filter { it.loadingState == PaywallLoadingState.Ready }
-                    .map { Result.success(it.loadingState) }
-                    .timeout(timeout)
-                    .catch { err ->
-                        emit(Result.failure<PaywallLoadingState>(err))
-                    }.first()
-                    .onFailure { e ->
-                        if (e is TimeoutCancellationException) {
-                            state.paywallStatePublisher?.emit(
-                                PaywallState.PresentationError(
-                                    PaywallErrors.Timeout(msg),
-                                ),
-                            )
-                            mainScope.launch {
-                                updateState(WebLoadingFailed)
+            loadTimeoutJob =
+                ioScope.launch {
+                    val msg =
+                        "Timeout triggered - paywall wasn't loaded in ${timeout.inWholeSeconds} seconds"
+                    controller.currentState
+                        .filter { it.loadingState == PaywallLoadingState.Ready }
+                        .map { Result.success(it.loadingState) }
+                        .timeout(timeout)
+                        .catch { err ->
+                            emit(Result.failure<PaywallLoadingState>(err))
+                        }.first()
+                        .onFailure { e ->
+                            if (e is TimeoutCancellationException) {
+                                val trackedEvent =
+                                    InternalSuperwallEvent.PaywallWebviewLoad(
+                                        state =
+                                            InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
+                                                WebviewError.Timeout(msg),
+                                                listOf(info.url.value),
+                                            ),
+                                        paywallInfo = info,
+                                    )
+                                factory.track(trackedEvent)
+                                // The app set a deadline for the paywall to appear and it passed, so
+                                // the paywall is closed rather than left on screen behind the
+                                // app's own fallback. Same outcome as a webview that can't load.
+                                webViewDidFail()
                             }
-
-                            val trackedEvent =
-                                InternalSuperwallEvent.PaywallWebviewLoad(
-                                    state =
-                                        InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
-                                            WebviewError.Timeout(msg),
-                                            listOf(info.url.value),
-                                        ),
-                                    paywallInfo = info,
-                                )
-                            factory.track(trackedEvent)
                         }
-                    }
-            }
+                }
         }
 
         cache?.acquireShimmerView()?.let {
@@ -376,6 +372,58 @@ class PaywallView(
     internal fun clearActivityLaunchState() {
         controller.updateState(ClearViewCreatedCompletion)
         cache?.activePaywallVcKey = null
+    }
+
+    /** Watches for `paywalls.timeoutAfter` while a presentation waits for the webview. */
+    private var loadTimeoutJob: Job? = null
+
+    /**
+     * Set when the webview fails while the activity for this presentation is still being
+     * created, so onViewCreated() dismisses it as soon as it's on screen.
+     */
+    @Volatile
+    private var dismissOnceViewCreated = false
+
+    /**
+     * The webview can't load this paywall: every URL and retry is used up, or the app's
+     * `paywalls.timeoutAfter` passed. Mirrors iOS's `handleWebViewFailure`: a paywall on screen
+     * is dismissed as declined with [PaywallCloseReason.WebViewFailedToLoad], so the register
+     * handler runs the feature for a non-gated placement and `onError` for a gated one. A paywall
+     * that isn't on screen is marked [PaywallViewState.webviewFailedToLoad] and reloads the next
+     * time it's presented (see [presentationWillBegin]).
+     */
+    internal fun webViewDidFail() {
+        mainScope.launch {
+            updateState(WebLoadingFailed)
+            updateState(WebLoadingExhausted)
+            when {
+                state.isPresented -> {
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.paywallView,
+                        "Webview failed to load - dismissing paywall ${state.paywall.identifier}",
+                    )
+                    dismiss(
+                        PaywallResult.Declined(),
+                        PaywallCloseReason.WebViewFailedToLoad,
+                    )
+                }
+
+                state.viewCreatedCompletion != null -> {
+                    // The activity for this presentation hasn't been created yet.
+                    dismissOnceViewCreated = true
+                }
+
+                else -> {
+                    Logger.debug(
+                        LogLevel.warn,
+                        LogScope.paywallView,
+                        "Webview failed to load off-screen - paywall ${state.paywall.identifier} " +
+                            "will reload when next presented",
+                    )
+                }
+            }
+        }
     }
 
     internal fun handleActivityLaunchFailure(
@@ -445,6 +493,12 @@ class PaywallView(
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
         } else if (loadingState is PaywallLoadingState.LoadingURL || loadingState is PaywallLoadingState.Unknown) {
+            if (state.webviewFailedToLoad) {
+                // The last load failed for good while this paywall was off-screen (e.g. during
+                // preload). Try again now that it's wanted, like iOS does for a `didFailToLoad`
+                // webview. A load that is still retrying isn't restarted.
+                loadWebView()
+            }
             trackShimmerStart()
             controller.updateState(ShimmerStarted)
         }
@@ -543,6 +597,7 @@ class PaywallView(
         ) {
             controller.updateState(SetLoadingState(PaywallLoadingState.Ready))
         }
+        dismissOnceViewCreated = false
         resetPresentationPreparations()
     }
 
@@ -551,6 +606,8 @@ class PaywallView(
         closeReason: PaywallCloseReason,
         completion: (() -> Unit)? = null,
     ) {
+        loadTimeoutJob?.cancel()
+        loadTimeoutJob = null
         controller.updateState(
             InitiateDismiss(
                 result,
@@ -719,6 +776,10 @@ class PaywallView(
         factory
             .delegate()
             .didPresentPaywall(info)
+        if (dismissOnceViewCreated) {
+            dismissOnceViewCreated = false
+            webViewDidFail()
+        }
         loadingStateDidChange()
         webView.messageHandler.flushPendingMessages()
         ioScope.launch {
@@ -1023,6 +1084,7 @@ class PaywallView(
                         }
                     }
                 },
+                onLoadFailed = { webViewDidFail() },
             )
 
             controller.updateState(SetLoadingState(PaywallLoadingState.LoadingURL))
