@@ -153,6 +153,18 @@ object DidCompleteMMPInstallAttributionRequest : Storable<Boolean> {
  * after a reset can't be relied on — caching the resolved payload lets us repopulate the new user
  * deterministically, without re-hitting the backend.
  */
+/** The install-referrer redemption code already handed to the redeemer, so it's redeemed once per install. */
+object RedeemedInstallReferrerCode : Storable<String> {
+    override val key: String
+        get() = "store.redeemedInstallReferrerCode"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<String>
+        get() = String.serializer()
+}
+
 object MMPAcquisitionData : Storable<Map<String, JsonElement>> {
     override val key: String
         get() = "store.mmpAcquisitionData"

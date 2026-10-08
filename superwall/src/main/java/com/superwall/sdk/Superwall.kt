@@ -175,6 +175,10 @@ class Superwall(
                 paywallView?.webView?.messageHandler?.passEventTrackingBehaviorToWebView(newValue)
             }
 
+            if (newValue != EventTrackingBehavior.NONE) {
+                dependencyContainer.mmpAttributionManager.startMatchIfEnabled()
+            }
+
             // When opting out entirely, don't emit the config-attributes event —
             // it would otherwise transmit attributes right after the opt-out.
             if (newValue == EventTrackingBehavior.NONE) {
@@ -738,27 +742,35 @@ class Superwall(
                             ).awaitAll()
                         }
 
-                        // Skip install-attribution matching entirely when the developer has opted
-                        // out of all event collection. The `/api/match` call and the
-                        // `acquisition_*` attribute writes happen outside the event queue, so
-                        // queue-level suppression wouldn't catch them.
+                        // The eligibility check runs whatever the config or tracking setting
+                        // says: it records that this install may be matched, which a later
+                        // launch relies on. Only the request waits for config to enable the MMP.
                         if (
-                            eventTrackingBehavior != EventTrackingBehavior.NONE &&
                             dependencyContainer.storage.shouldAttemptInitialMMPInstallAttributionMatch(
                                 hadTrackedAppInstallBeforeConfigure = hadTrackedAppInstallBeforeConfigure,
                                 appInstalledAtMillis = dependencyContainer.deviceHelper.appInstalledAtMillis,
                             )
                         ) {
-                            ioScope.launch {
-                                val installReferrerClickId =
-                                    dependencyContainer.deepLinkReferrer
-                                        .checkForMmpClickId()
-                                        .getOrNull()
-
-                                dependencyContainer.storage.recordMMPInstallAttributionRequest {
-                                    dependencyContainer.mmpAttributionManager
-                                        .matchInstall(installReferrerClickId)
+                            dependencyContainer.mmpAttributionManager.matchInstallOnceEnabled {
+                                // Skip matching when the app has opted out of all event collection.
+                                // The `/api/match` call and the `acquisition_*` attribute writes
+                                // happen outside the event queue, so queue-level suppression
+                                // wouldn't catch them. It's tried again if the app opts back in.
+                                if (eventTrackingBehavior == EventTrackingBehavior.NONE) {
+                                    return@matchInstallOnceEnabled false
                                 }
+                                ioScope.launch {
+                                    val installReferrerClickId =
+                                        dependencyContainer.deepLinkReferrer
+                                            .checkForMmpClickId()
+                                            .getOrNull()
+
+                                    dependencyContainer.storage.recordMMPInstallAttributionRequest {
+                                        dependencyContainer.mmpAttributionManager
+                                            .matchInstall(installReferrerClickId)
+                                    }
+                                }
+                                true
                             }
                         }
                     }.toResult().fold({
@@ -969,12 +981,6 @@ class Superwall(
                 // Called from identity actor's completeReset during identify
                 // or full reset — just do cleanup without touching identity.
                 dependencyContainer.storage.reset()
-
-                // MMP install attribution is install-scoped. Re-apply the cached
-                // `acquisition_*` payload to the new user rather than re-running the match —
-                // the backend match only succeeds within the 7-day install window, so a
-                // logout after that would otherwise leave the new user without attributes.
-                dependencyContainer.mmpAttributionManager.reapplyCachedAcquisitionAttributes()
 
                 dependencyContainer.paywallManager.resetCache()
                 presentationItems.reset()

@@ -31,6 +31,7 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.storage.LastWebEntitlementsFetchDate
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.LatestWebCustomerInfo
+import com.superwall.sdk.storage.RedeemedInstallReferrerCode
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.TrackedWebTrialCodes
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -156,8 +157,14 @@ class WebPaywallRedeemer(
             deepLinkReferrer
                 .checkForReferral()
                 .fold(
-                    onSuccess = {
-                        redeem(RedeemType.Code(it))
+                    onSuccess = { code ->
+                        // Play keeps the install referrer for the life of the install, so
+                        // only redeem its code on the first launch that reads it.
+                        if (storage.read(RedeemedInstallReferrerCode) == code) {
+                            return@fold
+                        }
+                        redeem(RedeemType.Code(code))
+                        storage.write(RedeemedInstallReferrerCode, code)
                     },
                     onFailure = { throw it },
                 )

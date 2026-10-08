@@ -57,6 +57,8 @@ class WebPaywallRedeemerTest {
             every { read(LatestWebCustomerInfo) } returns null
             every { write(LatestWebCustomerInfo, any()) } just Runs
             every { write(LastWebEntitlementsFetchDate, any()) } just Runs
+            every { read(RedeemedInstallReferrerCode) } returns null
+            every { write(RedeemedInstallReferrerCode, any()) } just Runs
         }
 
     private var maxAge: () -> Long = { 1L }
@@ -271,6 +273,36 @@ class WebPaywallRedeemerTest {
                         // Polling also runs, but storage holds no redemption response in this
                         // mock, so it must not publish entitlements it cannot persist.
                         assertEquals(listOf(setOf(webEntitlement)), published.toList())
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `an install referrer code already redeemed on this install is not redeemed again`() =
+        runTest(testDispatcher) {
+            Given("a referrer code that an earlier launch already redeemed") {
+                val code = "already_redeemed"
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
+                every { storage.read(RedeemedInstallReferrerCode) } returns code
+
+                When("a later launch creates the redeemer") {
+                    redeemer =
+                        WebPaywallRedeemer(
+                            context,
+                            IOScope(testDispatcher),
+                            deepLinkReferrer,
+                            network,
+                            storage,
+                            customerInfoManager = mockk(relaxed = true),
+                            factory = TestFactory(),
+                        )
+                    testScheduler.advanceUntilIdle()
+
+                    Then("it does not redeem the code again") {
+                        coVerify(exactly = 0) {
+                            network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                        }
                     }
                 }
             }

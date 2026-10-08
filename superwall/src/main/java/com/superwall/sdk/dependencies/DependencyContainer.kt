@@ -548,6 +548,7 @@ class DependencyContainer(
                     delegate().userAttributesDidChange(it)
                 },
                 webPaywallRedeemer = { reedemer },
+                installScopedAttributes = { mmpAttributionManager.cachedAcquisitionAttributes() },
                 actor = identityActor,
                 sdkContext = sdkContext,
             )
@@ -792,6 +793,8 @@ class DependencyContainer(
                 sendMatchRequest = { clickId ->
                     network.matchMMPInstall(clickId, attributionManager.integrationAttributes)
                 },
+                configState = configManager.configState,
+                scope = ioScope,
             )
 
         /**

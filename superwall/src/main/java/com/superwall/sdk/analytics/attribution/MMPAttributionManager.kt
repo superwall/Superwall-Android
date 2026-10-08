@@ -3,12 +3,18 @@ package com.superwall.sdk.analytics.attribution
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
+import com.superwall.sdk.config.ConfigState
+import com.superwall.sdk.config.getConfig
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.network.MmpMatchResponse
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.MMPAcquisitionData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
@@ -26,13 +32,19 @@ import kotlinx.serialization.json.longOrNull
  * decoded response. Everything attribution-specific lives here, mirroring how
  * `AttributionPoster` owns the Apple Search Ads flow on iOS.
  */
-class MMPAttributionManager(
+internal class MMPAttributionManager(
     private val storage: LocalStorage,
     private val identityManager: IdentityManager,
     private val track: suspend (TrackableSuperwallEvent) -> Unit,
     private val setUserAttributes: (Map<String, Any?>) -> Unit,
     private val sendMatchRequest: suspend (Long?) -> Either<MmpMatchResponse, NetworkError>,
+    private val configState: StateFlow<ConfigState>,
+    private val scope: CoroutineScope,
 ) {
+    private val lock = Any()
+    private var startMatch: (() -> Boolean)? = null
+    private var hasStartedMatch = false
+
     /**
      * Fires the install-attribution match and applies its result.
      *
@@ -88,24 +100,49 @@ class MMPAttributionManager(
         }
 
     /**
-     * Re-applies the cached MMP `acquisition_*` payload to the current user's attributes.
-     *
-     * Called from [com.superwall.sdk.Superwall.reset] after user files are wiped so the new
-     * user identity inherits the install-scoped attribution without re-matching against the
-     * backend (which only succeeds within the 7-day install window). No-op if no match ever
-     * resolved.
+     * The cached MMP `acquisition_*` payload as attribute values, or empty if no match
+     * ever resolved. The identity reset merges these into every new user, since the
+     * backend match only succeeds within the 7-day install window.
      */
-    fun reapplyCachedAcquisitionAttributes() {
-        val cached = storage.read(MMPAcquisitionData) ?: return
-        mergeAcquisitionAttributesIfNeeded(cached)
+    fun cachedAcquisitionAttributes(): Map<String, Any?> =
+        storage.read(MMPAcquisitionData)?.toAttributeValues().orEmpty()
+
+    /**
+     * Calls [startMatch] once config turns the MMP on for this app, which may be
+     * straight away. It's off by default, so it never fires unless the backend
+     * enables it.
+     *
+     * [startMatch] returns whether it started the match, or false if it skipped it
+     * because the app has opted out of tracking. A skipped match is tried again
+     * when the app opts back in, via [startMatchIfEnabled].
+     */
+    fun matchInstallOnceEnabled(startMatch: () -> Boolean) {
+        synchronized(lock) { this.startMatch = startMatch }
+        scope.launch {
+            configState.first { it.getConfig()?.isMmpEnabled == true }
+            startMatchIfEnabled()
+        }
+    }
+
+    /**
+     * Starts this install's match if config has the MMP on and it hasn't started
+     * yet. Called when config arrives and when the app turns tracking back on.
+     */
+    fun startMatchIfEnabled() {
+        if (configState.value.getConfig()?.isMmpEnabled != true) {
+            return
+        }
+        synchronized(lock) {
+            val start = startMatch
+            if (hasStartedMatch || start == null) {
+                return
+            }
+            hasStartedMatch = start()
+        }
     }
 
     private fun mergeAcquisitionAttributesIfNeeded(acquisitionAttributes: Map<String, JsonElement>) {
-        val attributes =
-            acquisitionAttributes
-                .mapNotNull { (key, value) ->
-                    jsonElementToValue(value)?.let { key to it }
-                }.toMap()
+        val attributes = acquisitionAttributes.toAttributeValues()
 
         if (attributes.isEmpty()) {
             return
@@ -123,6 +160,11 @@ class MMPAttributionManager(
 
         setUserAttributes(attributes)
     }
+
+    private fun Map<String, JsonElement>.toAttributeValues(): Map<String, Any> =
+        mapNotNull { (key, value) ->
+            jsonElementToValue(value)?.let { key to it }
+        }.toMap()
 
     private fun jsonElementToValue(value: JsonElement): Any? =
         when {

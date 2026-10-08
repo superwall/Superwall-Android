@@ -12,6 +12,13 @@ import com.superwall.sdk.storage.MMPAcquisitionData
 import com.superwall.sdk.storage.Storable
 import io.mockk.every
 import io.mockk.mockk
+import com.superwall.sdk.config.ConfigState
+import com.superwall.sdk.models.config.AttributionOptions
+import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.config.MmpAttributionOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
@@ -22,8 +29,8 @@ import org.junit.Test
 
 /**
  * Mirrors iOS's `MMPAttributionManager` behaviour: cache the resolved `acquisition_*`
- * payload, merge it into user attributes, track the outcome, and re-apply the cache after
- * a reset without re-hitting the backend.
+ * payload, merge it into user attributes, track the outcome, expose the cache for resets
+ * without re-hitting the backend, and only match once config turns the MMP on.
  */
 class MMPAttributionManagerTest {
     private val stored = mutableMapOf<String, Any?>()
@@ -68,6 +75,8 @@ class MMPAttributionManagerTest {
 
             val manager =
                 MMPAttributionManager(
+                    configState = MutableStateFlow(ConfigState.None),
+                    scope = this,
                     storage = storage(),
                     identityManager = identityManager(),
                     track = { tracked += it },
@@ -98,6 +107,8 @@ class MMPAttributionManagerTest {
 
             val manager =
                 MMPAttributionManager(
+                    configState = MutableStateFlow(ConfigState.None),
+                    scope = this,
                     storage = storage(),
                     identityManager = identityManager(),
                     track = { tracked += it },
@@ -122,6 +133,8 @@ class MMPAttributionManagerTest {
 
             val manager =
                 MMPAttributionManager(
+                    configState = MutableStateFlow(ConfigState.None),
+                    scope = this,
                     storage = storage(),
                     identityManager = identityManager(),
                     track = { tracked += it },
@@ -142,6 +155,8 @@ class MMPAttributionManagerTest {
 
             val manager =
                 MMPAttributionManager(
+                    configState = MutableStateFlow(ConfigState.None),
+                    scope = this,
                     storage = storage(),
                     identityManager = identityManager(),
                     track = { tracked += it },
@@ -163,6 +178,8 @@ class MMPAttributionManagerTest {
 
             val manager =
                 MMPAttributionManager(
+                    configState = MutableStateFlow(ConfigState.None),
+                    scope = this,
                     storage = storage(),
                     identityManager =
                         identityManager(
@@ -190,6 +207,8 @@ class MMPAttributionManagerTest {
 
             // First run: match resolves and caches.
             MMPAttributionManager(
+                configState = MutableStateFlow(ConfigState.None),
+                scope = this,
                 storage = storage,
                 identityManager = identityManager(),
                 track = {},
@@ -201,34 +220,115 @@ class MMPAttributionManagerTest {
             ).matchInstall(null)
 
             // After `reset()` the user's attributes are gone, but the install-scoped cache isn't.
-            MMPAttributionManager(
-                storage = storage,
-                identityManager = identityManager(),
-                track = {},
-                setUserAttributes = { applied += it },
-                sendMatchRequest = {
-                    requests += 1
-                    Either.Success(matched())
-                },
-            ).reapplyCachedAcquisitionAttributes()
+            val cached =
+                MMPAttributionManager(
+                    configState = MutableStateFlow(ConfigState.None),
+                    scope = this,
+                    storage = storage,
+                    identityManager = identityManager(),
+                    track = {},
+                    setUserAttributes = {},
+                    sendMatchRequest = {
+                        requests += 1
+                        Either.Success(matched())
+                    },
+                ).cachedAcquisitionAttributes()
 
             assertEquals(1, requests)
-            assertEquals("tiktok", applied.single()["acquisition_source"])
+            assertEquals("tiktok", cached["acquisition_source"])
         }
 
     @Test
-    fun `reapply is a no-op when no match ever resolved`() =
+    fun `cached attributes are empty when no match ever resolved`() =
         runTest {
-            val applied = mutableListOf<Map<String, Any?>>()
+            val cached =
+                MMPAttributionManager(
+                    configState = MutableStateFlow(ConfigState.None),
+                    scope = this,
+                    storage = storage(),
+                    identityManager = identityManager(),
+                    track = {},
+                    setUserAttributes = {},
+                    sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
+                ).cachedAcquisitionAttributes()
 
-            MMPAttributionManager(
-                storage = storage(),
-                identityManager = identityManager(),
-                track = {},
-                setUserAttributes = { applied += it },
-                sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
-            ).reapplyCachedAcquisitionAttributes()
+            assertTrue(cached.isEmpty())
+        }
 
-            assertTrue(applied.isEmpty())
+    private fun configWithMmp(enabled: Boolean) =
+        ConfigState.Retrieved(
+            Config.stub().copy(attributionOptions = AttributionOptions(mmp = MmpAttributionOptions(enabled))),
+        )
+
+    private fun gatedManager(
+        scope: CoroutineScope,
+        configState: MutableStateFlow<ConfigState>,
+    ) = MMPAttributionManager(
+        configState = configState,
+        scope = scope,
+        storage = storage(),
+        identityManager = identityManager(),
+        track = {},
+        setUserAttributes = {},
+        sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
+    )
+
+    @Test
+    fun `the match never starts while config has the MMP off`() =
+        runTest {
+            val configState = MutableStateFlow<ConfigState>(configWithMmp(enabled = false))
+            var starts = 0
+
+            gatedManager(backgroundScope, configState).matchInstallOnceEnabled {
+                starts += 1
+                true
+            }
+            runCurrent()
+
+            assertEquals(0, starts)
+        }
+
+    @Test
+    fun `the match starts once when config turns the MMP on`() =
+        runTest {
+            val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieving)
+            var starts = 0
+            val manager = gatedManager(backgroundScope, configState)
+
+            manager.matchInstallOnceEnabled {
+                starts += 1
+                true
+            }
+            runCurrent()
+            assertEquals(0, starts)
+
+            configState.value = configWithMmp(enabled = true)
+            runCurrent()
+            manager.startMatchIfEnabled()
+
+            assertEquals(1, starts)
+        }
+
+    @Test
+    fun `a match skipped while opted out starts when tracking is turned back on`() =
+        runTest {
+            val configState = MutableStateFlow<ConfigState>(configWithMmp(enabled = true))
+            var optedOut = true
+            var starts = 0
+            val manager = gatedManager(backgroundScope, configState)
+
+            manager.matchInstallOnceEnabled {
+                if (optedOut) return@matchInstallOnceEnabled false
+                starts += 1
+                true
+            }
+            runCurrent()
+            assertEquals(0, starts)
+
+            optedOut = false
+            manager.startMatchIfEnabled()
+            manager.startMatchIfEnabled()
+
+            assertEquals(1, starts)
         }
 }
