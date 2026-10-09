@@ -16,6 +16,10 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.Tier
+import com.superwall.sdk.config.options.AdConsent
+import com.superwall.sdk.config.options.ReportedAdConsent
+import com.superwall.sdk.config.options.reportedAdConsent
+import com.superwall.sdk.config.options.effective
 import com.superwall.sdk.dependencies.ActiveEntitlementsFactory
 import com.superwall.sdk.dependencies.CustomerInfoFactory
 import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
@@ -81,6 +85,7 @@ class DeviceHelper(
     val network: SuperwallAPI,
     val factory: Factory,
     private val classifier: DeviceClassifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
+    private val tcfAdConsent: () -> AdConsent? = { null },
 ) {
     interface Factory :
         IdentityInfoFactory,
@@ -276,8 +281,22 @@ class DeviceHelper(
     val currencySymbol: String
         get() = _currency?.symbol ?: ""
 
+    val timezoneOffsetSeconds: Int
+        get() = TimeZone.getDefault().rawOffset / 1000
+
     val secondsFromGMT: String
-        get() = (TimeZone.getDefault().rawOffset / 1000).toString()
+        get() = timezoneOffsetSeconds.toString()
+
+    val screenWidth: Int
+        get() = classifier.getScreenWidth()
+
+    val screenHeight: Int
+        get() = classifier.getScreenHeight()
+
+    val devicePixelRatio: Double
+        get() =
+            context.resources.displayMetrics.density
+                .toDouble()
 
     val isFirstAppOpen: Boolean
         get() = !storage.didTrackFirstSession
@@ -327,6 +346,9 @@ class DeviceHelper(
 
     val appInstalledAtString: String
         get() = dateFormat(DateUtils.SIMPLE).format(appInstallDate)
+
+    val appInstalledAtMillis: Long
+        get() = appInstallDate.time
 
     var interfaceStyleOverride: InterfaceStyle? = null
 
@@ -593,13 +615,18 @@ class DeviceHelper(
             totalPaywallViews.toString(),
             reviewRequestCount.toString(),
             factory.storefrontCountryCode() ?: "",
+            currentAdConsent.let { "${it.consent.adUserData}:${it.consent.adPersonalization}:${it.source.raw}" },
         ).joinToString("|")
+
+    internal val currentAdConsent: ReportedAdConsent
+        get() = reportedAdConsent(factory.makeSuperwallOptions(), tcfAdConsent())
 
     private suspend fun buildDeviceTemplate(
         identityInfo: IdentityInfo,
         volatileFields: VolatileTemplateFields,
-    ): DeviceTemplate =
-        DeviceTemplate(
+    ): DeviceTemplate {
+        val adConsent = currentAdConsent
+        return DeviceTemplate(
             publicApiKey = storage.apiKey,
             platform = "Android",
             appUserId = identityInfo.appUserId ?: "",
@@ -661,7 +688,11 @@ class DeviceHelper(
             reviewRequestCount = reviewRequestCount,
             kotlinVersion = kotlinVersion,
             storeFrontCountryCode = factory.storefrontCountryCode(),
+            adUserDataConsent = adConsent.consent.adUserData.raw,
+            adPersonalizationConsent = adConsent.consent.adPersonalization.raw,
+            adConsentSource = adConsent.source.raw,
         )
+    }
 
     suspend fun getTemplateDevice(): Map<String, Any> {
         return withErrorTracking {

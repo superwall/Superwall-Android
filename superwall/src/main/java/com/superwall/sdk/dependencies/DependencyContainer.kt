@@ -12,6 +12,7 @@ import com.superwall.sdk.SdkContextImpl
 import com.superwall.sdk.SdkContext
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.AttributionManager
+import com.superwall.sdk.analytics.attribution.MMPAttributionManager
 import com.superwall.sdk.analytics.ClassifierDataFactory
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
@@ -31,6 +32,7 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.config.options.TcfConsentReader
 import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.customercenter.CustomerCenterManager
 import com.superwall.sdk.models.customer.CustomerInfo
@@ -46,6 +48,7 @@ import com.superwall.sdk.identity.IdentityPendingInterceptor
 import com.superwall.sdk.identity.IdentityPersistenceInterceptor
 import com.superwall.sdk.identity.IdentityState
 import com.superwall.sdk.identity.createInitialIdentityState
+import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -71,6 +74,7 @@ import com.superwall.sdk.network.BaseHostService
 import com.superwall.sdk.network.CollectorService
 import com.superwall.sdk.network.EnrichmentService
 import com.superwall.sdk.network.JsonFactory
+import com.superwall.sdk.network.MmpService
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.RequestExecutor
 import com.superwall.sdk.network.SubscriptionService
@@ -253,6 +257,15 @@ class DependencyContainer(
     internal val errorTracker: ErrorTracker
     internal val deepLinkRouter: DeepLinkRouter
     internal val attributionManager: AttributionManager
+    internal val mmpAttributionManager: MMPAttributionManager
+    internal val deepLinkReferrer: DeepLinkReferrer
+
+    /** Ad consent stored by the app's IAB TCF consent banner, in its default SharedPreferences. */
+    internal val tcfConsentReader: TcfConsentReader by lazy {
+        TcfConsentReader(
+            context.getSharedPreferences(context.packageName + "_preferences", Context.MODE_PRIVATE),
+        )
+    }
 
     init {
         // For tracking when the app enters the background.
@@ -410,6 +423,34 @@ class DependencyContainer(
                         factory = this,
                         customHttpUrlConnection = httpConnection,
                     ),
+                mmpService =
+                    MmpService(
+                        host = api.mmp.host,
+                        version = "/",
+                        factory = this,
+                        json =
+                            Json(from = json()) {
+                                ignoreUnknownKeys = true
+                                namingStrategy = null
+                            },
+                        customHttpUrlConnection =
+                            CustomHttpUrlConnection(
+                                json =
+                                    Json(from = json()) {
+                                        ignoreUnknownKeys = true
+                                        namingStrategy = null
+                                        // The backend types `confidence` as a free-form string.
+                                        // Coerce an unrecognised value (e.g. a future tier) to the
+                                        // property default of `null` rather than failing the whole
+                                        // response decode.
+                                        coerceInputValues = true
+                                    },
+                                requestExecutor =
+                                    RequestExecutor { debugging, requestId ->
+                                        makeHeaders(debugging, requestId)
+                                    },
+                            ),
+                    ),
                 factory = this,
             )
         errorTracker = ErrorTracker(scope = ioScope, cache = storage)
@@ -433,6 +474,7 @@ class DependencyContainer(
                 network = network,
                 factory = this,
                 classifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
+                tcfAdConsent = { tcfConsentReader.read() },
             )
 
         assignments =
@@ -515,15 +557,20 @@ class DependencyContainer(
                     delegate().userAttributesDidChange(it)
                 },
                 webPaywallRedeemer = { reedemer },
+                installScopedAttributes = { mmpAttributionManager.cachedAcquisitionAttributes() },
                 actor = identityActor,
                 sdkContext = sdkContext,
             )
+
+        // A single install-referrer client, shared by web-checkout redemption and MMP
+        // install attribution — each instance opens its own Play connection.
+        deepLinkReferrer = DeepLinkReferrer({ context }, ioScope)
 
         reedemer =
             WebPaywallRedeemer(
                 context = context,
                 ioScope = ioScope,
-                deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
+                deepLinkReferrer = deepLinkReferrer,
                 network = network,
                 storage = storage,
                 customerInfoManager = customerInfoManager,
@@ -745,6 +792,19 @@ class DependencyContainer(
                     reedemer.redeem(WebPaywallRedeemer.RedeemType.IntegrationAttributes)
                 }
             }, vendorId = { VendorId(deviceHelper.vendorId) })
+
+        mmpAttributionManager =
+            MMPAttributionManager(
+                storage = storage,
+                identityManager = identityManager,
+                track = { track(it) },
+                setUserAttributes = { Superwall.instance.setUserAttributes(it) },
+                sendMatchRequest = { clickId ->
+                    network.matchMMPInstall(clickId, attributionManager.integrationAttributes)
+                },
+                configState = configManager.configState,
+                scope = ioScope,
+            )
 
         /**
          * This loads the webview libraries in the background thread, giving us 100-200ms less lag

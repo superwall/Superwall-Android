@@ -55,6 +55,16 @@ class SuperwallOptions() {
                     "enrichment-api.superwall.dev"
                 }
 
+        // Install-attribution matching runs on its own host, separate from the
+        // subscriptions API. Mirrors `mmpHost` on iOS.
+        open val mmpHost: String
+            get() =
+                if (this is Release) {
+                    "mmp.superwall.com"
+                } else {
+                    "mmp.superwall.dev"
+                }
+
         open val port: Int?
             get() = null
 
@@ -65,12 +75,19 @@ class SuperwallOptions() {
 
         class Developer : NetworkEnvironment("superwall.dev")
 
-        class Custom(
-            override val baseHost: String,
-            override val collectorHost: String,
-            override val scheme: String,
-            override val port: Int?,
-        ) : NetworkEnvironment(baseHost)
+        // The optional hosts default to the same `*.superwall.dev` hosts a `Custom`
+        // environment used before they could be overridden.
+        class Custom
+            @JvmOverloads
+            constructor(
+                override val baseHost: String,
+                override val collectorHost: String,
+                override val scheme: String,
+                override val port: Int?,
+                override val subscriptionHost: String = "subscriptions-api.superwall.dev",
+                override val enrichmentHost: String = "enrichment-api.superwall.dev",
+                override val mmpHost: String = "mmp.superwall.dev",
+            ) : NetworkEnvironment(baseHost)
     }
 
     // **WARNING:**: Determines which network environment your SDK should use.
@@ -86,6 +103,26 @@ class SuperwallOptions() {
     //
     // You can also change this at runtime via [com.superwall.sdk.Superwall.eventTrackingBehavior].
     var eventTrackingBehavior: EventTrackingBehavior = EventTrackingBehavior.ALL
+
+    // The user's consent for ad measurement, reported to Superwall as the device
+    // attributes `adUserDataConsent` and `adPersonalizationConsent` and forwarded with
+    // the conversions Superwall uploads to Google Ads and Meta.
+    //
+    // If not set, the SDK uses the consent stored by an IAB TCF consent banner when EU rules
+    // apply, otherwise granted. Both are reported as denied while [eventTrackingBehavior] is
+    // [EventTrackingBehavior.NONE].
+    //
+    // You can also change this at runtime via [com.superwall.sdk.Superwall.adConsent].
+    var adConsent: AdConsent = AdConsent()
+        set(value) {
+            field = value
+            isAdConsentSet = true
+        }
+
+    // Whether [adConsent] was ever assigned, even to its default. Only then does it take
+    // precedence over an IAB TCF consent banner.
+    internal var isAdConsentSet: Boolean = false
+        private set
 
     // Enables the sending of non-Superwall tracked events and properties back to the Superwall servers.
     // Defaults to `true`.
@@ -157,6 +194,9 @@ internal fun SuperwallOptions.NetworkEnvironment.toMap(): Map<String, Any> =
         "host_domain" to hostDomain,
         "base_host" to baseHost,
         "collector_host" to collectorHost,
+        "subscription_host" to subscriptionHost,
+        "enrichment_host" to enrichmentHost,
+        "mmp_host" to mmpHost,
         "scheme" to scheme,
         port?.let { "port" to it },
     ).toMap()
@@ -176,6 +216,8 @@ internal fun SuperwallOptions.toMap(): Map<String, Any> =
         // backends/dashboards still reading it don't treat opted-out clients as the
         // default. Mirrors the deprecated property (true only for `ALL`).
         "is_external_data_collection_enabled" to (eventTrackingBehavior == EventTrackingBehavior.ALL),
+        "ad_consent" to adConsent.toMap(),
+        "ad_consent_set" to isAdConsentSet,
         localeIdentifier?.let { "locale_identifier" to it },
         "is_game_controller_enabled" to isGameControllerEnabled,
         "logging" to logging.toMap(),

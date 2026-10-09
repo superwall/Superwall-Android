@@ -1,6 +1,7 @@
 package com.superwall.sdk.analytics.internal
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -95,6 +96,9 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
                 data = eventData,
                 event = event,
             )
+        }
+        if (event is InternalSuperwallEvent.DeviceAttributes) {
+            reconcileAdConsentAfterPublish(event.deviceAttributes)
         }
         dependencyContainer.storage.coreDataManager.saveEventData(eventData)
 
