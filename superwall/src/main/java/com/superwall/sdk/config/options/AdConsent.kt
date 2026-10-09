@@ -72,9 +72,15 @@ internal fun ReportedAdConsent.toAttributes(): Map<String, String> =
         "adConsentSource" to source.raw,
     )
 
-/** Whether device attributes that carried [sent] no longer report this consent. */
-internal fun ReportedAdConsent.differsFrom(sent: Map<String, Any>): Boolean =
-    toAttributes().any { (key, value) -> sent[key] != value }
+/**
+ * Whether device attributes that carried [sent] report a different consent. Attributes with
+ * no consent keys, such as an empty template, never differ.
+ */
+internal fun ReportedAdConsent.differsFrom(sent: Map<String, Any>): Boolean {
+    val attributes = toAttributes()
+    if (attributes.keys.none(sent::containsKey)) return false
+    return attributes.any { (key, value) -> sent[key] != value }
+}
 
 /**
  * Picks the consent to report: the developer's [SuperwallOptions.adConsent] if it was ever

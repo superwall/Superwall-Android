@@ -85,7 +85,7 @@ class AdConsentTest {
             Then("attributes carrying the same values match") {
                 assertEquals(false, current.differsFrom(HashMap<String, Any>(current.toAttributes())))
             }
-            And("an older granted send, a different source or missing keys differ") {
+            And("an older granted send or a different source differ") {
                 assertEquals(
                     true,
                     current.differsFrom(hashMapOf("adUserDataConsent" to "granted", "adPersonalizationConsent" to "granted", "adConsentSource" to "tcf")),
@@ -94,7 +94,10 @@ class AdConsentTest {
                     true,
                     current.differsFrom(hashMapOf("adUserDataConsent" to "granted", "adPersonalizationConsent" to "denied", "adConsentSource" to "default")),
                 )
-                assertEquals(true, current.differsFrom(hashMapOf("deviceModel" to "Pixel")))
+            }
+            And("attributes without consent keys, such as an empty template, never differ") {
+                assertEquals(false, current.differsFrom(hashMapOf("deviceModel" to "Pixel")))
+                assertEquals(false, current.differsFrom(HashMap()))
             }
         }
     }
