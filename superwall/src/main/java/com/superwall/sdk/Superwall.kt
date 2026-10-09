@@ -203,7 +203,7 @@ class Superwall(
 
     /**
      * The user's consent for ad measurement, forwarded with the conversions Superwall
-     * uploads to Google Ads. Other ad networks don't use it yet.
+     * uploads to Google Ads and Meta.
      *
      * If not set, the SDK uses the consent stored by an IAB TCF consent banner when EU rules
      * apply, otherwise granted. Changes are sent to Superwall straight away.

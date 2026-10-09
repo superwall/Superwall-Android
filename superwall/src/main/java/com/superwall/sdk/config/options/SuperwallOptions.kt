@@ -106,7 +106,7 @@ class SuperwallOptions() {
 
     // The user's consent for ad measurement, reported to Superwall as the device
     // attributes `adUserDataConsent` and `adPersonalizationConsent` and forwarded with
-    // the conversions Superwall uploads to Google Ads. Other ad networks don't use it yet.
+    // the conversions Superwall uploads to Google Ads and Meta.
     //
     // If not set, the SDK uses the consent stored by an IAB TCF consent banner when EU rules
     // apply, otherwise granted. Both are reported as denied while [eventTrackingBehavior] is

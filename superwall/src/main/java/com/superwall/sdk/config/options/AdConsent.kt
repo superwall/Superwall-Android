@@ -15,10 +15,10 @@ enum class AdConsentStatus(
 
 /**
  * The user's consent for ad measurement, forwarded with the conversions Superwall
- * uploads to Google Ads. Other ad networks don't use it yet.
+ * uploads to Google Ads and Meta.
  *
- * - [adUserData]: consent to send user data to Google for advertising.
- * - [adPersonalization]: consent for Google to use that data for personalized advertising.
+ * - [adUserData]: consent to send user data to ad networks for advertising.
+ * - [adPersonalization]: consent for them to use that data for personalized advertising.
  *
  * Both default to [AdConsentStatus.GRANTED].
  */
