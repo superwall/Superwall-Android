@@ -40,6 +40,9 @@ data class PaywallViewState(
     val closedForBackground: Boolean = false,
     val presentationWillPrepare: Boolean = true,
     val presentationDidFinishPrepare: Boolean = false,
+    // / `true` once the webview has run out of ways to load this paywall (every URL and retry
+    // / used up, or `paywalls.timeoutAfter` passed). Cleared when a new load starts.
+    val webviewFailedToLoad: Boolean = false,
     // / `true` if there's a survey to complete and the paywall is displayed in a modal style.
     val didDisableSwipeForSurvey: Boolean = false,
     // / If the user match a rule with an occurrence, this needs to be saved on paywall presentation.
@@ -70,6 +73,7 @@ data class PaywallViewState(
             |  closedForBackground: $closedForBackground
             |  presentationWillPrepare: $presentationWillPrepare
             |  presentationDidFinishPrepare: $presentationDidFinishPrepare
+            |  webviewFailedToLoad: $webviewFailedToLoad
             |  callbackInvoked: $callbackInvoked
             |  isBrowserViewPresented: $isBrowserViewPresented
             |  interceptTouchEvents: $interceptTouchEvents
@@ -286,13 +290,21 @@ data class PaywallViewState(
         object WebLoadingStarted : Updates({ state ->
             val current = state.paywall.webviewLoadingInfo
             val updated = if (current.startAt == null) current.copy(startAt = Date()) else current
-            state.copy(paywall = state.paywall.copy(webviewLoadingInfo = updated))
+            state.copy(
+                paywall = state.paywall.copy(webviewLoadingInfo = updated),
+                webviewFailedToLoad = false,
+            )
         })
 
         object WebLoadingFailed : Updates({ state ->
             val current = state.paywall.webviewLoadingInfo
             val updated = if (current.failAt == null) current.copy(failAt = Date()) else current
             state.copy(paywall = state.paywall.copy(webviewLoadingInfo = updated))
+        })
+
+        /** The webview has no load attempts left; see [PaywallViewState.webviewFailedToLoad]. */
+        object WebLoadingExhausted : Updates({ state ->
+            state.copy(webviewFailedToLoad = true)
         })
 
         class WebLoadingEnded(

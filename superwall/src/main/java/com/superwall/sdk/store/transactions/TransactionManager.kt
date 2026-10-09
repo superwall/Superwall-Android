@@ -995,9 +995,15 @@ class TransactionManager(
      * Attempt to restore purchases.
      *
      * @param paywallView The paywall view that initiated the restore or null if initiated externally.
+     * @param presentsFailureAlert When `false`, suppresses the SDK's own restore-failure and
+     *   restore-from-web prompts. Used by callers, such as the Customer Center, that present their
+     *   own restore-outcome UI.
      * @return A [RestorationResult] indicating the result of the restoration.
      */
-    suspend fun tryToRestorePurchases(paywallView: PaywallView?): RestorationResult {
+    suspend fun tryToRestorePurchases(
+        paywallView: PaywallView?,
+        presentsFailureAlert: Boolean = true,
+    ): RestorationResult {
         log(message = "Attempting Restore")
 
         // Test mode intercept: simulate restore without real billing
@@ -1057,7 +1063,9 @@ class TransactionManager(
                         PaywallLoadingState.Ready,
                     ),
                 )
-                askToRestoreFromWeb()
+                if (presentsFailureAlert) {
+                    askToRestoreFromWeb()
+                }
             }
         } else {
             val msg = "Transactions Failed to Restore.${
@@ -1081,23 +1089,25 @@ class TransactionManager(
                     paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty(),
                 ),
             )
-            if (webToAppEnabled) {
-                askToRestoreFromWeb()
-            } else {
-                paywallView?.showAlert(
-                    title =
-                        factory
-                            .makeSuperwallOptions()
-                            .paywalls.restoreFailed.title,
-                    message =
-                        factory
-                            .makeSuperwallOptions()
-                            .paywalls.restoreFailed.message,
-                    closeActionTitle =
-                        factory
-                            .makeSuperwallOptions()
-                            .paywalls.restoreFailed.closeButtonTitle,
-                )
+            if (presentsFailureAlert) {
+                if (webToAppEnabled) {
+                    askToRestoreFromWeb()
+                } else {
+                    paywallView?.showAlert(
+                        title =
+                            factory
+                                .makeSuperwallOptions()
+                                .paywalls.restoreFailed.title,
+                        message =
+                            factory
+                                .makeSuperwallOptions()
+                                .paywalls.restoreFailed.message,
+                        closeActionTitle =
+                            factory
+                                .makeSuperwallOptions()
+                                .paywalls.restoreFailed.closeButtonTitle,
+                    )
+                }
             }
         }
         return restorationResult

@@ -152,8 +152,13 @@ class PaywallOptions() {
     var optimisticLoading: Boolean = false
 
     /**
-     * How long until a paywall timeout is invoked.
-     * If not using fallback loading, setting this will trigger a paywall timeout instead of retrying.
+     * How long a presented paywall may take to finish loading before it's given up on.
+     *
+     * When the timeout passes the paywall is dismissed as declined with the
+     * `webViewFailedToLoad` close reason, the same as a webview that can't load at all. Your
+     * `PaywallPresentationHandler` gets `onDismiss`, followed by the feature block for a
+     * non-gated placement or `onError` for a gated one, so you can show your own fallback.
+     * A `paywallWebviewLoad_timeout` event is tracked. `null` (the default) means no timeout.
      */
     var timeoutAfter: Duration? = null
 

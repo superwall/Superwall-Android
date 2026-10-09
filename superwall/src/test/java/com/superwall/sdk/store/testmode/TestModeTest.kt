@@ -941,7 +941,7 @@ class TestModeTest {
             val manager = makeManager()
 
             Then("initial state is Inactive") {
-                assertTrue(manager.state is TestModeState.Inactive)
+                assertTrue(manager.state.value is TestModeState.Inactive)
                 assertFalse(manager.isTestMode)
                 assertNull(manager.testModeReason)
             }
@@ -957,7 +957,7 @@ class TestModeTest {
             }
 
             Then("state is Active with TestModeOption reason") {
-                val state = manager.state
+                val state = manager.state.value
                 assertTrue(state is TestModeState.Active)
                 assertEquals(TestModeReason.TestModeOption, (state as TestModeState.Active).reason)
                 assertTrue(manager.isTestMode)
@@ -969,7 +969,7 @@ class TestModeTest {
             }
 
             Then("state is back to Inactive") {
-                assertTrue(manager.state is TestModeState.Inactive)
+                assertTrue(manager.state.value is TestModeState.Inactive)
                 assertFalse(manager.isTestMode)
                 assertNull(manager.testModeReason)
             }
@@ -1102,6 +1102,147 @@ class TestModeTest {
             manager.activate(makeConfig(), justActivated = false)
 
             assertEquals(listOf("prev"), manager.products.map { it.identifier })
+        }
+
+    // endregion
+
+    // region presentModal — UI flow
+
+    @Test
+    fun `activate with justActivated=true and no activity falls back to default subscription status`() =
+        kotlinx.coroutines.test.runTest {
+            val storage = makeStorage()
+            val entitlements = mockk<com.superwall.sdk.store.Entitlements>(relaxed = true)
+            val tracked = mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>()
+            val manager =
+                TestMode(
+                    storage = storage,
+                    isTestEnvironment = false,
+                    getSuperwallProducts = {
+                        com.superwall.sdk.misc.Either.Success(
+                            com.superwall.sdk.store.testmode.models.SuperwallProductsResponse(data = emptyList()),
+                        )
+                    },
+                    entitlements = entitlements,
+                    activityProvider = { null },
+                    activityTracker = { null },
+                    tracker = { tracked.add(it) },
+                )
+            activateTestMode(manager)
+
+            manager.activate(makeConfig(), justActivated = true)
+
+            // No Open/Close tracking when modal could not be presented.
+            assertTrue(
+                "TestModeModal Open/Close must not be tracked when no activity is available",
+                tracked.none { it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal },
+            )
+            // Fallback path sets the default (empty entitlements → Inactive) status
+            // both on TestMode itself and on the entitlements collaborator.
+            assertEquals(SubscriptionStatus.Inactive, manager.overriddenSubscriptionStatus)
+            verify(exactly = 1) { entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive) }
+        }
+
+    @Test
+    fun `activate with justActivated=true wires modal result into settings, status, entitlements, and tracking`() =
+        kotlinx.coroutines.test.runTest {
+            val storage = makeStorage()
+            // Relaxed mockk's generic `read` defaults to `Any`, which can't cast to TestModeSettings.
+            every { storage.read(com.superwall.sdk.storage.StoredTestModeSettings) } returns null
+            val entitlements = mockk<com.superwall.sdk.store.Entitlements>(relaxed = true)
+            // Events are tracked from their own coroutine on the IO pool, so they can land after
+            // `activate` returns. Collect them in a channel and wait for each one.
+            val modalEvents =
+                kotlinx.coroutines.channels.Channel<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State>(
+                    kotlinx.coroutines.channels.Channel.UNLIMITED,
+                )
+            val activity = mockk<android.app.Activity>(relaxed = true)
+            val activityProvider = mockk<com.superwall.sdk.misc.ActivityProvider>(relaxed = true).also {
+                every { it.getCurrentActivity() } returns activity
+            }
+            val modalResult =
+                com.superwall.sdk.store.testmode.ui.TestModeModalResult(
+                    entitlements =
+                        listOf(
+                            com.superwall.sdk.store.testmode.ui.EntitlementSelection(
+                                identifier = "pro",
+                                state = com.superwall.sdk.store.testmode.ui.EntitlementStateOption.Subscribed,
+                            ),
+                        ),
+                    freeTrialOverride = FreeTrialOverride.ForceAvailable,
+                )
+            val capturedSavedSettings = mutableListOf<com.superwall.sdk.storage.TestModeSettings?>()
+            val manager =
+                TestMode(
+                    storage = storage,
+                    isTestEnvironment = false,
+                    getSuperwallProducts = {
+                        com.superwall.sdk.misc.Either.Success(
+                            com.superwall.sdk.store.testmode.models.SuperwallProductsResponse(data = emptyList()),
+                        )
+                    },
+                    entitlements = entitlements,
+                    activityProvider = { activityProvider },
+                    activityTracker = { null },
+                    apiKey = { "test-api-key" },
+                    dashboardBaseUrl = { "https://dash" },
+                    tracker = {
+                        if (it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal) {
+                            modalEvents.send(it.state)
+                        }
+                    },
+                    showModal = { _, _, _, _, _, _, savedSettings ->
+                        capturedSavedSettings.add(savedSettings)
+                        // Open is tracked before the modal shows.
+                        assertEquals(
+                            com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State.Open,
+                            modalEvents.receive(),
+                        )
+                        modalResult
+                    },
+                )
+            activateTestMode(manager)
+
+            manager.activate(makeConfig(), justActivated = true)
+
+            // Free-trial override + entitlement selections from the modal are applied.
+            assertEquals(FreeTrialOverride.ForceAvailable, manager.freeTrialOverride)
+            assertEquals(
+                listOf("pro"),
+                manager.testEntitlementSelections.map { it.identifier },
+            )
+            assertEquals(setOf("pro"), manager.testEntitlementIds)
+
+            // Settings are persisted with the same selections + override.
+            verify {
+                storage.write(
+                    com.superwall.sdk.storage.StoredTestModeSettings,
+                    match<com.superwall.sdk.storage.TestModeSettings> {
+                        it.freeTrialOverride == FreeTrialOverride.ForceAvailable &&
+                            it.entitlementSelections.map { sel -> sel.identifier } == listOf("pro")
+                    },
+                )
+            }
+
+            // Subscription status reflects the active selection on both
+            // TestMode itself and the entitlements collaborator.
+            val status = manager.overriddenSubscriptionStatus
+            assertTrue("Expected SubscriptionStatus.Active", status is SubscriptionStatus.Active)
+            val granted = (status as SubscriptionStatus.Active).entitlements
+            assertEquals(setOf("pro"), granted.map { it.id }.toSet())
+            assertTrue("Subscribed selection must grant an active entitlement", granted.all { it.isActive })
+            verify(exactly = 1) { entitlements.setSubscriptionStatus(status) }
+
+            // Close is tracked after the modal, and nothing else follows.
+            assertEquals(
+                com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State.Close,
+                modalEvents.receive(),
+            )
+            assertTrue(modalEvents.tryReceive().isFailure)
+
+            // savedSettings forwarded to the modal launcher (null on first run —
+            // storage mock returns null for read).
+            assertEquals(1, capturedSavedSettings.size)
         }
 
     // endregion

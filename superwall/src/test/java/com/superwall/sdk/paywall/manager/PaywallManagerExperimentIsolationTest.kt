@@ -92,7 +92,7 @@ class PaywallManagerExperimentIsolationTest {
         val cache =
             mockk<PaywallViewCache>(relaxed = true) {
                 every { getPaywallView(any()) } answers { cachedView }
-                every { save(any(), any()) } answers { cachedView = firstArg() }
+                coEvery { save(any(), any()) } answers { cachedView = firstArg() }
             }
         val deviceInfo = mockk<DeviceInfo> { every { locale } returns "en_US" }
         val managerFactory =
@@ -268,6 +268,7 @@ class PaywallManagerExperimentIsolationTest {
         override fun setup(
             url: PaywallURL,
             onRenderCrashed: (Boolean, Int) -> Unit,
+            onLoadFailed: (com.superwall.sdk.paywall.view.webview.WebviewError) -> Unit,
         ) = Unit
 
         override fun evaluate(

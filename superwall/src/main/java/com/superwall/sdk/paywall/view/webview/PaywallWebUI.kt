@@ -28,9 +28,14 @@ interface PaywallWebUI {
         y: Int,
     )
 
+    /**
+     * Loads the paywall. [onLoadFailed] fires once the page can't be loaded at all: every
+     * URL and retry has been used up. Failures that are still being retried don't report.
+     */
     fun setup(
         url: PaywallURL,
         onRenderCrashed: (didCrash: Boolean, priority: Int) -> Unit,
+        onLoadFailed: (WebviewError) -> Unit = {},
     )
 
     fun evaluate(

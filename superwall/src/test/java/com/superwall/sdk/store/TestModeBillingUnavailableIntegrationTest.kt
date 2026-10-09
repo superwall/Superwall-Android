@@ -26,6 +26,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -179,7 +180,9 @@ class TestModeBillingUnavailableIntegrationTest {
 
                 When("a paywall load falls through to billing for the uncovered product") {
                     val job = async { storeManager.getProducts(null, makePaywall(), null) }
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query
+                    // timeout before billing setup has had a chance to answer.
+                    runCurrent()
 
                     And("billing setup finishes with BILLING_UNAVAILABLE") {
                         wrapper.onBillingSetupFinished(
@@ -196,7 +199,7 @@ class TestModeBillingUnavailableIntegrationTest {
                         )
                     }
 
-                    And("a second load succeeds despite the permanently cached billing failure") {
+                    And("a second load succeeds now that billing is known to be unavailable") {
                         val job2 = async { storeManager.getProducts(null, makePaywall(), null) }
                         advanceUntilIdle()
                         assertEquals(
@@ -223,7 +226,7 @@ class TestModeBillingUnavailableIntegrationTest {
 
                 When("a paywall's products are requested and billing setup fails") {
                     val job = async { runCatching { storeManager.getProducts(null, makePaywall(), null) } }
-                    advanceUntilIdle()
+                    runCurrent()
                     wrapper.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
                     )

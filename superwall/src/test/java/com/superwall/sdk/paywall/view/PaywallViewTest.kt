@@ -525,6 +525,8 @@ class PaywallViewTest {
         var lastScrollBy: Pair<Int, Int>? = null
         var lastScrollTo: Pair<Int, Int>? = null
         var lastSetupUrl: com.superwall.sdk.models.paywall.PaywallURL? = null
+        var lastOnLoadFailed: ((com.superwall.sdk.paywall.view.webview.WebviewError) -> Unit)? = null
+        var setupCount = 0
         var destroyed: Boolean = false
         var setupLatch: CountDownLatch? = null
         val evaluateCalls = mutableListOf<String>()
@@ -554,8 +556,11 @@ class PaywallViewTest {
         override fun setup(
             url: com.superwall.sdk.models.paywall.PaywallURL,
             onRenderCrashed: (Boolean, Int) -> Unit,
+            onLoadFailed: (com.superwall.sdk.paywall.view.webview.WebviewError) -> Unit,
         ) {
             lastSetupUrl = url
+            lastOnLoadFailed = onLoadFailed
+            setupCount++
             setupLatch?.countDown()
         }
 
@@ -1608,6 +1613,207 @@ class PaywallViewTest {
                             val opens =
                                 trackedEvents.filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen>()
                             assertEquals(listOf("live", second), opens.map { it.paywallInfo.presentationId })
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    // ===== Webview failure mirrors iOS: a presented paywall is dismissed as WebViewFailedToLoad =====
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun webViewDidFail_whilePresented_dismissesAsDeclinedWithWebViewFailedToLoad() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            val scope = CoroutineScope(dispatcher + Job())
+            try {
+                Given("a presented PaywallView whose webview has run out of load attempts") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+                    val view = makePaywallView(cache)
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val closeLatch = CountDownLatch(1)
+                    captureTrackedEvents(trackedEvents, closeLatch)
+
+                    val statePublisher =
+                        MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                            replay = 1,
+                            extraBufferCapacity = 8,
+                        )
+                    val dismissedStates =
+                        mutableListOf<com.superwall.sdk.paywall.presentation.internal.state.PaywallState.Dismissed>()
+                    scope.launch {
+                        statePublisher.collect {
+                            if (it is com.superwall.sdk.paywall.presentation.internal.state.PaywallState.Dismissed) {
+                                dismissedStates.add(it)
+                            }
+                        }
+                    }
+
+                    view.controller.updateState(
+                        PaywallViewState.Updates.SetRequest(
+                            req = mockk(relaxed = true),
+                            publisher = statePublisher,
+                            occurrence = null,
+                            experiment = null,
+                        ),
+                    )
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+                    val setupLatch = CountDownLatch(1)
+                    fakeWebUI.setupLatch = setupLatch
+                    view.loadWebView()
+                    assertTrue(setupLatch.await(3, TimeUnit.SECONDS))
+                    val onLoadFailed = fakeWebUI.lastOnLoadFailed
+                    assertNotNull("Precondition: loadWebView wires a load-failure callback", onLoadFailed)
+
+                    When("the webview reports that every URL failed") {
+                        onLoadFailed!!(
+                            com.superwall.sdk.paywall.view.webview.WebviewError.AllUrlsFailed(listOf("https://a")),
+                        )
+                        advanceUntilIdle()
+
+                        Then("a declined dismissal with WebViewFailedToLoad is initiated and the failure recorded") {
+                            assertTrue(
+                                view.state.paywallResult is
+                                    com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Declined,
+                            )
+                            assertTrue(
+                                view.state.paywall.closeReason is
+                                    com.superwall.sdk.paywall.presentation.PaywallCloseReason.WebViewFailedToLoad,
+                            )
+                            assertNotNull(view.state.paywall.webviewLoadingInfo.failAt)
+                            assertTrue(view.state.webviewFailedToLoad)
+                        }
+                    }
+
+                    When("the Activity finishes") {
+                        view.destroyed(forceCleanup = true)
+                        advanceUntilIdle()
+                        assertTrue(closeLatch.await(2, TimeUnit.SECONDS))
+
+                        Then("the register handler sees Dismissed(Declined) with the webViewFailedToLoad reason") {
+                            assertTrue("Expected Dismissed state emitted", dismissedStates.isNotEmpty())
+                            val dismissed = dismissedStates.last()
+                            assertTrue(
+                                dismissed.paywallResult is
+                                    com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Declined,
+                            )
+                            assertTrue(
+                                dismissed.paywallInfo.closeReason is
+                                    com.superwall.sdk.paywall.presentation.PaywallCloseReason.WebViewFailedToLoad,
+                            )
+                            assertFalse(view.state.isPresented)
+                        }
+                    }
+                }
+            } finally {
+                scope.cancel()
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun webViewDidFail_whileNotPresented_keepsTheViewAndReloadsOnNextPresentation() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a PaywallView loading off-screen, e.g. during preload") {
+                    val view = makePaywallView(cache = null)
+                    val firstLoad = CountDownLatch(1)
+                    fakeWebUI.setupLatch = firstLoad
+                    view.loadWebView()
+                    assertTrue(firstLoad.await(3, TimeUnit.SECONDS))
+                    val setupsBefore = fakeWebUI.setupCount
+                    val onLoadFailed = fakeWebUI.lastOnLoadFailed!!
+
+                    When("the webview runs out of load attempts") {
+                        onLoadFailed(com.superwall.sdk.paywall.view.webview.WebviewError.NoUrls)
+                        advanceUntilIdle()
+
+                        Then("nothing is dismissed, the failure is recorded") {
+                            assertNull(view.state.paywallResult)
+                            assertTrue(view.state.webviewFailedToLoad)
+                            assertEquals(setupsBefore, fakeWebUI.setupCount)
+                        }
+                    }
+
+                    When("the paywall is next presented") {
+                        val reload = CountDownLatch(1)
+                        fakeWebUI.setupLatch = reload
+                        view.beforeViewCreated()
+                        advanceUntilIdle()
+
+                        Then("the webview is loaded again and the old failure is cleared") {
+                            assertTrue(reload.await(3, TimeUnit.SECONDS))
+                            assertEquals(setupsBefore + 1, fakeWebUI.setupCount)
+                            assertTrue(waitUntil { !view.state.webviewFailedToLoad })
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun webViewDidFail_whileActivityIsStarting_dismissesOnceTheViewIsCreated() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a presentation whose Activity hasn't been created yet") {
+                    val view = makePaywallView(cache = null)
+                    view.controller.updateState(
+                        PaywallViewState.Updates.SetRequest(
+                            req = mockk(relaxed = true),
+                            publisher = MutableSharedFlow(replay = 1, extraBufferCapacity = 8),
+                            occurrence = null,
+                            experiment = null,
+                        ),
+                    )
+                    view.controller.updateState(
+                        PaywallViewState.Updates.SetPresentationConfig(styleOverride = null, completion = {}),
+                    )
+                    val setupLatch = CountDownLatch(1)
+                    fakeWebUI.setupLatch = setupLatch
+                    view.loadWebView()
+                    assertTrue(setupLatch.await(3, TimeUnit.SECONDS))
+
+                    When("the webview fails before the Activity is up") {
+                        fakeWebUI.lastOnLoadFailed!!(
+                            com.superwall.sdk.paywall.view.webview.WebviewError.MaxAttemptsReached(listOf("https://a")),
+                        )
+                        advanceUntilIdle()
+
+                        Then("no dismissal runs yet") {
+                            assertNull(view.state.paywallResult)
+                        }
+                    }
+
+                    When("the Activity creates the view") {
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("the paywall is dismissed as declined with WebViewFailedToLoad") {
+                            assertTrue(
+                                view.state.paywallResult is
+                                    com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Declined,
+                            )
+                            assertTrue(
+                                view.state.paywall.closeReason is
+                                    com.superwall.sdk.paywall.presentation.PaywallCloseReason.WebViewFailedToLoad,
+                            )
                         }
                     }
                 }

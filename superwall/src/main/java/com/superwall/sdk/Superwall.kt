@@ -15,10 +15,12 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.*
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
-import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.customercenter.CustomerCenterConfiguration
+import com.superwall.sdk.customercenter.CustomerCenterDelegate
 import com.superwall.sdk.deeplinks.DeepLinkRouter
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
@@ -98,7 +100,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -776,12 +777,15 @@ class Superwall(
                         else -> old::class == new::class
                     }
                 }
-                .drop(1) // Drops the cached/initial emission
-                .collect { newValue ->
+                // Pair each status with the one before it. Entitlements persists the
+                // new status before this collector runs, so storage can't supply `from`.
+                .scan<SubscriptionStatus, Pair<SubscriptionStatus?, SubscriptionStatus>?>(null) { previous, newStatus ->
+                    Pair(previous?.second, newStatus)
+                }.filterNotNull()
+                .filter { it.first != null } // Drops the cached/initial emission
+                .collect { (previous, newValue) ->
                     // Save and handle the new value
-                    val oldValue =
-                        dependencyContainer.storage.read(StoredSubscriptionStatus)
-                            ?: SubscriptionStatus.Unknown
+                    val oldValue = previous ?: SubscriptionStatus.Unknown
                     dependencyContainer.storage.write(StoredSubscriptionStatus, newValue)
                     dependencyContainer.delegateAdapter.subscriptionStatusDidChange(
                         oldValue,
@@ -1379,6 +1383,39 @@ class Superwall(
         purchases: List<Purchase>,
     ) {
         observe(PurchasingObserverState.PurchaseResult(billingResult, purchases))
+    }
+
+    /**
+     * Presents the Customer Center, a self-service screen where users can view and manage their
+     * subscriptions, request refunds, restore purchases, and contact support.
+     *
+     * Only one Customer Center can be presented at a time; calling this while one is already
+     * presented does nothing. Call it from the main thread.
+     *
+     * @param configuration Overrides [SuperwallOptions.customerCenter] for this presentation.
+     * `null` uses the value configured via [SuperwallOptions].
+     * @param delegate Receives Customer Center events. Retained while the Customer Center is
+     * presented.
+     * @param onDismiss Called after the Customer Center is dismissed.
+     */
+    @JvmOverloads
+    fun presentCustomerCenter(
+        configuration: CustomerCenterConfiguration? = null,
+        delegate: CustomerCenterDelegate? = null,
+        onDismiss: (() -> Unit)? = null,
+    ) {
+        dependencyContainer.customerCenterManager.present(configuration, delegate, onDismiss)
+    }
+
+    /**
+     * Dismisses a Customer Center presented via [presentCustomerCenter]. Does nothing if none is
+     * presented. Call it from the main thread.
+     *
+     * @param completion Called once the Customer Center has been dismissed.
+     */
+    @JvmOverloads
+    fun dismissCustomerCenter(completion: (() -> Unit)? = null) {
+        dependencyContainer.customerCenterManager.dismiss(completion)
     }
 
     /**

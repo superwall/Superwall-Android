@@ -25,7 +25,10 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.models.customer.toSet
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.product.Store
+import com.superwall.sdk.storage.LatestDeviceCustomerInfo
 import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -41,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 import kotlin.time.Duration.Companion.seconds
 
@@ -50,10 +54,33 @@ private val BILLING_INSANTIATION_ERROR =
     - User not being signed in into the play store
     - Mismatching Google Play Billing versions"""
 
+private const val BILLING_UNAVAILABLE_ERROR = "Google Play Billing is not available on this device."
+
 class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
     val entitlementsInfo: () -> Entitlements = { Superwall.instance.dependencyContainer.entitlements },
+    // The status holds config-shaped entitlements, which carry no expiry date.
+    // The device CustomerInfo built from Play receipts does, and it survives
+    // launches, so it is what an empty read gets measured against.
+    val deviceEntitlementRecords: () -> Set<Entitlement> = {
+        try {
+            Superwall.instance.dependencyContainer.storage
+                .read(LatestDeviceCustomerInfo)
+                ?.entitlements
+                ?.toSet() ?: emptySet()
+        } catch (e: Throwable) {
+            // Without the dates we can only fall back to demoting, which is
+            // what this read would have done anyway.
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.nativePurchaseController,
+                message = "Unable to read the stored device entitlements.",
+                error = e,
+            )
+            emptySet()
+        }
+    },
     val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
         try {
             BillingClient
@@ -81,7 +108,9 @@ class AutomaticPurchaseController(
         private const val MAX_RETRIES = 3
     }
 
-    private var billingClient: BillingClient = getBilling(context, this)
+    // Null when the client can't be created (e.g. no Play Store on the device). Creating
+    // it must never throw, as that would take down the whole SDK configuration.
+    private val billingClient: BillingClient? = runCatching { getBilling(context, this) }.getOrNull()
 
     // Tri-state so waiters can short-circuit when the connection is known to
     // have failed instead of blocking until the timeout
@@ -89,6 +118,9 @@ class AutomaticPurchaseController(
 
     private val connectionState = MutableStateFlow(ConnectionState.Connecting)
     private val purchaseResults = MutableStateFlow<PurchaseResult?>(null)
+
+    // Purchase tokens with an acknowledgement in flight
+    private val acknowledgingTokens = ConcurrentHashMap.newKeySet<String>()
 
     // how long before the data source tries to reconnect to Google play
     private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
@@ -102,6 +134,12 @@ class AutomaticPurchaseController(
     }
 
     private fun startConnection() {
+        val billingClient =
+            billingClient ?: run {
+                connectionState.value = ConnectionState.Failed
+                syncSubscriptionStatus()
+                return
+            }
         try {
             billingClient.startConnection(
                 object : BillingClientStateListener {
@@ -150,6 +188,24 @@ class AutomaticPurchaseController(
         }
     }
 
+    /**
+     * Waits for the billing client to be connected, giving a failed connection one more
+     * attempt - billing may have become available since (e.g. the user signed in to the
+     * Play Store).
+     *
+     * @return The connected client, or null if billing can't be used.
+     */
+    private suspend fun awaitConnectedClient(): BillingClient? {
+        val billingClient = billingClient ?: return null
+        if (connectionState.value == ConnectionState.Failed) {
+            connectionState.value = ConnectionState.Connecting
+            startConnection()
+        }
+        val state =
+            withTimeoutOrNull(CONNECTION_TIMEOUT_MS) { connectionState.first { it != ConnectionState.Connecting } }
+        return billingClient.takeIf { state == ConnectionState.Connected }
+    }
+
     //endregion
 
     //region Public
@@ -189,6 +245,24 @@ class AutomaticPurchaseController(
         basePlanId: String?,
         offerId: String?,
     ): PurchaseResult {
+        Logger.debug(
+            logLevel = LogLevel.info,
+            scope = LogScope.nativePurchaseController,
+            message = "Waiting for billing client to be connected",
+        )
+
+        // Without a connected billing client the purchase can never complete, so fail
+        // instead of waiting forever
+        val billingClient =
+            awaitConnectedClient()
+                ?: return PurchaseResult.Failed(BILLING_UNAVAILABLE_ERROR)
+
+        Logger.debug(
+            logLevel = LogLevel.info,
+            scope = LogScope.nativePurchaseController,
+            message = "Billing client is connected",
+        )
+
         // Clear previous purchase results to avoid emitting old results
         purchaseResults.value = null
 
@@ -269,21 +343,6 @@ class AutomaticPurchaseController(
                 }.setProductDetailsParamsList(listOf(productDetailsParams))
                 .build()
 
-        Logger.debug(
-            logLevel = LogLevel.info,
-            scope = LogScope.nativePurchaseController,
-            message = "Waiting for billing client to be connected",
-        )
-
-        // Wait until the billing client becomes connected
-        connectionState.first { it == ConnectionState.Connected }
-
-        Logger.debug(
-            logLevel = LogLevel.info,
-            scope = LogScope.nativePurchaseController,
-            message = "Billing client is connected",
-        )
-
         billingClient.launchBillingFlow(activity, flowParams)
 
         // Wait until a purchase result is emitted before returning the result
@@ -361,8 +420,18 @@ class AutomaticPurchaseController(
             }
         val failed = subscriptionPurchases == null || inAppPurchases == null
         val allPurchases = (subscriptionPurchases ?: emptyList()) + (inAppPurchases ?: emptyList())
+
+        // Purchases that completed outside the billing flow callback (pending ones that
+        // settled, process death mid-flow, Play Store promo codes, failed acknowledgements)
+        // only surface here. Play refunds them after 3 days if left unacknowledged.
+        acknowledgePurchasesIfNecessary(allPurchases)
         val hasActivePurchaseOrSubscription =
             allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+        val activeProductIds =
+            allPurchases
+                .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                .flatMap { it.products }
+                .toSet()
 
         Logger.debug(
             logLevel = LogLevel.debug,
@@ -394,13 +463,19 @@ class AutomaticPurchaseController(
                             message = "Found entitlements: ${entitlements.joinToString { it.id }}",
                         )
 
-                        entitlementsInfo().activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
+                            entitlementsInfo().activeDeviceEntitlements = entitlements
                             SubscriptionStatus.Active(
                                 entitlements.map { it.copy(isActive = true) }.toSet(),
                             )
                         } else {
-                            SubscriptionStatus.Inactive
+                            // An active purchase that maps to no entitlement is a
+                            // mapping failure, not an answer about what it unlocks.
+                            statusForEmptyRead(
+                                activeProductIds = activeProductIds,
+                                readReturnedPurchases = allPurchases.isNotEmpty(),
+                                readFailed = failed,
+                            )
                         }
                     }
             } else {
@@ -408,7 +483,11 @@ class AutomaticPurchaseController(
                 // test mode are known before publishing Inactive - otherwise we'd
                 // fire a spurious status change in test-mode apps
                 Superwall.instance.configurationStateListener.first { it !is ConfigurationStatus.Pending }
-                SubscriptionStatus.Inactive
+                statusForEmptyRead(
+                    activeProductIds = activeProductIds,
+                    readReturnedPurchases = allPurchases.isNotEmpty(),
+                    readFailed = failed,
+                )
             }
         if (!Superwall.initialized) {
             Logger.debug(
@@ -429,14 +508,69 @@ class AutomaticPurchaseController(
         }
     }
 
+    /**
+     * Resolves the status for a read that produced no entitlements, keeping a
+     * subscriber whose entitlement hasn't expired active when the read was not
+     * an answer. See [resolveStatusForEmptyRead].
+     */
+    private fun statusForEmptyRead(
+        activeProductIds: Set<String>,
+        readReturnedPurchases: Boolean,
+        readFailed: Boolean,
+    ): SubscriptionStatus {
+        val deviceRecords = deviceEntitlementRecords()
+        val resolved =
+            resolveStatusForEmptyRead(
+                currentStatus = entitlementsInfo().status.value,
+                deviceRecords = deviceRecords,
+                activeProductIds = activeProductIds,
+                readReturnedPurchases = readReturnedPurchases,
+                readFailed = readFailed,
+            )
+
+        // Keep the device view in step with the status we are about to publish,
+        // or `Entitlements.active` would go on serving whatever we just dropped.
+        // Only Play entitlements belong here: web ones live in `Entitlements.web`,
+        // and `WebPaywallRedeemer.clear()` relies on this set holding none.
+        // A config-shaped entitlement with no store and no device record is
+        // still a device one unless the web set claims it.
+        val storeById = deviceRecords.associate { it.id to it.store }
+        val webIds = entitlementsInfo().web.map { it.id }.toSet()
+        entitlementsInfo().activeDeviceEntitlements =
+            if (resolved is SubscriptionStatus.Active) {
+                resolved.entitlements
+                    .filter {
+                        when (it.store ?: storeById[it.id]) {
+                            Store.PLAY_STORE -> true
+                            null -> it.id !in webIds
+                            else -> false
+                        }
+                    }.toSet()
+            } else {
+                emptySet()
+            }
+
+        if (resolved is SubscriptionStatus.Active) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.nativePurchaseController,
+                message =
+                    "Read returned no entitlements and was not an answer, keeping: " +
+                        resolved.entitlements.joinToString { it.id },
+            )
+        }
+
+        return resolved
+    }
+
     private suspend fun queryPurchasesOfType(productType: String): Result<List<Purchase>> {
         val deferred = CompletableDeferred<Result<List<Purchase>>>()
 
         val params = QueryPurchasesParams.newBuilder().setProductType(productType).build()
 
-        if (!billingClient.isReady) {
-            return Result.failure(IllegalStateException("Billing client not ready"))
-        }
+        val billingClient =
+            billingClient?.takeIf { it.isReady }
+                ?: return Result.failure(IllegalStateException("Billing client not ready"))
 
         billingClient.queryPurchasesAsync(params) { billingResult, purchasesList ->
             if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -458,24 +592,54 @@ class AutomaticPurchaseController(
 
     private fun acknowledgePurchasesIfNecessary(purchases: List<Purchase>) {
         purchases
-            .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && it.isAcknowledged == false }
+            .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && !it.isAcknowledged }
+            // The flow callback and the sync that follows it can see the same purchase
+            .filter { acknowledgingTokens.add(it.purchaseToken) }
             .forEach { purchase ->
-                val acknowledgePurchaseParams =
-                    AcknowledgePurchaseParams
-                        .newBuilder()
-                        .setPurchaseToken(purchase.purchaseToken)
-                        .build()
-
-                billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
-                    if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.nativePurchaseController,
-                            message = "Unable to acknowledge purchase.",
-                        )
+                scope.launch {
+                    try {
+                        val acknowledged =
+                            retryOrNull(MAX_RETRIES) { acknowledgePurchase(purchase.purchaseToken).getOrThrow() } != null
+                        if (!acknowledged) {
+                            Logger.debug(
+                                logLevel = LogLevel.error,
+                                scope = LogScope.nativePurchaseController,
+                                message = "Unable to acknowledge purchase, will retry on next sync.",
+                                info = mapOf("order_id" to (purchase.orderId ?: "")),
+                            )
+                        }
+                    } finally {
+                        acknowledgingTokens.remove(purchase.purchaseToken)
                     }
                 }
             }
+    }
+
+    private suspend fun acknowledgePurchase(purchaseToken: String): Result<Unit> {
+        withTimeoutOrNull(CONNECTION_TIMEOUT_MS) { connectionState.first { it != ConnectionState.Connecting } }
+        val billingClient =
+            billingClient?.takeIf { it.isReady }
+                ?: return Result.failure(IllegalStateException("Billing client not ready"))
+
+        val deferred = CompletableDeferred<Result<Unit>>()
+        val params =
+            AcknowledgePurchaseParams
+                .newBuilder()
+                .setPurchaseToken(purchaseToken)
+                .build()
+        billingClient.acknowledgePurchase(params) { billingResult ->
+            deferred.complete(
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Throwable("Acknowledge failed with code ${billingResult.responseCode}"))
+                },
+            )
+        }
+
+        return withTimeoutOrNull(QUERY_TIMEOUT_MS) {
+            deferred.await()
+        } ?: Result.failure(IllegalStateException("Acknowledge purchase timed out"))
     }
 
 //endregion
