@@ -185,8 +185,9 @@ jobs:
   # `release` events for other workflows.
   notify_wrappers:
     needs: build
-    if: needs.build.outputs.released == 'true' && needs.build.outputs.prerelease == 'false'
+    if: ${{ !cancelled() && needs.build.outputs.released == 'true' && needs.build.outputs.prerelease == 'false' }}
     uses: ./.github/workflows/notify-wrappers.yml
     with:
       version: ${{ needs.build.outputs.version }}
-    secrets: inherit
+    secrets:
+      WRAPPER_DISPATCH_TOKEN: ${{ secrets.WRAPPER_DISPATCH_TOKEN }}

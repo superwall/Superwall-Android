@@ -14,6 +14,7 @@
 # the permission the repository_dispatch API checks. GITHUB_TOKEN cannot
 # dispatch into other repositories.
 name: Notify wrapper SDKs
+run-name: Notify wrapper SDKs of ${{ inputs.version || github.event.release.tag_name }}
 
 on:
   release:
@@ -23,10 +24,13 @@ on:
       version:
         required: true
         type: string
+    secrets:
+      WRAPPER_DISPATCH_TOKEN:
+        required: false
   workflow_dispatch:
     inputs:
       version:
-        description: Released version to announce (e.g. 2.8.5)
+        description: Released version to announce from main (e.g. 2.8.5)
         required: true
         type: string
 
