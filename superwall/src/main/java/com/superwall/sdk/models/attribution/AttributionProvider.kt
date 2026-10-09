@@ -105,12 +105,8 @@ enum class AttributionProvider(
     MIXPANEL("mixpanel"),
 
     /**
-     * The Google Advertising ID (AAID/GAID) for the device.
-     *
-     * The SDK collected this automatically until 2.5.5, when it was removed over Google's
-     * detection of the `AD_ID` permission; set it here instead. Install-attribution matching
-     * forwards it as the request's `aaid`, the same slot the SDK used to fill itself — the
-     * Android counterpart to `idfa` on iOS.
+     * The Google Advertising ID (AAID/GAID) for the device. The SDK doesn't collect it, so
+     * set it here if your app has it.
      */
     @SerialName("googleAds")
     GOOGLE_ADS("googleAds"),

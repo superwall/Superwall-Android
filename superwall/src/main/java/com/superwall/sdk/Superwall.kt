@@ -225,8 +225,8 @@ class Superwall(
         }
 
     /**
-     * Re-sends device attributes when the ad consent [sent] carried is no longer current: a
-     * send that read consent before a banner or setter change finished after it.
+     * Re-sends device attributes when the ad consent [sent] carried differs from the current
+     * consent. Called after every device attributes send.
      */
     internal fun reconcileAdConsentAfterPublish(sent: Map<String, Any>) {
         if (options.eventTrackingBehavior == EventTrackingBehavior.NONE) {
