@@ -169,10 +169,10 @@ class Superwall(
     var eventTrackingBehavior: EventTrackingBehavior
         get() = options.eventTrackingBehavior
         set(newValue) {
-            val wasNone = options.eventTrackingBehavior == EventTrackingBehavior.NONE
+            val previous = options.eventTrackingBehavior
             options.eventTrackingBehavior = newValue
 
-            dependencyContainer.eventsQueue.setTrackingBehavior(newValue)
+            val queueUpdated = dependencyContainer.eventsQueue.setTrackingBehavior(newValue)
 
             mainScope.launch {
                 paywallView?.webView?.messageHandler?.passEventTrackingBehaviorToWebView(newValue)
@@ -188,10 +188,11 @@ class Superwall(
                 return
             }
 
-            // Nothing was sent while tracking was off, so ad consent changed in the
-            // meantime hasn't reached Superwall. Re-send it with the config attributes.
-            if (wasNone) {
-                adConsentPublisher.publish()
+            // Ad consent may not have reached Superwall: nothing is sent while tracking is
+            // off, and anything but ALL clears the events queue, which can hold a consent
+            // update. Re-send it with the config attributes once the queue has changed.
+            if (previous != newValue || newValue != EventTrackingBehavior.ALL) {
+                adConsentPublisher.publish(after = queueUpdated)
                 return
             }
 

@@ -78,14 +78,13 @@ class EventsQueue(
         }
     }
 
-    fun setTrackingBehavior(behavior: EventTrackingBehavior) {
+    fun setTrackingBehavior(behavior: EventTrackingBehavior): Job =
         launch {
             trackingBehavior = behavior
             if (behavior != EventTrackingBehavior.ALL) {
                 elements.clear()
             }
         }
-    }
 
     private fun trackingAllowed(event: Trackable): Boolean =
         when (trackingBehavior) {

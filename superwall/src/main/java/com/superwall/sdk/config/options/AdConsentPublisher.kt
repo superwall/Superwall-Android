@@ -13,7 +13,8 @@ import java.util.concurrent.atomic.AtomicLong
  * Sends the current ad consent to Superwall as device and config attributes.
  *
  * Sends run one at a time, and one superseded by a later [publish] is dropped, so
- * an older snapshot is never tracked after a newer one.
+ * an older snapshot is never tracked after a newer one. A send waits for [after],
+ * so it can't be queued before an events-queue change it follows.
  */
 internal class AdConsentPublisher(
     private val scope: CoroutineScope,
@@ -24,9 +25,10 @@ internal class AdConsentPublisher(
     private val generation = AtomicLong()
     private val mutex = Mutex()
 
-    fun publish(): Job {
+    fun publish(after: Job? = null): Job {
         val current = generation.incrementAndGet()
         return scope.launch {
+            after?.join()
             mutex.withLock {
                 if (current != generation.get()) {
                     return@withLock

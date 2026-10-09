@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -77,6 +78,35 @@ class AdConsentPublisherTest {
                         assertEquals(2, devices.size)
                         assertEquals("denied", devices.last().deviceAttributes["adPersonalizationConsent"])
                         assertTrue(tracked.last() === configAttributes)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `publish waits for the events-queue change it follows`() =
+        runTest {
+            Given("a queue change that hasn't run yet") {
+                val tracked = mutableListOf<Trackable>()
+                val queueUpdated = Job()
+                val publisher =
+                    AdConsentPublisher(
+                        scope = this@runTest,
+                        track = { tracked += it },
+                        makeDeviceAttributes = { hashMapOf("adUserDataConsent" to "denied") },
+                        makeConfigAttributes = { configAttributes },
+                    )
+
+                When("it publishes after that change") {
+                    val sent = publisher.publish(after = queueUpdated)
+                    testScheduler.runCurrent()
+                    val trackedBeforeChange = tracked.size
+                    queueUpdated.complete()
+                    sent.join()
+
+                    Then("nothing is tracked until the queue has changed") {
+                        assertEquals(0, trackedBeforeChange)
+                        assertEquals(2, tracked.size)
                     }
                 }
             }
