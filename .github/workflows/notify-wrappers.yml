@@ -1,4 +1,4 @@
-# Tells the cross-platform wrappers (Flutter, Expo, KMP) that a new native SDK
+# Tells the cross-platform wrappers (Flutter, Expo, KMP, Unity) that a new native SDK
 # release exists. Each wrapper's native-sdk-bump.yml picks the event up, bumps
 # its pinned native version, and opens a PR (with any integration work done by
 # an agent on top).
@@ -39,7 +39,7 @@ permissions:
 
 env:
   PLATFORM: android
-  WRAPPER_REPOS: superwall/Superwall-Flutter superwall/expo-superwall superwall/Superwall-KMP
+  WRAPPER_REPOS: superwall/Superwall-Flutter superwall/expo-superwall superwall/Superwall-KMP superwall/Superwall-Unity
 
 jobs:
   dispatch:
