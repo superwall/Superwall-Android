@@ -54,6 +54,10 @@ jobs:
         run: |
           VERSION="${VERSION#v}"
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+              echo "::error::Enter a stable x.y.z version when notifying wrappers manually."
+              exit 1
+            fi
             echo "::notice::'$VERSION' is not a stable x.y.z version, not notifying wrappers."
             exit 0
           fi
