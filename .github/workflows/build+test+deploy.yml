@@ -11,17 +11,26 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      notify_wrappers_only:
+        description: Notify wrapper SDKs without building or publishing
+        type: boolean
+        default: false
+      version:
+        description: Stable released version (required when notifying wrappers only)
+        type: string
 
 permissions:
   contents: write
 
-# Prevents running a bunch of we push right back to back
+# Keep manual wrapper notifications separate from build/publish runs.
 concurrency:
-  group: test-${{ github.event.pull_request.number || github.ref }}
+  group: test-${{ github.event.pull_request.number || github.ref }}-${{ inputs.notify_wrappers_only && format('notify-{0}', inputs.version) || 'build' }}
   cancel-in-progress: true
 
 jobs:
   build:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.notify_wrappers_only }}
 
     runs-on: android-large-runner
 
@@ -180,14 +189,14 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
-  # Lets Flutter, Expo and KMP open a bump PR for this version. Called directly
-  # because the release above is created with GITHUB_TOKEN, which never fires
-  # `release` events for other workflows.
+  # Lets Flutter, Expo and KMP open a bump PR for a release, or re-send one
+  # manually without running the build. The release above uses GITHUB_TOKEN,
+  # which never fires `release` events for other workflows.
   notify_wrappers:
     needs: build
-    if: ${{ !cancelled() && needs.build.outputs.released == 'true' && needs.build.outputs.prerelease == 'false' }}
+    if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && inputs.notify_wrappers_only) || (needs.build.outputs.released == 'true' && needs.build.outputs.prerelease == 'false')) }}
     uses: ./.github/workflows/notify-wrappers.yml
     with:
-      version: ${{ needs.build.outputs.version }}
+      version: ${{ inputs.notify_wrappers_only && inputs.version || needs.build.outputs.version }}
     secrets:
       WRAPPER_DISPATCH_TOKEN: ${{ secrets.WRAPPER_DISPATCH_TOKEN }}
