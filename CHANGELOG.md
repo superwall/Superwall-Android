@@ -2,16 +2,22 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 2.8.5
+## 2.9.0
 
 ## Enhancements
 - Adds install attribution matching. If the app has performance marketing integrations set up on the Superwall dashboard, the SDK matches the install to the ad click that led to it and tracks an `attribution_match` event. The resulting `acquisition_*` attributes are added to user attributes, so they can be used as breakdowns and filters in charts and audiences, and they carry over to new users after `identify` or `reset`. The match runs once per install, within 7 days of install, only when the dashboard has turned it on for the app, and never blocks startup. It uses the Play install referrer's click id when present. It is skipped while `eventTrackingBehavior` is `NONE` and runs if tracking is turned back on.
-- Adds the Customer Center, a self-service screen where users can view and restore their purchases, cancel or change a Google Play subscription, request a refund, manage a web subscription and contact support. Present it with `Superwall.instance.presentCustomerCenter()`, dismiss it with `Superwall.instance.dismissCustomerCenter()`, and configure it with `SuperwallOptions.customerCenter`.
-- Adds `CustomerCenterDelegate` and the `customerCenter_open`, `customerCenter_close`, `customerCenter_action`, `customerCenter_surveyResponse` and `customerCenter_refundRequest` events.
 - Adds `SuperwallOptions.adConsent` and `Superwall.instance.adConsent` for reporting the user's ad measurement consent (`AdConsent(adUserData, adPersonalization)`, each an `AdConsentStatus` of `GRANTED` or `DENIED`). It is sent as the `adUserDataConsent` and `adPersonalizationConsent` device attributes and forwarded with the conversions Superwall uploads to Google Ads and Meta. If `adConsent` is never set, the SDK uses the consent stored by an IAB TCF consent banner when GDPR applies, and otherwise defaults to granted; apps with users in the EEA, UK or Switzerland that don't use a TCF banner should set it from their consent flow. Where the values came from is reported in the new `adConsentSource` device attribute (`developer`, `tcf` or `default`). Both are reported as denied when `eventTrackingBehavior` is `NONE`.
 
 ## Fixes
 - Fix web checkout codes passed through the Play install referrer never being redeemed. A code is now redeemed once, on the first launch after install.
+
+## 2.8.5
+
+## Enhancements
+- Adds the Customer Center, a self-service screen where users can view and restore their purchases, cancel or change a Google Play subscription, request a refund, manage a web subscription and contact support. Present it with `Superwall.instance.presentCustomerCenter()`, dismiss it with `Superwall.instance.dismissCustomerCenter()`, and configure it with `SuperwallOptions.customerCenter`.
+- Adds `CustomerCenterDelegate` and the `customerCenter_open`, `customerCenter_close`, `customerCenter_action`, `customerCenter_surveyResponse` and `customerCenter_refundRequest` events.
+
+## Fixes
 - Fix subscribers with an unexpired subscription being reported as inactive when Google Play fails to answer a purchase query, for example when the billing client isn't ready at launch. A query that succeeds and reports no purchases still deactivates straight away.
 - Fix subscribers being reported as inactive when Google Play returns an active purchase whose product no longer maps to an entitlement in config. A lost mapping is no longer treated as the subscription ending.
 - Fix purchases being refunded by Google Play for not being acknowledged when they did not complete through the billing flow callback, for example a pending purchase that settled while the app was closed, the app being killed mid-purchase, or a Play Store promo code. The `AutomaticPurchaseController` now acknowledges any unacknowledged purchase whenever it syncs the subscription status, including on launch, and retries acknowledgements that fail.
