@@ -201,8 +201,8 @@ class Superwall(
         }
 
     /**
-     * The user's consent for ad measurement, forwarded with conversions that Superwall
-     * uploads to ad networks such as Google Ads.
+     * The user's consent for ad measurement, forwarded with the conversions Superwall
+     * uploads to Google Ads. Other ad networks don't use it yet.
      *
      * Defaults to granted. Apps with users in the EEA, UK or Switzerland must set this
      * from their consent flow. Changes are sent to Superwall straight away.

@@ -106,7 +106,7 @@ class SuperwallOptions() {
 
     // The user's consent for ad measurement, reported to Superwall as the device
     // attributes `adUserDataConsent` and `adPersonalizationConsent` and forwarded with
-    // conversions uploaded to ad networks such as Google Ads.
+    // the conversions Superwall uploads to Google Ads. Other ad networks don't use it yet.
     //
     // Defaults to granted for both. Apps with users in the EEA, UK or Switzerland must
     // set this from their consent flow. Both are reported as denied while
