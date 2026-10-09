@@ -618,7 +618,7 @@ class DeviceHelper(
             currentAdConsent.let { "${it.consent.adUserData}:${it.consent.adPersonalization}:${it.source.raw}" },
         ).joinToString("|")
 
-    private val currentAdConsent: ReportedAdConsent
+    internal val currentAdConsent: ReportedAdConsent
         get() = reportedAdConsent(factory.makeSuperwallOptions(), tcfAdConsent())
 
     private suspend fun buildDeviceTemplate(

@@ -64,6 +64,18 @@ internal data class ReportedAdConsent(
     val source: AdConsentSource,
 )
 
+/** The device attributes this consent is reported as. */
+internal fun ReportedAdConsent.toAttributes(): Map<String, String> =
+    mapOf(
+        "adUserDataConsent" to consent.adUserData.raw,
+        "adPersonalizationConsent" to consent.adPersonalization.raw,
+        "adConsentSource" to source.raw,
+    )
+
+/** Whether device attributes that carried [sent] no longer report this consent. */
+internal fun ReportedAdConsent.differsFrom(sent: Map<String, Any>): Boolean =
+    toAttributes().any { (key, value) -> sent[key] != value }
+
 /**
  * Picks the consent to report: the developer's [SuperwallOptions.adConsent] if it was ever
  * set, else the IAB TCF [bannerConsent] if present, else the granted default. Everything is

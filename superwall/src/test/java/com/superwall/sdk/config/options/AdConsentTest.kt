@@ -1,5 +1,6 @@
 package com.superwall.sdk.config.options
 
+import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -68,6 +69,32 @@ class AdConsentTest {
                         map["ad_consent"],
                     )
                 }
+            }
+        }
+    }
+
+    @Test
+    fun `a sent consent differs only when a reported value or the source changed`() {
+        Given("tcf consent with personalization denied") {
+            val current =
+                ReportedAdConsent(
+                    AdConsent(adPersonalization = AdConsentStatus.DENIED),
+                    AdConsentSource.TCF,
+                )
+
+            Then("attributes carrying the same values match") {
+                assertEquals(false, current.differsFrom(HashMap<String, Any>(current.toAttributes())))
+            }
+            And("an older granted send, a different source or missing keys differ") {
+                assertEquals(
+                    true,
+                    current.differsFrom(hashMapOf("adUserDataConsent" to "granted", "adPersonalizationConsent" to "granted", "adConsentSource" to "tcf")),
+                )
+                assertEquals(
+                    true,
+                    current.differsFrom(hashMapOf("adUserDataConsent" to "granted", "adPersonalizationConsent" to "denied", "adConsentSource" to "default")),
+                )
+                assertEquals(true, current.differsFrom(hashMapOf("deviceModel" to "Pixel")))
             }
         }
     }

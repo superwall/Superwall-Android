@@ -18,6 +18,7 @@ import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.AdConsentPublisher
+import com.superwall.sdk.config.options.differsFrom
 import com.superwall.sdk.config.options.AdConsent
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -222,6 +223,19 @@ class Superwall(
 
             adConsentPublisher.publish()
         }
+
+    /**
+     * Re-sends device attributes when the ad consent [sent] carried is no longer current: a
+     * send that read consent before a banner or setter change finished after it.
+     */
+    internal fun reconcileAdConsentAfterPublish(sent: Map<String, Any>) {
+        if (options.eventTrackingBehavior == EventTrackingBehavior.NONE) {
+            return
+        }
+        if (dependencyContainer.deviceHelper.currentAdConsent.differsFrom(sent)) {
+            adConsentPublisher.publish()
+        }
+    }
 
     private val adConsentPublisher by lazy {
         AdConsentPublisher(
