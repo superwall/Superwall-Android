@@ -53,6 +53,7 @@ class DeviceHelperAdConsentTest {
     private var currentUserId: String? = "user-1"
     private var currentEntitlements = setOf(Entitlement("basic"))
     private val options = SuperwallOptions()
+    private var bannerConsent: AdConsent? = null
 
     @Before
     fun setUp() {
@@ -95,6 +96,7 @@ class DeviceHelperAdConsentTest {
                 network = network,
                 factory = factory,
                 classifier = classifier,
+                tcfAdConsent = { bannerConsent },
             )
     }
 
@@ -110,9 +112,10 @@ class DeviceHelperAdConsentTest {
                 When("getting the device template") {
                     val template = deviceHelper.getTemplateDevice()
 
-                    Then("both consent attributes are granted") {
+                    Then("both consent attributes are granted from the default source") {
                         assertEquals("granted", template["adUserDataConsent"])
                         assertEquals("granted", template["adPersonalizationConsent"])
+                        assertEquals("default", template["adConsentSource"])
                     }
                 }
             }
@@ -156,6 +159,65 @@ class DeviceHelperAdConsentTest {
                     Then("both consent attributes are denied") {
                         assertEquals("denied", template["adUserDataConsent"])
                         assertEquals("denied", template["adPersonalizationConsent"])
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `banner consent is reported when the developer never set one`() =
+        runTest {
+            Given("a memoized template and no developer consent") {
+                deviceHelper.getTemplateDevice()
+                val cachedAfterFirst = deviceHelper.cachedTemplate
+
+                When("an IAB TCF banner stores consent for ad user data only") {
+                    bannerConsent = AdConsent(AdConsentStatus.GRANTED, AdConsentStatus.DENIED)
+                    val template = deviceHelper.getTemplateDevice()
+
+                    Then("the template is rebuilt with the banner values and the tcf source") {
+                        assertEquals("granted", template["adUserDataConsent"])
+                        assertEquals("denied", template["adPersonalizationConsent"])
+                        assertEquals("tcf", template["adConsentSource"])
+                        assertNotSame(cachedAfterFirst, deviceHelper.cachedTemplate)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `developer consent wins over the banner`() =
+        runTest {
+            Given("a banner denying everything") {
+                bannerConsent = AdConsent(AdConsentStatus.DENIED, AdConsentStatus.DENIED)
+
+                When("the developer sets the default consent") {
+                    options.adConsent = AdConsent()
+                    val template = deviceHelper.getTemplateDevice()
+
+                    Then("granted is reported from the developer source") {
+                        assertEquals("granted", template["adUserDataConsent"])
+                        assertEquals("granted", template["adPersonalizationConsent"])
+                        assertEquals("developer", template["adConsentSource"])
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `source change alone rebuilds the memoized template`() =
+        runTest {
+            Given("a memoized template with the default granted consent") {
+                deviceHelper.getTemplateDevice()
+                val cachedAfterFirst = deviceHelper.cachedTemplate
+
+                When("a banner grants everything, so only the source changes") {
+                    bannerConsent = AdConsent()
+                    val template = deviceHelper.getTemplateDevice()
+
+                    Then("the template reports the tcf source") {
+                        assertEquals("tcf", template["adConsentSource"])
+                        assertNotSame(cachedAfterFirst, deviceHelper.cachedTemplate)
                     }
                 }
             }

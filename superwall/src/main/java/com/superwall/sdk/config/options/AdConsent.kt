@@ -43,3 +43,41 @@ internal fun AdConsent.toMap(): Map<String, Any> =
         "ad_user_data" to adUserData.raw,
         "ad_personalization" to adPersonalization.raw,
     )
+
+/**
+ * Where the reported ad consent came from, sent as the `adConsentSource` device attribute.
+ */
+internal enum class AdConsentSource(
+    val raw: String,
+) {
+    DEVELOPER("developer"),
+    TCF("tcf"),
+    DEFAULT("default"),
+}
+
+/**
+ * The ad consent reported to Superwall, with [source] naming what supplied it before the
+ * [EventTrackingBehavior.NONE] rule was applied.
+ */
+internal data class ReportedAdConsent(
+    val consent: AdConsent,
+    val source: AdConsentSource,
+)
+
+/**
+ * Picks the consent to report: the developer's [SuperwallOptions.adConsent] if it was ever
+ * set, else the IAB TCF [bannerConsent] if present, else the granted default. Everything is
+ * denied while [SuperwallOptions.eventTrackingBehavior] is [EventTrackingBehavior.NONE].
+ */
+internal fun reportedAdConsent(
+    options: SuperwallOptions,
+    bannerConsent: AdConsent?,
+): ReportedAdConsent {
+    val (consent, source) =
+        when {
+            options.isAdConsentSet -> options.adConsent to AdConsentSource.DEVELOPER
+            bannerConsent != null -> bannerConsent to AdConsentSource.TCF
+            else -> AdConsent() to AdConsentSource.DEFAULT
+        }
+    return ReportedAdConsent(consent.effective(options.eventTrackingBehavior), source)
+}

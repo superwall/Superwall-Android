@@ -205,8 +205,8 @@ class Superwall(
      * The user's consent for ad measurement, forwarded with the conversions Superwall
      * uploads to Google Ads. Other ad networks don't use it yet.
      *
-     * Defaults to granted. Apps with users in the EEA, UK or Switzerland must set this
-     * from their consent flow. Changes are sent to Superwall straight away.
+     * If not set, the SDK uses the consent stored by an IAB TCF consent banner when EU rules
+     * apply, otherwise granted. Changes are sent to Superwall straight away.
      *
      * You can also set the initial value via [SuperwallOptions.adConsent] before calling
      * [configure].
@@ -760,6 +760,14 @@ class Superwall(
                 dependencyContainer.customerInfoManager.updateMergedCustomerInfo()
 
                 addListeners()
+
+                // Off the main thread: the first read loads the app's default preferences.
+                ioScope.launch {
+                    dependencyContainer.tcfConsentReader.observeReportedChanges(
+                        options = { options },
+                        onChange = { adConsentPublisher.publish() },
+                    )
+                }
 
                 ioScope.launch {
                     withErrorTracking {

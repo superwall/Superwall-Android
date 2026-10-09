@@ -108,12 +108,21 @@ class SuperwallOptions() {
     // attributes `adUserDataConsent` and `adPersonalizationConsent` and forwarded with
     // the conversions Superwall uploads to Google Ads. Other ad networks don't use it yet.
     //
-    // Defaults to granted for both. Apps with users in the EEA, UK or Switzerland must
-    // set this from their consent flow. Both are reported as denied while
-    // [eventTrackingBehavior] is [EventTrackingBehavior.NONE].
+    // If not set, the SDK uses the consent stored by an IAB TCF consent banner when EU rules
+    // apply, otherwise granted. Both are reported as denied while [eventTrackingBehavior] is
+    // [EventTrackingBehavior.NONE].
     //
     // You can also change this at runtime via [com.superwall.sdk.Superwall.adConsent].
     var adConsent: AdConsent = AdConsent()
+        set(value) {
+            field = value
+            isAdConsentSet = true
+        }
+
+    // Whether [adConsent] was ever assigned, even to its default. Only then does it take
+    // precedence over an IAB TCF consent banner.
+    internal var isAdConsentSet: Boolean = false
+        private set
 
     // Enables the sending of non-Superwall tracked events and properties back to the Superwall servers.
     // Defaults to `true`.
@@ -208,6 +217,7 @@ internal fun SuperwallOptions.toMap(): Map<String, Any> =
         // default. Mirrors the deprecated property (true only for `ALL`).
         "is_external_data_collection_enabled" to (eventTrackingBehavior == EventTrackingBehavior.ALL),
         "ad_consent" to adConsent.toMap(),
+        "ad_consent_set" to isAdConsentSet,
         localeIdentifier?.let { "locale_identifier" to it },
         "is_game_controller_enabled" to isGameControllerEnabled,
         "logging" to logging.toMap(),

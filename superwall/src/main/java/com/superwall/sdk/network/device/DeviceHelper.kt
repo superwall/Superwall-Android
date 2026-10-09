@@ -17,6 +17,8 @@ import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.config.options.AdConsent
+import com.superwall.sdk.config.options.ReportedAdConsent
+import com.superwall.sdk.config.options.reportedAdConsent
 import com.superwall.sdk.config.options.effective
 import com.superwall.sdk.dependencies.ActiveEntitlementsFactory
 import com.superwall.sdk.dependencies.CustomerInfoFactory
@@ -83,6 +85,7 @@ class DeviceHelper(
     val network: SuperwallAPI,
     val factory: Factory,
     private val classifier: DeviceClassifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
+    private val tcfAdConsent: () -> AdConsent? = { null },
 ) {
     interface Factory :
         IdentityInfoFactory,
@@ -612,21 +615,17 @@ class DeviceHelper(
             totalPaywallViews.toString(),
             reviewRequestCount.toString(),
             factory.storefrontCountryCode() ?: "",
-            effectiveAdConsent.adUserData.raw,
-            effectiveAdConsent.adPersonalization.raw,
+            currentAdConsent.let { "${it.consent.adUserData}:${it.consent.adPersonalization}:${it.source.raw}" },
         ).joinToString("|")
 
-    private val effectiveAdConsent: AdConsent
-        get() =
-            factory.makeSuperwallOptions().let {
-                it.adConsent.effective(it.eventTrackingBehavior)
-            }
+    private val currentAdConsent: ReportedAdConsent
+        get() = reportedAdConsent(factory.makeSuperwallOptions(), tcfAdConsent())
 
     private suspend fun buildDeviceTemplate(
         identityInfo: IdentityInfo,
         volatileFields: VolatileTemplateFields,
     ): DeviceTemplate {
-        val adConsent = effectiveAdConsent
+        val adConsent = currentAdConsent
         return DeviceTemplate(
             publicApiKey = storage.apiKey,
             platform = "Android",
@@ -689,8 +688,9 @@ class DeviceHelper(
             reviewRequestCount = reviewRequestCount,
             kotlinVersion = kotlinVersion,
             storeFrontCountryCode = factory.storefrontCountryCode(),
-            adUserDataConsent = adConsent.adUserData.raw,
-            adPersonalizationConsent = adConsent.adPersonalization.raw,
+            adUserDataConsent = adConsent.consent.adUserData.raw,
+            adPersonalizationConsent = adConsent.consent.adPersonalization.raw,
+            adConsentSource = adConsent.source.raw,
         )
     }
 

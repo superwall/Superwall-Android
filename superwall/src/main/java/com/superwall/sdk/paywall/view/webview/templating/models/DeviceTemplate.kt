@@ -72,6 +72,7 @@ data class DeviceTemplate(
     val storeFrontCountryCode: String? = null,
     val adUserDataConsent: String = "granted",
     val adPersonalizationConsent: String = "granted",
+    val adConsentSource: String = "default",
 ) {
     fun toDictionary(json: Json): Map<String, Any> = json.encodeToJsonElement(serializer(), this).jsonObject.toNullableTypedMap()
 }

@@ -32,6 +32,7 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.config.options.TcfConsentReader
 import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.customercenter.CustomerCenterManager
 import com.superwall.sdk.models.customer.CustomerInfo
@@ -259,6 +260,13 @@ class DependencyContainer(
     internal val mmpAttributionManager: MMPAttributionManager
     internal val deepLinkReferrer: DeepLinkReferrer
 
+    /** Ad consent stored by the app's IAB TCF consent banner, in its default SharedPreferences. */
+    internal val tcfConsentReader: TcfConsentReader by lazy {
+        TcfConsentReader(
+            context.getSharedPreferences(context.packageName + "_preferences", Context.MODE_PRIVATE),
+        )
+    }
+
     init {
         // For tracking when the app enters the background.
         uiScope.launch {
@@ -466,6 +474,7 @@ class DependencyContainer(
                 network = network,
                 factory = this,
                 classifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
+                tcfAdConsent = { tcfConsentReader.read() },
             )
 
         assignments =
