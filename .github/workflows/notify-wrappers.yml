@@ -9,6 +9,12 @@
 # covers releases made by hand; a duplicate dispatch is harmless, the wrappers
 # skip versions they already have a PR for.
 #
+# build+test+deploy.yml publishes to Maven Central with automatic publishing,
+# but Central takes a while to serve a new version, and Flutter, Expo and KMP
+# all resolve superwall-android from there. So we wait for the version's POM to
+# show up first; otherwise a bump PR's first CI run, and the agent's own build,
+# could fail to resolve it.
+#
 # Requires the WRAPPER_DISPATCH_TOKEN secret: a fine-grained PAT (or GitHub App
 # token) with "Contents: read & write" on every repo in WRAPPER_REPOS — that is
 # the permission the repository_dispatch API checks. GITHUB_TOKEN cannot
@@ -46,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     # Wrappers only ship stable native versions.
     if: github.event_name != 'release' || !github.event.release.prerelease
+    timeout-minutes: 75
     steps:
       - name: Dispatch native-sdk-release
         env:
@@ -60,6 +67,16 @@ jobs:
             fi
             echo "::notice::'$VERSION' is not a stable x.y.z version, not notifying wrappers."
             exit 0
+          fi
+          pom_url="https://repo1.maven.org/maven2/com/superwall/sdk/superwall-android/$VERSION/superwall-android-$VERSION.pom"
+          for _ in $(seq 1 120); do
+            curl -sfo /dev/null "$pom_url" && break
+            echo "Waiting for superwall-android $VERSION on Maven Central..."
+            sleep 30
+          done
+          if ! curl -sfo /dev/null "$pom_url"; then
+            echo "::error::superwall-android $VERSION is not on Maven Central, not notifying wrappers. Re-run with workflow_dispatch once it is."
+            exit 1
           fi
           failed=0
           for repo in $WRAPPER_REPOS; do
