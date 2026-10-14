@@ -176,7 +176,12 @@ class PaywallView(
     //region Presentation properties
 
     // The full screen activity instance if this view has been presented in one.
+    // For an in-window presentation this is the host app's Activity, which must never be finished.
     override var encapsulatingActivity: WeakReference<Activity>? = null
+
+    // Set while this view is presented in-window (see [PaywallOptions.PresentationHost.IN_WINDOW]).
+    @Volatile
+    internal var inWindowHost: InWindowPaywallHost? = null
     private var shimmerView: PaywallShimmerView? = null
 
     private var loadingView: PaywallPurchaseLoadingView? = null
@@ -359,13 +364,22 @@ class PaywallView(
             ),
         )
 
-        SuperwallPaywallActivity
-            .startWithViewForPresentation(
-                presenter,
-                this,
-                state.cacheKey,
-                state.presentationStyle,
-            ).getOrThrow()
+        if (factory.makeSuperwallOptions().paywalls.presentationHost == PaywallOptions.PresentationHost.IN_WINDOW) {
+            InWindowPaywallHost
+                .show(
+                    presenter,
+                    this,
+                    state.presentationStyle,
+                ).getOrThrow()
+        } else {
+            SuperwallPaywallActivity
+                .startWithViewForPresentation(
+                    presenter,
+                    this,
+                    state.cacheKey,
+                    state.presentationStyle,
+                ).getOrThrow()
+        }
         startStateListener()
     }
 
@@ -829,7 +843,18 @@ class PaywallView(
     private fun dismiss(presentationIsAnimated: Boolean) {
         // TODO: SW-2162 Implement animation support
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
-        encapsulatingActivity?.get()?.finish()
+        inWindowHost?.let {
+            it.close()
+            return
+        }
+        val activity = encapsulatingActivity?.get() ?: return
+        if (activity !is SuperwallPaywallActivity &&
+            factory.makeSuperwallOptions().paywalls.presentationHost == PaywallOptions.PresentationHost.IN_WINDOW
+        ) {
+            // An in-window presentation that already closed: the activity is the host app's own.
+            return
+        }
+        activity.finish()
     }
 
     private fun showLoadingView() {
@@ -1160,6 +1185,15 @@ class PaywallView(
             scope = LogScope.paywallView,
             message = "Opening checkout URL in Chrome Custom Tab: $url",
         )
+
+        // An in-window host has no activity result launcher (registering one on an already
+        // started host throws), so it opens the Custom Tab directly instead.
+        inWindowHost?.let {
+            if (activityResultLauncher == null) {
+                it.launchCheckout(url)
+                return
+            }
+        }
 
         // Launch Chrome Custom Tab using activity result launcher
         activityResultLauncher?.launch(url) ?: run {

@@ -16,4 +16,8 @@
         <item name="android:statusBarColor">@color/superwall_customer_center_background</item>
         <item name="android:navigationBarColor">@color/superwall_customer_center_background</item>
     </style>
+
+    <!-- Dialogs (e.g. surveys) of an in-window paywall whose host Activity has no AppCompat theme.
+         A host app can restyle them by overriding this style. -->
+    <style name="Theme.Superwall.InWindow" parent="Theme.Material3.DayNight.NoActionBar" />
 </resources>
