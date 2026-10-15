@@ -6,6 +6,12 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.FrameLayout
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.coordinatorlayout.widget.CoordinatorLayout
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -44,6 +50,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 import java.lang.ref.WeakReference
+import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33], manifest = Config.NONE)
@@ -101,6 +108,14 @@ class InWindowPaywallHostTest {
 
     private fun show(): InWindowPaywallHost = InWindowPaywallHost.show(activity, paywallView, null).getOrThrow().also { idleMain() }
 
+    private fun show(style: PaywallPresentationStyle?): InWindowPaywallHost =
+        InWindowPaywallHost.show(activity, paywallView, style).getOrThrow().also { idleMain() }
+
+    /** Lets exit animations and their timeout fallback run. */
+    private fun idleFor(ms: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ms))
+
+    private fun sheetBehavior(): BottomSheetBehavior<FrameLayout> = BottomSheetBehavior.from(paywallView.parent as FrameLayout)
+
     private fun waitUntil(
         timeoutMs: Long = 3_000,
         condition: () -> Boolean,
@@ -125,6 +140,114 @@ class InWindowPaywallHostTest {
                 Then("the host window is hardware accelerated so the WebView can draw and take input") {
                     val flags = activity.window.attributes.flags
                     assertTrue(flags and WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED != 0)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun drawer_opensAsAHalfExpandedBottomSheetAtItsHeight() {
+        Given("a paywall with a 70% drawer style") {
+            When("it is shown in-window") {
+                show(PaywallPresentationStyle.Drawer(height = 70.0, cornerRadius = 15.0))
+
+                Then("it sits in a bottom sheet half expanded to 70% that can't collapse") {
+                    val sheet = paywallView.parent as FrameLayout
+                    assertTrue(sheet.parent is CoordinatorLayout)
+                    val behavior = sheetBehavior()
+                    assertEquals(0.7f, behavior.halfExpandedRatio, 0.001f)
+                    assertTrue(behavior.skipCollapsed)
+                    assertEquals(BottomSheetBehavior.STATE_HALF_EXPANDED, behavior.state)
+                    assertTrue(sheet.clipToOutline)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun modal_opensFullyExpandedBelowATopGap() {
+        Given("a paywall with a modal style") {
+            When("it is shown in-window") {
+                show(PaywallPresentationStyle.Modal)
+
+                Then("its sheet is fully expanded and starts 5% below the top of the screen") {
+                    assertEquals(BottomSheetBehavior.STATE_EXPANDED, sheetBehavior().state)
+                    val coordinator = (paywallView.parent as View).parent as CoordinatorLayout
+                    val expectedGap = (activity.resources.displayMetrics.heightPixels * 0.05).toInt()
+                    assertEquals(expectedGap, (coordinator.layoutParams as FrameLayout.LayoutParams).topMargin)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun popup_isSizedAsAPercentageOfTheWindow() {
+        Given("a paywall with an 80% wide, 60% tall popup style") {
+            When("it is shown in-window") {
+                show(PaywallPresentationStyle.Popup(height = 60.0, width = 80.0, cornerRadius = 12.0))
+
+                Then("it sits in a rounded card constrained to those percentages") {
+                    val card = paywallView.parent as FrameLayout
+                    assertTrue(card.parent is ConstraintLayout)
+                    val params = card.layoutParams as ConstraintLayout.LayoutParams
+                    assertEquals(0.8f, params.matchConstraintPercentWidth, 0.001f)
+                    assertEquals(0.6f, params.matchConstraintPercentHeight, 0.001f)
+                    assertTrue(card.clipToOutline)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun close_animatesAFullscreenPaywallOutAndTearsItDownOnce() {
+        Given("a full-screen paywall shown in-window") {
+            val host = show(PaywallPresentationStyle.Fullscreen)
+            val existingChildren = content.childCount
+
+            When("it is closed") {
+                host.close()
+                host.close()
+
+                Then("it is torn down exactly once after animating out, and the host keeps running") {
+                    assertTrue(waitUntil { idleFor(700); content.childCount == existingChildren - 1 })
+                    verify(exactly = 1) { delegate.didDismissPaywall(any()) }
+                    assertFalse(activity.isFinishing)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun close_hidesADrawerAndTearsItDownOnce() {
+        Given("a drawer shown in-window") {
+            val host = show(PaywallPresentationStyle.Drawer(height = 70.0, cornerRadius = 15.0))
+            val existingChildren = content.childCount
+
+            When("it is closed") {
+                host.close()
+
+                Then("the sheet is hidden, the paywall torn down once, and the host keeps running") {
+                    assertTrue(waitUntil { idleFor(700); content.childCount == existingChildren - 1 })
+                    verify(exactly = 1) { delegate.didDismissPaywall(any()) }
+                    assertFalse(activity.isFinishing)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun tappingTheDimmedBackdrop_dismissesASheetAsAManualClose() {
+        Given("a drawer shown in-window") {
+            show(PaywallPresentationStyle.Drawer(height = 70.0, cornerRadius = 15.0))
+            val coordinator = (paywallView.parent as View).parent as CoordinatorLayout
+
+            When("the backdrop around the sheet is tapped") {
+                coordinator.performClick()
+
+                Then("the paywall is dismissed as declined by a manual close") {
+                    assertTrue(waitUntil { idleFor(700); paywallView.state.paywallResult != null })
+                    assertTrue(paywallView.state.paywallResult is PaywallResult.Declined)
+                    assertEquals(PaywallCloseReason.ManualClose, paywallView.state.paywall.closeReason)
                 }
             }
         }
