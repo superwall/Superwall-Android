@@ -70,6 +70,9 @@ data class DeviceTemplate(
     val reviewRequestCount: Int,
     val kotlinVersion: String,
     val storeFrontCountryCode: String? = null,
+    val adUserDataConsent: String = "granted",
+    val adPersonalizationConsent: String = "granted",
+    val adConsentSource: String = "default",
 ) {
     fun toDictionary(json: Json): Map<String, Any> = json.encodeToJsonElement(serializer(), this).jsonObject.toNullableTypedMap()
 }

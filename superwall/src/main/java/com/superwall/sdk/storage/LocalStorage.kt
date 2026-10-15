@@ -33,6 +33,10 @@ open class LocalStorage(
     val coreDataManager: CoreDataManager = CoreDataManager(context = context),
 ) : Storage,
     CoroutineScope {
+    companion object {
+        private const val MMP_INSTALL_ATTRIBUTION_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
+    }
+
     interface Factory :
         DeviceHelperFactory,
         HasExternalPurchaseControllerFactory
@@ -177,6 +181,56 @@ open class LocalStorage(
             trackEvent(event)
         }
         write(DidTrackAppInstall, true)
+    }
+
+    private fun isMMPInstallAttributionWindowOpen(appInstalledAtMillis: Long): Boolean {
+        // Fail open when the install date is unusable — unset/epoch-zero, or in the future
+        // because the device clock is skewed. Mirrors iOS, which treats an empty or
+        // unparseable `appInstalledAtString` as in-window: silently dropping attribution
+        // over a bad clock is worse than occasionally attempting a match that won't land.
+        if (appInstalledAtMillis <= 0L) {
+            return true
+        }
+
+        val ageMs = System.currentTimeMillis() - appInstalledAtMillis
+        return ageMs <= MMP_INSTALL_ATTRIBUTION_WINDOW_MS
+    }
+
+    fun shouldAttemptInitialMMPInstallAttributionMatch(
+        hadTrackedAppInstallBeforeConfigure: Boolean,
+        appInstalledAtMillis: Long,
+    ): Boolean {
+        val didCompleteRequest = read(DidCompleteMMPInstallAttributionRequest) ?: false
+        if (didCompleteRequest) {
+            return false
+        }
+
+        val isEligible = read(IsEligibleForMMPInstallAttributionMatch) ?: false
+        if (hadTrackedAppInstallBeforeConfigure && !isEligible) {
+            return false
+        }
+
+        if (!isMMPInstallAttributionWindowOpen(appInstalledAtMillis)) {
+            return false
+        }
+
+        write(IsEligibleForMMPInstallAttributionMatch, true)
+        return true
+    }
+
+    fun recordMMPInstallAttributionRequest(matchRequest: suspend () -> Boolean) {
+        val didCompleteRequest = read(DidCompleteMMPInstallAttributionRequest) ?: false
+        if (didCompleteRequest) {
+            return
+        }
+
+        // Intentionally fire-and-forget so the match never blocks the caller. Matches the iOS SDK,
+        // where `recordMMPInstallAttributionMatch` returns a detached Task.
+        ioScope.launch {
+            if (matchRequest()) {
+                write(DidCompleteMMPInstallAttributionRequest, true)
+            }
+        }
     }
 
     open fun clearCachedSessionEvents() {

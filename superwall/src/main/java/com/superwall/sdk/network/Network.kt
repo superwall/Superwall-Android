@@ -25,9 +25,13 @@ import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.store.testmode.models.SuperwallProductsResponse
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonElement
+import java.util.Date
+import java.util.TimeZone
 import java.util.UUID
 import kotlin.time.Duration
 
@@ -35,9 +39,16 @@ open class Network(
     private val baseHostService: BaseHostService,
     private val collectorService: CollectorService,
     private val enrichmentService: EnrichmentService,
+    private val mmpService: MmpService,
     private val factory: ApiFactory,
     private val subscriptionService: SubscriptionService,
 ) : SuperwallAPI {
+    private fun currentIsoTimestamp(): String =
+        dateFormat(DateUtils.ISO_MILLIS)
+            .apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.format(Date()) + "Z"
+
     override suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError> =
         collectorService
             .events(
@@ -127,6 +138,64 @@ open class Network(
             .map {
                 it.assignments
             }.logError("/assignments")
+
+    override suspend fun matchMMPInstall(
+        installReferrerClickId: Long?,
+        integrationAttributes: Map<String, String>,
+    ): Either<MmpMatchResponse, NetworkError> {
+        val deviceHelper = factory.deviceHelper
+        val metadata =
+            listOfNotNull(
+                deviceHelper.appInstalledAtString.takeIf { it.isNotEmpty() }?.let {
+                    "appInstalledAt" to it
+                },
+                deviceHelper.radioType.takeIf { it.isNotEmpty() }?.let { "radioType" to it },
+                deviceHelper.interfaceStyle.takeIf { it.isNotEmpty() }?.let {
+                    "interfaceStyle" to it
+                },
+                deviceHelper.isLowPowerModeEnabled.takeIf { it.isNotEmpty() }?.let {
+                    "isLowPowerModeEnabled" to it
+                },
+                "isSandbox" to deviceHelper.isSandbox.toString(),
+                deviceHelper.platformWrapper.takeIf { it.isNotEmpty() }?.let {
+                    "platformWrapper" to it
+                },
+                deviceHelper.platformWrapperVersion.takeIf { it.isNotEmpty() }?.let {
+                    "platformWrapperVersion" to it
+                },
+            ).toMap()
+
+        val advertisingIds = integrationAttributes.promoteAdvertisingIds()
+
+        val request =
+            MmpMatchRequest(
+                platform = "android",
+                appUserId = factory.identityManager.appUserId,
+                deviceId = deviceHelper.deviceId,
+                vendorId = deviceHelper.vendorId,
+                aaid = advertisingIds.aaid,
+                appSetId = advertisingIds.appSetId,
+                installReferrerClickId = installReferrerClickId,
+                appVersion = deviceHelper.appVersion,
+                sdkVersion = deviceHelper.sdkVersion,
+                osVersion = deviceHelper.osVersion,
+                deviceModel = deviceHelper.model,
+                deviceLocale = deviceHelper.locale,
+                deviceLanguageCode = deviceHelper.languageCode,
+                timezoneOffsetSeconds = deviceHelper.timezoneOffsetSeconds,
+                screenWidth = deviceHelper.screenWidth,
+                screenHeight = deviceHelper.screenHeight,
+                devicePixelRatio = deviceHelper.devicePixelRatio,
+                bundleId = deviceHelper.bundleId,
+                clientTimestamp = currentIsoTimestamp(),
+                metadata = metadata,
+                integrationAttributes = advertisingIds.remaining.takeIf { it.isNotEmpty() },
+            )
+
+        return mmpService
+            .matchInstall(request)
+            .logError("/api/match", mapOf("payload" to request))
+    }
 
     override suspend fun redeemToken(
         codes: List<Redeemable>,

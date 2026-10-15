@@ -31,6 +31,7 @@ class IdentityManager(
     override val completeReset: () -> Unit = {
         Superwall.instance.reset(duringIdentify = true)
     },
+    override val installScopedAttributes: () -> Map<String, Any?> = { emptyMap() },
     override val tracker: suspend (TrackableSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
     },
