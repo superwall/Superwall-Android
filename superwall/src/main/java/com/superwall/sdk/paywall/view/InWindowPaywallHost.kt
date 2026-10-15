@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.FrameLayout
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
@@ -124,6 +125,14 @@ internal class InWindowPaywallHost private constructor(
                     "In-window paywalls are shown full-screen; ignoring presentation style $presentationStyle",
                 )
         }
+
+        // Game engines (Unity among them) ship their activity with hardwareAccelerated="false".
+        // A WebView in a software-rendered window neither redraws nor handles input, so enable
+        // acceleration for the host window. Android allows enabling it at runtime; never disabling.
+        activity.window?.setFlags(
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+        )
 
         (view.parent as? ViewGroup)?.removeView(view)
         view.inWindowHost = this
