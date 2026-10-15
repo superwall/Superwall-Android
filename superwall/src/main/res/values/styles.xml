@@ -20,4 +20,10 @@
     <!-- Dialogs (e.g. surveys) of an in-window paywall whose host Activity has no AppCompat theme.
          A host app can restyle them by overriding this style. -->
     <style name="Theme.Superwall.InWindow" parent="Theme.Material3.DayNight.NoActionBar" />
+
+    <!-- The headless activity that asks for permissions: no UI of its own. -->
+    <style name="Theme.Superwall.PermissionRequest" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

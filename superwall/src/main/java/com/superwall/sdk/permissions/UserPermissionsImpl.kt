@@ -7,7 +7,6 @@ import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -204,29 +203,15 @@ internal class UserPermissionsImpl(
 
                 launcher.launch(manifestPermission)
             } else {
-                // Fallback for non-ComponentActivity (legacy approach)
-                // This won't wait for result, so we can only check current state
-                ActivityCompat.requestPermissions(
-                    activity,
-                    arrayOf(manifestPermission),
-                    PERMISSION_REQUEST_CODE,
-                )
-
-                // Since we can't wait for result with legacy API, check after a delay
-                // This is not ideal but provides fallback compatibility
-                val isGranted =
-                    ContextCompat.checkSelfPermission(
-                        activity,
-                        manifestPermission,
-                    ) == PackageManager.PERMISSION_GRANTED
-
-                if (continuation.isActive) {
-                    continuation.resume(if (isGranted) PermissionStatus.GRANTED else PermissionStatus.DENIED)
-                }
+                // A plain Activity would get the answer in its own onRequestPermissionsResult, so
+                // ask from a headless activity that reports the answer back once the user gives it.
+                val cancel =
+                    PermissionRequestActivity.request(activity, arrayOf(manifestPermission)) { isGranted ->
+                        if (continuation.isActive) {
+                            continuation.resume(if (isGranted) PermissionStatus.GRANTED else PermissionStatus.DENIED)
+                        }
+                    }
+                continuation.invokeOnCancellation { cancel() }
             }
         }
-
-    companion object {
-        private const val PERMISSION_REQUEST_CODE = 10001
-    }
 }

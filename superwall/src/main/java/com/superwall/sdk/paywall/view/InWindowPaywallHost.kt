@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.view
 
+import android.Manifest
 import android.animation.Animator
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
@@ -23,11 +24,11 @@ import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
 import androidx.annotation.RequiresApi
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
-import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
@@ -40,8 +41,8 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.view.webview.CustomTabsHelper
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
+import com.superwall.sdk.permissions.requestPermissionFrom
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
@@ -73,6 +74,9 @@ internal class InWindowPaywallHost private constructor(
         private const val EXIT_MS = 300L
         private const val SCRIM_ENTER_MS = 600L
         private val SCRIM_COLOR = Color.argb(200, 0, 0, 0)
+
+        private const val CHECKOUT_REQUEST_CODE = 0x5357
+        private val checkoutKeys = AtomicLong(0)
 
         @Volatile
         internal var current: InWindowPaywallHost? = null
@@ -271,6 +275,11 @@ internal class InWindowPaywallHost private constructor(
     }
 
     private fun unregister() {
+        checkoutLauncher?.unregister()
+        checkoutLauncher = null
+        permissionRequests.toList().forEach { it() }
+        permissionRequests.clear()
+        notifications.release()
         val activity = activityRef.get()
         activity?.application?.unregisterActivityLifecycleCallbacks(lifecycleCallbacks)
         if (activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -584,26 +593,46 @@ internal class InWindowPaywallHost private constructor(
 
     //endregion
 
+    //region Checkout
+
+    /** The registry launcher of an open web checkout, on a ComponentActivity host. */
+    private var checkoutLauncher: ActivityResultLauncher<String>? = null
+
+    /** A web checkout was launched on a plain Activity host, whose result goes to the host. */
+    private var checkoutAwaitingResume = false
+
     /**
-     * Opens web checkout in a Custom Tab. The activity-hosted path uses an activity result
-     * launcher, which can't be registered on an already started host, so this is a plain launch
-     * with no result: the sheet counts as closed once the host Activity resumes.
+     * Opens web checkout in the same Custom Tab sheet as [SuperwallPaywallActivity]. A
+     * ComponentActivity host launches it through a registry launcher registered without a
+     * lifecycle (registering with one after STARTED throws). A plain Activity host gets the
+     * result itself, so there the sheet counts as closed once the host resumes.
      */
     fun launchCheckout(url: String) {
         val activity = activityRef.get()
-        if (activity == null) {
+        if (activity == null || closed.get()) {
             view.isPaymentSheetPresented = false
             return
         }
         try {
-            val customTabs =
-                CustomTabsIntent
-                    .Builder()
-                    .setShowTitle(true)
-                    .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
-                    .build()
-            CustomTabsHelper.getPackageNameToUse(activity)?.let { customTabs.intent.setPackage(it) }
-            customTabs.launchUrl(activity, url.toUri())
+            if (activity is ComponentActivity) {
+                checkoutLauncher?.unregister()
+                var launcher: ActivityResultLauncher<String>? = null
+                launcher =
+                    activity.activityResultRegistry.register(
+                        "superwall_checkout_${token}_${checkoutKeys.incrementAndGet()}",
+                        view.checkoutContract,
+                    ) { statusCode ->
+                        launcher?.unregister()
+                        if (checkoutLauncher === launcher) checkoutLauncher = null
+                        view.onCheckoutClosed(statusCode)
+                    }
+                checkoutLauncher = launcher
+                launcher.launch(url)
+            } else {
+                // Partial-height Custom Tabs need a launch for result.
+                activity.startActivityForResult(view.checkoutIntent(activity, url), CHECKOUT_REQUEST_CODE)
+                checkoutAwaitingResume = true
+            }
         } catch (e: Throwable) {
             Logger.debug(
                 LogLevel.error,
@@ -611,9 +640,36 @@ internal class InWindowPaywallHost private constructor(
                 "Unable to open checkout from an in-window paywall",
                 error = e,
             )
+            checkoutLauncher?.unregister()
+            checkoutLauncher = null
             view.isPaymentSheetPresented = false
         }
     }
+
+    //endregion
+
+    //region Notifications
+
+    /** Schedules this paywall's notifications, asking for permission from the host Activity. */
+    val notifications = PaywallNotifications(activity) { onResult -> requestNotificationPermission(onResult) }
+
+    private val permissionRequests = mutableSetOf<() -> Unit>()
+
+    private fun requestNotificationPermission(onResult: (Boolean) -> Unit) {
+        val activity = activityRef.get() ?: return onResult(false)
+        activity.runOnUiThread {
+            if (closed.get()) return@runOnUiThread onResult(false)
+            var cancel: (() -> Unit)? = null
+            cancel =
+                requestPermissionFrom(activity, Manifest.permission.POST_NOTIFICATIONS) { granted ->
+                    cancel?.let { permissionRequests.remove(it) }
+                    onResult(granted)
+                }
+            permissionRequests.add(cancel)
+        }
+    }
+
+    //endregion
 
     private fun isHost(activity: Activity) = !closed.get() && activity === activityRef.get()
 
@@ -626,8 +682,11 @@ internal class InWindowPaywallHost private constructor(
 
             override fun onActivityResumed(activity: Activity) {
                 if (!isHost(activity)) return
-                // A web checkout opened by launchCheckout() has closed by the time we're back.
-                view.isPaymentSheetPresented = false
+                // A web checkout launched on a plain Activity has closed by the time we're back.
+                if (checkoutAwaitingResume) {
+                    checkoutAwaitingResume = false
+                    view.onCheckoutClosed(Activity.RESULT_CANCELED)
+                }
                 view.webView.onResume()
                 view.onViewCreated()
                 container.bringToFront()

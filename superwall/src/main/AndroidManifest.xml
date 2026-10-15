@@ -10,5 +10,12 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:exported="false"
             android:theme="@style/Theme.Superwall.CustomerCenter" />
+        <!-- Headless: asks for runtime permissions for a plain Activity host, e.g. a game engine's. -->
+        <activity
+            android:name="com.superwall.sdk.permissions.PermissionRequestActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@style/Theme.Superwall.PermissionRequest" />
     </application>
 </manifest>

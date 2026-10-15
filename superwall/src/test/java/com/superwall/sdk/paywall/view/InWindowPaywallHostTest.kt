@@ -1,12 +1,15 @@
 package com.superwall.sdk.paywall.view
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -19,6 +22,9 @@ import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
+import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.models.paywall.LocalNotification
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -29,12 +35,19 @@ import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
 import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
+import com.superwall.sdk.permissions.PermissionRequestActivity
+import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import io.mockk.verify
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -54,6 +67,7 @@ import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33], manifest = Config.NONE)
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class InWindowPaywallHostTest {
     private lateinit var controller: ActivityController<Activity>
     private lateinit var activity: Activity
@@ -93,13 +107,21 @@ class InWindowPaywallHostTest {
                 },
                 redeemer = mockk(),
             )
+
+        mockkObject(NotificationScheduler.Companion)
+        every { NotificationScheduler.scheduleNotifications(any(), any(), any(), any(), any()) } just Runs
     }
 
     @After
     fun tearDown() {
         InWindowPaywallHost.current?.close()
         idleMain()
+        unmockkObject(NotificationScheduler.Companion)
     }
+
+    private val trialReminders =
+        listOf(LocalNotification("trial", LocalNotificationType.TrialStarted, "Trial ending", body = "Reminder", delay = 86_400_000L))
+    private val deviceHelperFactory = mockk<DeviceHelperFactory>()
 
     private val content: ViewGroup
         get() = activity.findViewById(android.R.id.content)
@@ -127,6 +149,111 @@ class InWindowPaywallHostTest {
             Thread.sleep(10)
         }
         return condition()
+    }
+
+    @Test
+    fun notifications_ofAnInWindowPaywallAreScheduledThroughItsHost() =
+        runTest {
+            Given("an in-window paywall and a granted notification permission") {
+                shadowOf(activity.application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+                val host = show()
+
+                When("the paywall's notifications are looked up and scheduled") {
+                    val notifications = PaywallNotifications.forPaywall(paywallView)
+                    notifications?.attemptToSchedule(
+                        trialReminders,
+                        deviceHelperFactory,
+                        cancelExisting = false,
+                        applySandboxScaling = true,
+                    )
+
+                    Then("they come from the in-window host and reach the scheduler instead of being skipped") {
+                        assertSame(host.notifications, notifications)
+                        verify(exactly = 1) {
+                            NotificationScheduler.scheduleNotifications(trialReminders, deviceHelperFactory, activity, false, true)
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun notificationPermission_onAPlainActivityHostIsAskedForByAHeadlessActivity() =
+        runTest {
+            Given("an in-window paywall on a plain Activity without the notification permission") {
+                shadowOf(activity.application).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
+                val host = show()
+
+                When("its notifications are scheduled") {
+                    val job =
+                        launch {
+                            host.notifications.attemptToSchedule(
+                                trialReminders,
+                                deviceHelperFactory,
+                                cancelExisting = false,
+                                applySandboxScaling = true,
+                            )
+                        }
+                    runCurrent()
+
+                    Then("the permission is asked for by a PermissionRequestActivity, not the host") {
+                        assertFalse(job.isCompleted)
+                        assertNull(shadowOf(activity).lastRequestedPermission)
+                    }
+
+                    When("the user grants it there") {
+                        val intent = shadowOf(activity).nextStartedActivity
+                        assertEquals(PermissionRequestActivity::class.java.name, intent.component?.className)
+                        val requestActivity = Robolectric.buildActivity(PermissionRequestActivity::class.java, intent).setup().get()
+                        val request = shadowOf(requestActivity).lastRequestedPermission
+                        requestActivity.onRequestPermissionsResult(
+                            request.requestCode,
+                            request.requestedPermissions,
+                            intArrayOf(PackageManager.PERMISSION_GRANTED),
+                        )
+                        runCurrent()
+
+                        Then("the notifications are scheduled") {
+                            assertTrue(job.isCompleted)
+                            verify(exactly = 1) {
+                                NotificationScheduler.scheduleNotifications(trialReminders, deviceHelperFactory, activity, false, true)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun checkout_onAPlainActivityHostOpensTheSharedSheetForResult() {
+        Given("a drawer paywall shown in-window on a plain Activity") {
+            show(PaywallPresentationStyle.Drawer(height = 70.0, cornerRadius = 15.0))
+
+            When("web checkout is presented") {
+                paywallView.presentPaymentSheet("https://checkout.example.com/session")
+
+                Then("the same partial-height Custom Tab as the activity path is launched for result") {
+                    val started = shadowOf(activity).nextStartedActivityForResult
+                    assertTrue(started.requestCode >= 0)
+                    val expected = paywallView.checkoutIntent(activity, "https://checkout.example.com/session")
+                    assertEquals("https://checkout.example.com/session", started.intent.dataString)
+                    assertTrue(started.intent.hasExtra(CustomTabsIntent.EXTRA_INITIAL_ACTIVITY_HEIGHT_PX))
+                    assertEquals(expected.extras!!.keySet(), started.intent.extras!!.keySet())
+                    assertTrue(paywallView.isPaymentSheetPresented)
+                }
+
+                When("the host resumes after the sheet is closed") {
+                    controller.pause()
+                    controller.resume()
+                    idleMain()
+
+                    Then("the sheet counts as closed") {
+                        assertFalse(paywallView.isPaymentSheetPresented)
+                        assertFalse(paywallView.state.isBrowserViewPresented)
+                    }
+                }
+            }
+        }
     }
 
     @Test
@@ -454,7 +581,7 @@ class InWindowPaywallHostTest {
         }
     }
 
-    private class FakeWebUI(
+    internal class FakeWebUI(
         override val messageHandler: PaywallMessageHandler,
     ) : PaywallWebUI {
         override var delegate: PaywallUIDelegate? = null

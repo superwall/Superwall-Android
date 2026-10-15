@@ -1186,13 +1186,11 @@ class PaywallView(
             message = "Opening checkout URL in Chrome Custom Tab: $url",
         )
 
-        // An in-window host has no activity result launcher (registering one on an already
-        // started host throws), so it opens the Custom Tab directly instead.
+        // An in-window host never registers the launcher below (registering one with a
+        // lifecycle on an already started host throws), so it launches checkout itself.
         inWindowHost?.let {
-            if (activityResultLauncher == null) {
-                it.launchCheckout(url)
-                return
-            }
+            it.launchCheckout(url)
+            return
         }
 
         // Launch Chrome Custom Tab using activity result launcher
@@ -1327,68 +1325,81 @@ class PaywallView(
             registryOwner.activityResultRegistry.register(
                 "checkoutSheet",
                 lifecycleOwner,
-                object : ActivityResultContract<String, Int>() {
-                    override fun createIntent(
-                        context: Context,
-                        input: String,
-                    ): Intent {
-                        val height = context.resources.displayMetrics.heightPixels * 0.9
-                        val customTabsIntent =
-                            CustomTabsIntent
-                                .Builder()
-                                .setColorScheme(COLOR_SCHEME_LIGHT)
-                                .setDownloadButtonEnabled(false)
-                                .apply {
-                                    when (val style = state.presentationStyle) {
-                                        is PaywallPresentationStyle.Drawer -> {
-                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
-                                        }
+                checkoutContract,
+            ) { statusCode -> onCheckoutClosed(statusCode) }
+    }
 
-                                        is PaywallPresentationStyle.Popup -> {
-                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
-                                        }
+    /** Opens web checkout in a Custom Tab, with the tab's result code as its result. */
+    internal val checkoutContract =
+        object : ActivityResultContract<String, Int>() {
+            override fun createIntent(
+                context: Context,
+                input: String,
+            ): Intent = checkoutIntent(context, input)
 
-                                        else -> {} // NOOP
-                                    }
-                                }.setShowTitle(true)
-                                .setBookmarksButtonEnabled(false)
-                                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
-                                .setInstantAppsEnabled(true)
-                                .setSendToExternalDefaultHandlerEnabled(true)
-                                .setCloseButtonIcon(
-                                    AppCompatResources
-                                        .getDrawable(context, R.drawable.none)!!
-                                        .mutate()
-                                        .let {
-                                            DrawableCompat.setTint(it, TRANSPARENT)
-                                            it.toBitmap()
-                                        },
-                                ).setUrlBarHidingEnabled(true)
-                                .setInitialActivityHeightPx(
-                                    (height.toInt() * 0.7).toInt(),
-                                    CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
-                                ).build()
-                                .intent
-                        customTabsIntent.setPackage(CustomTabsHelper.getPackageNameToUse(context))
-                        customTabsIntent.setData(input.toUri())
-                        return customTabsIntent
+            override fun parseResult(
+                resultCode: Int,
+                intent: Intent?,
+            ): Int = resultCode
+        }
+
+    /** The web checkout Custom Tab: a partial-height sheet styled after the presentation style. */
+    internal fun checkoutIntent(
+        context: Context,
+        url: String,
+    ): Intent {
+        val height = context.resources.displayMetrics.heightPixels * 0.9
+        val customTabsIntent =
+            CustomTabsIntent
+                .Builder()
+                .setColorScheme(COLOR_SCHEME_LIGHT)
+                .setDownloadButtonEnabled(false)
+                .apply {
+                    when (val style = state.presentationStyle) {
+                        is PaywallPresentationStyle.Drawer -> {
+                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                        }
+
+                        is PaywallPresentationStyle.Popup -> {
+                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                        }
+
+                        else -> {} // NOOP
                     }
+                }.setShowTitle(true)
+                .setBookmarksButtonEnabled(false)
+                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
+                .setInstantAppsEnabled(true)
+                .setSendToExternalDefaultHandlerEnabled(true)
+                .setCloseButtonIcon(
+                    AppCompatResources
+                        .getDrawable(context, R.drawable.none)!!
+                        .mutate()
+                        .let {
+                            DrawableCompat.setTint(it, TRANSPARENT)
+                            it.toBitmap()
+                        },
+                ).setUrlBarHidingEnabled(true)
+                .setInitialActivityHeightPx(
+                    (height.toInt() * 0.7).toInt(),
+                    CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
+                ).build()
+                .intent
+        customTabsIntent.setPackage(CustomTabsHelper.getPackageNameToUse(context))
+        customTabsIntent.setData(url.toUri())
+        return customTabsIntent
+    }
 
-                    override fun parseResult(
-                        resultCode: Int,
-                        intent: Intent?,
-                    ): Int = resultCode
-                },
-            ) { statusCode ->
-                // Handle Chrome Custom Tab closure
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.paywallView,
-                    message = "Chrome Custom Tab closed with status code: $statusCode",
-                )
-                isPaymentSheetPresented = false
-                controller.updateState(PaywallViewState.Updates.SetBrowserPresented(false))
-            }
+    /** The web checkout Custom Tab closed. */
+    internal fun onCheckoutClosed(statusCode: Int) {
+        // Handle Chrome Custom Tab closure
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallView,
+            message = "Chrome Custom Tab closed with status code: $statusCode",
+        )
+        isPaymentSheetPresented = false
+        controller.updateState(PaywallViewState.Updates.SetBrowserPresented(false))
     }
 
 //endregion
