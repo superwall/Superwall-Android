@@ -9,6 +9,7 @@ import android.app.Application
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Outline
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
@@ -532,7 +533,7 @@ internal class InWindowPaywallHost private constructor(
         card.outlineProvider = roundedOutline(cornerRadius)
         card.setOnClickListener { /* consume */ }
         card.addView(view, matchParent())
-        fadeInScrim()
+        val scrim = fadeInScrim()
 
         card.scaleX = 0f
         card.scaleY = 0f
@@ -547,6 +548,7 @@ internal class InWindowPaywallHost private constructor(
             .start()
 
         return { onEnd ->
+            scrim.cancel()
             fadeOutScrim()
             card
                 .animate()
@@ -575,7 +577,9 @@ internal class InWindowPaywallHost private constructor(
         }
 
     private fun fadeOutScrim() {
-        ValueAnimator.ofObject(ArgbEvaluator(), SCRIM_COLOR, Color.TRANSPARENT).apply {
+        // Start from the current shade, as the fade-in may have been cancelled partway.
+        val from = (container.background as? ColorDrawable)?.color ?: SCRIM_COLOR
+        ValueAnimator.ofObject(ArgbEvaluator(), from, Color.TRANSPARENT).apply {
             duration = EXIT_MS
             addUpdateListener { container.setBackgroundColor(it.animatedValue as Int) }
             start()
