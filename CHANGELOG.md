@@ -7,6 +7,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 - Adds `PaywallOptions.presentationHost`. Set it to `PresentationHost.IN_WINDOW` to show paywalls as an overlay in the presenting activity's own window instead of launching `SuperwallPaywallActivity`. Fullscreen, Drawer, Modal, Popup and Push styles, back handling, surveys, trial reminder notifications, permission requests and web checkout all work in this mode. It is meant for hosts that stop running while another activity covers them, such as Unity games, where a purchase controller written in the game's code could otherwise never answer. The default stays `PresentationHost.ACTIVITY`.
 
+## Fixes
+- Fix prioritized preloading having no effect. The first preload batch contained every paywall the device was assigned to instead of only the prioritized campaign's paywalls, so those paywalls loaded alongside everything else at launch. The first batch now holds only the prioritized campaign's paywalls, and the batch that follows holds only the rest.
+
 ## 2.8.5
 
 ## Enhancements

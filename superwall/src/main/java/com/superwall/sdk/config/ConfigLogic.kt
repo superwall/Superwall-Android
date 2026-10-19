@@ -234,10 +234,6 @@ object ConfigLogic {
         unconfirmedAssignments: Map<String, Experiment.Variant>,
         expressionEvaluator: ExpressionEvaluating,
     ): Set<String> {
-        var confirmedAssignments = confirmedAssignments.toMutableMap()
-
-        // Getting the set of experiment IDs from confirmed assignments
-        val confirmedExperimentIds = confirmedAssignments.keys.toSet()
         val triggerRulesPerCampaign = getRulesPerCampaign(triggers)
 
         // Initialize sets to keep track of all experiment IDs and the ones to be skipped
@@ -265,17 +261,10 @@ object ConfigLogic {
             skippedExperimentIds.addAll(skippedIfTrueRules + skippedNeverRules)
         }
 
-        // Remove any confirmed experiment IDs that are no longer part of a trigger
-        val unusedExperimentIds = confirmedExperimentIds.subtract(allExperimentIds)
-        unusedExperimentIds.forEach { id ->
-            confirmedAssignments.remove(id)
-        }
-
-        // Combine confirmed and unconfirmed assignments, removing the skipped ones
-        val mergedAssignments = (confirmedAssignments + unconfirmedAssignments).toMutableMap()
-        skippedExperimentIds.forEach { id ->
-            mergedAssignments.remove(id)
-        }
+        // Combine confirmed and unconfirmed assignments, keeping only the experiments
+        // of the passed triggers and removing the skipped ones
+        val mergedAssignments = (confirmedAssignments + unconfirmedAssignments)
+            .filterKeys { it in allExperimentIds && it !in skippedExperimentIds }
         val preloadableVariants = mergedAssignments.values
 
         // Select only the variants that will result in a paywall
