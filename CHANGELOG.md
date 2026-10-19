@@ -3,6 +3,8 @@
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
 ## 2.8.7
+
+## Fixes
 - Fix prioritized preloading having no effect. The first preload batch contained every paywall the device was assigned to instead of only the prioritized campaign's paywalls, so those paywalls loaded alongside everything else at launch. The first batch now holds only the prioritized campaign's paywalls, and the batch that follows holds only the rest.
 
 ## 2.8.6
