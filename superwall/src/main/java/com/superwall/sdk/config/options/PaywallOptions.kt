@@ -180,8 +180,9 @@ class PaywallOptions() {
          * **Experimental.** The paywall is shown as a view on top of the presenting Activity's
          * window, so that Activity is never covered (or stopped) by the paywall itself.
          * Meant for game engines, such as Unity, whose loop stops while another Activity covers
-         * theirs. Only full-screen presentation is supported; other styles are shown full-screen.
-         * Notification permission requests from the paywall are skipped in this mode.
+         * theirs. All presentation styles are supported. If the host Activity is destroyed while
+         * the paywall is shown, including by a configuration change it doesn't handle itself, the
+         * paywall is dismissed.
          */
         IN_WINDOW,
     }
