@@ -7,7 +7,6 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -252,22 +251,6 @@ class InWindowPaywallHostTest {
                         assertFalse(paywallView.isPaymentSheetPresented)
                         assertFalse(paywallView.state.isBrowserViewPresented)
                     }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun show_enablesHardwareAccelerationOnTheHostWindow() {
-        Given("a host activity whose window is not hardware accelerated, like a Unity game") {
-            activity.window.clearFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED)
-
-            When("a paywall is shown in-window") {
-                show()
-
-                Then("the host window is hardware accelerated so the WebView can draw and take input") {
-                    val flags = activity.window.attributes.flags
-                    assertTrue(flags and WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED != 0)
                 }
             }
         }

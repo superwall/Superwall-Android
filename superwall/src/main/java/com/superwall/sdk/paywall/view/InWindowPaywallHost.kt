@@ -19,7 +19,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
-import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
@@ -141,14 +140,6 @@ internal class InWindowPaywallHost private constructor(
         presentationStyle: PaywallPresentationStyle?,
     ) {
         val activity = activityRef.get() ?: error("Host activity is gone")
-
-        // Game engines (Unity among them) ship their activity with hardwareAccelerated="false".
-        // A WebView in a software-rendered window neither redraws nor handles input, so enable
-        // acceleration for the host window. Android allows enabling it at runtime; never disabling.
-        activity.window?.setFlags(
-            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-        )
 
         (view.parent as? ViewGroup)?.removeView(view)
         view.inWindowHost = this
