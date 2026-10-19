@@ -170,6 +170,28 @@ class PaywallOptions() {
      * and the paywall either navigates its flow back one page or closes itself.
      */
     var onBackPressed: ((PaywallInfo?) -> Boolean)? = null
+
+    /** Where a presented paywall is hosted. See [presentationHost]. */
+    enum class PresentationHost {
+        /** The paywall is shown in its own `SuperwallPaywallActivity`. */
+        ACTIVITY,
+
+        /**
+         * **Experimental.** The paywall is shown as a view on top of the presenting Activity's
+         * window, so that Activity is never covered (or stopped) by the paywall itself.
+         * Meant for game engines, such as Unity, whose loop stops while another Activity covers
+         * theirs. All presentation styles are supported. If the host Activity is destroyed while
+         * the paywall is shown, including by a configuration change it doesn't handle itself, the
+         * paywall is dismissed.
+         */
+        IN_WINDOW,
+    }
+
+    /**
+     * **Experimental.** Chooses how presented paywalls are hosted. Defaults to
+     * [PresentationHost.ACTIVITY]. This may change or be removed in a future release.
+     */
+    var presentationHost: PresentationHost = PresentationHost.ACTIVITY
 }
 
 internal fun SuperwallOptions.computedShouldPreload(tier: Tier) =
