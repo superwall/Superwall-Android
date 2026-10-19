@@ -1,8 +1,10 @@
 package com.superwall.sdk.paywall.view.survey
 
 import android.app.Activity
+import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -88,10 +90,11 @@ object SurveyManager {
             return
         }
 
-        val dialog = BottomSheetDialog(activity)
+        val context = activity.withAppCompatTheme()
+        val dialog = BottomSheetDialog(context)
         dialog.setCanceledOnTouchOutside(false)
         dialog.setCancelable(false)
-        val surveyView = LayoutInflater.from(activity).inflate(R.layout.survey_bottom_sheet, null)
+        val surveyView = LayoutInflater.from(context).inflate(R.layout.survey_bottom_sheet, null)
         dialog.setContentView(surveyView)
 
         val optionsToShow = mutableListOf<String>()
@@ -114,7 +117,7 @@ object SurveyManager {
         val listView: ListView = surveyView.findViewById(R.id.surveyListView)
         val surveyOptionsAdapter =
             ArrayAdapter(
-                activity,
+                context,
                 R.layout.list_item,
                 optionsToShow,
             )
@@ -140,9 +143,9 @@ object SurveyManager {
                 // Special case for 'Other' or 'Close'
                 val selectedItem = optionsToShow[position]
                 if (selectedItem == "Other") {
-                    val customAlertView = LayoutInflater.from(activity).inflate(R.layout.custom_alert_dialog_layout, null)
+                    val customAlertView = LayoutInflater.from(context).inflate(R.layout.custom_alert_dialog_layout, null)
 
-                    val otherBuilder = AlertDialog.Builder(activity)
+                    val otherBuilder = AlertDialog.Builder(context)
                     otherBuilder.setCancelable(false)
                     otherBuilder.setView(customAlertView)
 
@@ -228,6 +231,22 @@ object SurveyManager {
         }
 
         dialog.show()
+    }
+
+    /**
+     * The dialogs above need an AppCompat theme. An Activity without one (e.g. a game engine's
+     * Activity hosting an in-window paywall) gets the SDK's Material theme instead of a crash;
+     * an AppCompat-themed Activity is used as is.
+     */
+    private fun Activity.withAppCompatTheme(): Context {
+        val attrs = obtainStyledAttributes(intArrayOf(androidx.appcompat.R.attr.windowActionBar))
+        val isAppCompatThemed =
+            try {
+                attrs.hasValue(0)
+            } finally {
+                attrs.recycle()
+            }
+        return if (isAppCompatThemed) this else ContextThemeWrapper(this, R.style.Theme_Superwall_InWindow)
     }
 
     private fun handleDialogDismissal(

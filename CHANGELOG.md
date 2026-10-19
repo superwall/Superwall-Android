@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.8.6
+
+## Enhancements
+- Adds `PaywallOptions.presentationHost`. Set it to `PresentationHost.IN_WINDOW` to show paywalls as an overlay in the presenting activity's own window instead of launching `SuperwallPaywallActivity`. Fullscreen, Drawer, Modal, Popup and Push styles, back handling, surveys, trial reminder notifications, permission requests and web checkout all work in this mode. It is meant for hosts that stop running while another activity covers them, such as Unity games, where a purchase controller written in the game's code could otherwise never answer. The default stays `PresentationHost.ACTIVITY`.
+
 ## 2.8.5
 
 ## Enhancements

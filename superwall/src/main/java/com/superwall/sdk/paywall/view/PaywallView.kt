@@ -176,7 +176,12 @@ class PaywallView(
     //region Presentation properties
 
     // The full screen activity instance if this view has been presented in one.
+    // For an in-window presentation this is the host app's Activity, which must never be finished.
     override var encapsulatingActivity: WeakReference<Activity>? = null
+
+    // Set while this view is presented in-window (see [PaywallOptions.PresentationHost.IN_WINDOW]).
+    @Volatile
+    internal var inWindowHost: InWindowPaywallHost? = null
     private var shimmerView: PaywallShimmerView? = null
 
     private var loadingView: PaywallPurchaseLoadingView? = null
@@ -359,13 +364,22 @@ class PaywallView(
             ),
         )
 
-        SuperwallPaywallActivity
-            .startWithViewForPresentation(
-                presenter,
-                this,
-                state.cacheKey,
-                state.presentationStyle,
-            ).getOrThrow()
+        if (factory.makeSuperwallOptions().paywalls.presentationHost == PaywallOptions.PresentationHost.IN_WINDOW) {
+            InWindowPaywallHost
+                .show(
+                    presenter,
+                    this,
+                    state.presentationStyle,
+                ).getOrThrow()
+        } else {
+            SuperwallPaywallActivity
+                .startWithViewForPresentation(
+                    presenter,
+                    this,
+                    state.cacheKey,
+                    state.presentationStyle,
+                ).getOrThrow()
+        }
         startStateListener()
     }
 
@@ -829,7 +843,18 @@ class PaywallView(
     private fun dismiss(presentationIsAnimated: Boolean) {
         // TODO: SW-2162 Implement animation support
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
-        encapsulatingActivity?.get()?.finish()
+        inWindowHost?.let {
+            it.close()
+            return
+        }
+        val activity = encapsulatingActivity?.get() ?: return
+        if (activity !is SuperwallPaywallActivity &&
+            factory.makeSuperwallOptions().paywalls.presentationHost == PaywallOptions.PresentationHost.IN_WINDOW
+        ) {
+            // An in-window presentation that already closed: the activity is the host app's own.
+            return
+        }
+        activity.finish()
     }
 
     private fun showLoadingView() {
@@ -1161,6 +1186,13 @@ class PaywallView(
             message = "Opening checkout URL in Chrome Custom Tab: $url",
         )
 
+        // An in-window host never registers the launcher below (registering one with a
+        // lifecycle on an already started host throws), so it launches checkout itself.
+        inWindowHost?.let {
+            it.launchCheckout(url)
+            return
+        }
+
         // Launch Chrome Custom Tab using activity result launcher
         activityResultLauncher?.launch(url) ?: run {
             Logger.debug(
@@ -1293,68 +1325,81 @@ class PaywallView(
             registryOwner.activityResultRegistry.register(
                 "checkoutSheet",
                 lifecycleOwner,
-                object : ActivityResultContract<String, Int>() {
-                    override fun createIntent(
-                        context: Context,
-                        input: String,
-                    ): Intent {
-                        val height = context.resources.displayMetrics.heightPixels * 0.9
-                        val customTabsIntent =
-                            CustomTabsIntent
-                                .Builder()
-                                .setColorScheme(COLOR_SCHEME_LIGHT)
-                                .setDownloadButtonEnabled(false)
-                                .apply {
-                                    when (val style = state.presentationStyle) {
-                                        is PaywallPresentationStyle.Drawer -> {
-                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
-                                        }
+                checkoutContract,
+            ) { statusCode -> onCheckoutClosed(statusCode) }
+    }
 
-                                        is PaywallPresentationStyle.Popup -> {
-                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
-                                        }
+    /** Opens web checkout in a Custom Tab, with the tab's result code as its result. */
+    internal val checkoutContract =
+        object : ActivityResultContract<String, Int>() {
+            override fun createIntent(
+                context: Context,
+                input: String,
+            ): Intent = checkoutIntent(context, input)
 
-                                        else -> {} // NOOP
-                                    }
-                                }.setShowTitle(true)
-                                .setBookmarksButtonEnabled(false)
-                                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
-                                .setInstantAppsEnabled(true)
-                                .setSendToExternalDefaultHandlerEnabled(true)
-                                .setCloseButtonIcon(
-                                    AppCompatResources
-                                        .getDrawable(context, R.drawable.none)!!
-                                        .mutate()
-                                        .let {
-                                            DrawableCompat.setTint(it, TRANSPARENT)
-                                            it.toBitmap()
-                                        },
-                                ).setUrlBarHidingEnabled(true)
-                                .setInitialActivityHeightPx(
-                                    (height.toInt() * 0.7).toInt(),
-                                    CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
-                                ).build()
-                                .intent
-                        customTabsIntent.setPackage(CustomTabsHelper.getPackageNameToUse(context))
-                        customTabsIntent.setData(input.toUri())
-                        return customTabsIntent
+            override fun parseResult(
+                resultCode: Int,
+                intent: Intent?,
+            ): Int = resultCode
+        }
+
+    /** The web checkout Custom Tab: a partial-height sheet styled after the presentation style. */
+    internal fun checkoutIntent(
+        context: Context,
+        url: String,
+    ): Intent {
+        val height = context.resources.displayMetrics.heightPixels * 0.9
+        val customTabsIntent =
+            CustomTabsIntent
+                .Builder()
+                .setColorScheme(COLOR_SCHEME_LIGHT)
+                .setDownloadButtonEnabled(false)
+                .apply {
+                    when (val style = state.presentationStyle) {
+                        is PaywallPresentationStyle.Drawer -> {
+                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                        }
+
+                        is PaywallPresentationStyle.Popup -> {
+                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                        }
+
+                        else -> {} // NOOP
                     }
+                }.setShowTitle(true)
+                .setBookmarksButtonEnabled(false)
+                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
+                .setInstantAppsEnabled(true)
+                .setSendToExternalDefaultHandlerEnabled(true)
+                .setCloseButtonIcon(
+                    AppCompatResources
+                        .getDrawable(context, R.drawable.none)!!
+                        .mutate()
+                        .let {
+                            DrawableCompat.setTint(it, TRANSPARENT)
+                            it.toBitmap()
+                        },
+                ).setUrlBarHidingEnabled(true)
+                .setInitialActivityHeightPx(
+                    (height.toInt() * 0.7).toInt(),
+                    CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
+                ).build()
+                .intent
+        customTabsIntent.setPackage(CustomTabsHelper.getPackageNameToUse(context))
+        customTabsIntent.setData(url.toUri())
+        return customTabsIntent
+    }
 
-                    override fun parseResult(
-                        resultCode: Int,
-                        intent: Intent?,
-                    ): Int = resultCode
-                },
-            ) { statusCode ->
-                // Handle Chrome Custom Tab closure
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.paywallView,
-                    message = "Chrome Custom Tab closed with status code: $statusCode",
-                )
-                isPaymentSheetPresented = false
-                controller.updateState(PaywallViewState.Updates.SetBrowserPresented(false))
-            }
+    /** The web checkout Custom Tab closed. */
+    internal fun onCheckoutClosed(statusCode: Int) {
+        // Handle Chrome Custom Tab closure
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallView,
+            message = "Chrome Custom Tab closed with status code: $statusCode",
+        )
+        isPaymentSheetPresented = false
+        controller.updateState(PaywallViewState.Updates.SetBrowserPresented(false))
     }
 
 //endregion
