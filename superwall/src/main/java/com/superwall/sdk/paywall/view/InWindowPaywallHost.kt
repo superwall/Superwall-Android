@@ -166,21 +166,32 @@ internal class InWindowPaywallHost private constructor(
         val themed = ContextThemeWrapper(activity, R.style.Theme_Superwall_InWindow)
         exitAnimation =
             when (presentationStyle) {
-                is PaywallPresentationStyle.Drawer ->
+                is PaywallPresentationStyle.Drawer -> {
                     attachBottomSheet(themed, isModal = false, presentationStyle.height, presentationStyle.cornerRadius)
+                }
 
-                is PaywallPresentationStyle.Modal ->
+                is PaywallPresentationStyle.Modal -> {
                     attachBottomSheet(themed, isModal = true, height = 0.0, cornerRadius = 0.0)
+                }
 
-                is PaywallPresentationStyle.Popup ->
+                is PaywallPresentationStyle.Popup -> {
                     attachPopup(themed, presentationStyle.height, presentationStyle.width, presentationStyle.cornerRadius)
+                }
 
-                is PaywallPresentationStyle.Push -> attachFullscreen(Transition.PUSH)
-                is PaywallPresentationStyle.Fullscreen -> attachFullscreen(Transition.RISE)
+                is PaywallPresentationStyle.Push -> {
+                    attachFullscreen(Transition.PUSH)
+                }
+
+                is PaywallPresentationStyle.Fullscreen -> {
+                    attachFullscreen(Transition.RISE)
+                }
+
                 is PaywallPresentationStyle.FullscreenNoAnimation,
                 is PaywallPresentationStyle.None,
                 null,
-                -> attachFullscreen(Transition.NONE)
+                -> {
+                    attachFullscreen(Transition.NONE)
+                }
             }
         ViewCompat.requestApplyInsets(container)
 
@@ -324,27 +335,51 @@ internal class InWindowPaywallHost private constructor(
             WindowInsetsCompat.CONSUMED
         }
 
-        val width = container.resources.displayMetrics.widthPixels.toFloat()
+        val width =
+            container.resources.displayMetrics.widthPixels
+                .toFloat()
         val rise = container.resources.displayMetrics.heightPixels * 0.05f
         when (transition) {
-            Transition.NONE -> return { onEnd -> onEnd() }
+            Transition.NONE -> {
+                return { onEnd -> onEnd() }
+            }
+
             Transition.RISE -> {
                 container.alpha = 0f
                 container.translationY = rise
-                container.animate().alpha(1f).translationY(0f).setDuration(ENTER_MS)
-                    .setInterpolator(DecelerateInterpolator()).start()
+                container
+                    .animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(ENTER_MS)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
                 return { onEnd ->
-                    container.animate().alpha(0f).translationY(rise).setDuration(EXIT_MS)
-                        .withEndAction(onEnd).start()
+                    container
+                        .animate()
+                        .alpha(0f)
+                        .translationY(rise)
+                        .setDuration(EXIT_MS)
+                        .withEndAction(onEnd)
+                        .start()
                 }
             }
+
             Transition.PUSH -> {
                 container.translationX = width
-                container.animate().translationX(0f).setDuration(ENTER_MS)
-                    .setInterpolator(DecelerateInterpolator()).start()
+                container
+                    .animate()
+                    .translationX(0f)
+                    .setDuration(ENTER_MS)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
                 return { onEnd ->
-                    container.animate().translationX(width).setDuration(EXIT_MS)
-                        .withEndAction(onEnd).start()
+                    container
+                        .animate()
+                        .translationX(width)
+                        .setDuration(EXIT_MS)
+                        .withEndAction(onEnd)
+                        .start()
                 }
             }
         }
@@ -417,12 +452,18 @@ internal class InWindowPaywallHost private constructor(
                 ) {
                     when {
                         // An expanded modal whose page is scrolled can't be dragged down.
-                        isModal && newState == BottomSheetBehavior.STATE_DRAGGING && webViewScroll > 0 ->
+                        isModal && newState == BottomSheetBehavior.STATE_DRAGGING && webViewScroll > 0 -> {
                             behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                        }
+
                         // A modal skips the half-expanded state.
-                        isModal && newState == BottomSheetBehavior.STATE_HALF_EXPANDED ->
+                        isModal && newState == BottomSheetBehavior.STATE_HALF_EXPANDED -> {
                             behavior.state = BottomSheetBehavior.STATE_EXPANDED
-                        newState == BottomSheetBehavior.STATE_HIDDEN -> dismissByUser()
+                        }
+
+                        newState == BottomSheetBehavior.STATE_HIDDEN -> {
+                            dismissByUser()
+                        }
                     }
                 }
 
@@ -496,13 +537,25 @@ internal class InWindowPaywallHost private constructor(
         card.scaleX = 0f
         card.scaleY = 0f
         card.alpha = 0f
-        card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(ENTER_MS)
-            .setInterpolator(OvershootInterpolator(1.1f)).start()
+        card
+            .animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .alpha(1f)
+            .setDuration(ENTER_MS)
+            .setInterpolator(OvershootInterpolator(1.1f))
+            .start()
 
         return { onEnd ->
             fadeOutScrim()
-            card.animate().scaleX(0.9f).scaleY(0.9f).alpha(0f).setDuration(EXIT_MS)
-                .withEndAction(onEnd).start()
+            card
+                .animate()
+                .scaleX(0.9f)
+                .scaleY(0.9f)
+                .alpha(0f)
+                .setDuration(EXIT_MS)
+                .withEndAction(onEnd)
+                .start()
         }
     }
 

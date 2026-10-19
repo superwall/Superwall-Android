@@ -13,7 +13,6 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -26,6 +25,7 @@ import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -102,9 +102,10 @@ class InWindowPaywallHostTest {
                 webView = FakeWebUI(messageHandler),
                 cache = null,
                 controller = PaywallView.PaywallController(PaywallViewState(paywall = Paywall.stub(), locale = "en-US")),
-                sendMessages = object : SendPaywallMessages {
-                    override fun handle(message: PaywallMessage) = Unit
-                },
+                sendMessages =
+                    object : SendPaywallMessages {
+                        override fun handle(message: PaywallMessage) = Unit
+                    },
                 redeemer = mockk(),
             )
 
@@ -336,7 +337,12 @@ class InWindowPaywallHostTest {
                 host.close()
 
                 Then("it is torn down exactly once after animating out, and the host keeps running") {
-                    assertTrue(waitUntil { idleFor(700); content.childCount == existingChildren - 1 })
+                    assertTrue(
+                        waitUntil {
+                            idleFor(700)
+                            content.childCount == existingChildren - 1
+                        },
+                    )
                     verify(exactly = 1) { delegate.didDismissPaywall(any()) }
                     assertFalse(activity.isFinishing)
                 }
@@ -354,7 +360,12 @@ class InWindowPaywallHostTest {
                 host.close()
 
                 Then("the sheet is hidden, the paywall torn down once, and the host keeps running") {
-                    assertTrue(waitUntil { idleFor(700); content.childCount == existingChildren - 1 })
+                    assertTrue(
+                        waitUntil {
+                            idleFor(700)
+                            content.childCount == existingChildren - 1
+                        },
+                    )
                     verify(exactly = 1) { delegate.didDismissPaywall(any()) }
                     assertFalse(activity.isFinishing)
                 }
@@ -372,7 +383,12 @@ class InWindowPaywallHostTest {
                 coordinator.performClick()
 
                 Then("the paywall is dismissed as declined by a manual close") {
-                    assertTrue(waitUntil { idleFor(700); paywallView.state.paywallResult != null })
+                    assertTrue(
+                        waitUntil {
+                            idleFor(700)
+                            paywallView.state.paywallResult != null
+                        },
+                    )
                     assertTrue(paywallView.state.paywallResult is PaywallResult.Declined)
                     assertEquals(PaywallCloseReason.ManualClose, paywallView.state.paywall.closeReason)
                 }
