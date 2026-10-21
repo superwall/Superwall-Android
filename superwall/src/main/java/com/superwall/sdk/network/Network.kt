@@ -186,7 +186,7 @@ open class Network(
                 aaid = advertisingIds.aaid,
                 appSetId = advertisingIds.appSetId,
                 idfv = deviceHelper.vendorId,
-                advertiserTrackingEnabled = advertisingIds.aaid != null,
+                advertiserTrackingEnabled = true,
                 applicationTrackingEnabled = true,
                 installReferrerClickId = installReferrerClickId,
                 appVersion = deviceHelper.appVersion,

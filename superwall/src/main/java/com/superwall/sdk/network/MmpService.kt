@@ -25,9 +25,9 @@ data class MmpMatchRequest(
     val appSetId: String? = null,
     // Sent under iOS's name too, so the backend can treat both platforms' vendor ids alike.
     val idfv: String? = null,
-    // Always sent, as on iOS. True when the developer has supplied the advertising id.
+    // Always sent, as on iOS. Android has no app-level tracking prompt like ATT, so both are true.
     @EncodeDefault
-    val advertiserTrackingEnabled: Boolean = false,
+    val advertiserTrackingEnabled: Boolean = true,
     @EncodeDefault
     val applicationTrackingEnabled: Boolean = true,
     val installReferrerClickId: Long? = null,

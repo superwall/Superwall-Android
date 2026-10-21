@@ -246,7 +246,7 @@ class MmpMatchResponseTest {
             )
 
         assertTrue(encoded.contains("\"idfv\":\"vendor-id\""))
-        assertTrue(encoded.contains("\"advertiserTrackingEnabled\":false"))
+        assertTrue(encoded.contains("\"advertiserTrackingEnabled\":true"))
         assertTrue(encoded.contains("\"applicationTrackingEnabled\":true"))
     }
 
