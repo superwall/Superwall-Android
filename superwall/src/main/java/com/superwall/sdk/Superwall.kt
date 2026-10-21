@@ -60,6 +60,7 @@ import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.*
+import com.superwall.sdk.paywall.view.PaywallNotifications
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
@@ -1682,27 +1683,23 @@ class Superwall(
                 }
 
                 is PaywallWebEvent.ScheduleNotification -> {
-                    val paywallActivity =
-
-                        (
-                                paywallView
-                                    ?.encapsulatingActivity
-                                    ?.get()
-                                    ?: dependencyContainer
-                                        .activityProvider
-                                        ?.getCurrentActivity()
-                                ) as? SuperwallPaywallActivity?
+                    val notifications =
+                        PaywallNotifications.forPaywall(
+                            paywallView,
+                            dependencyContainer.activityProvider?.getCurrentActivity(),
+                        )
                     // Cancel any existing fallback notification of the same type before scheduling
                     // the dynamic notification from the paywall
-                    paywallActivity?.attemptToScheduleNotifications(
+                    notifications?.attemptToSchedule(
                         notifications = listOf(paywallEvent.localNotification),
                         factory = dependencyContainer,
                         cancelExisting = true,
+                        applySandboxScaling = true,
                     ) ?: run {
                         Logger.debug(
                             LogLevel.error,
                             LogScope.paywallView,
-                            message = "No superwall paywall activity alive to schedule notifications",
+                            message = "No superwall paywall host alive to schedule notifications",
                         )
                     }
                 }

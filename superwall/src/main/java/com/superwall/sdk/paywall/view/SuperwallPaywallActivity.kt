@@ -7,8 +7,6 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.ComponentCaller
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -19,7 +17,6 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
@@ -35,8 +32,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
@@ -59,24 +54,17 @@ import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
-import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.lang.ref.WeakReference
 import java.util.UUID
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 class SuperwallPaywallActivity : AppCompatActivity() {
     companion object {
         private const val REQUEST_CODE_NOTIFICATION_PERMISSION = 1001
         const val NOTIFICATION_CHANNEL_ID = "com.superwall.android.notifications"
-        private const val NOTIFICATION_CHANNEL_NAME = "Trial Reminder Notifications"
-        private const val NOTIFICATION_CHANNEL_DESCRIPTION =
-            "Notifications sent when a free trial is about to end."
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
         private const val IS_LIGHT_BACKGROUND_KEY = "isLightBackgroundKey"
@@ -195,7 +183,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     private var contentView: View? = null
-    private var notificationPermissionCallback: NotificationPermissionCallback? = null
+    internal val notifications =
+        PaywallNotifications(this) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                REQUEST_CODE_NOTIFICATION_PERMISSION,
+            )
+        }
     private val isBottomSheetView
         get() = contentView is CoordinatorLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
@@ -830,7 +825,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        notificationPermissionCallback?.onPermissionResult(false)
+        notifications.release()
         super.onDestroy()
 
         val content = contentView as? ViewGroup?
@@ -914,134 +909,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         factory: DeviceHelperFactory,
         cancelExisting: Boolean,
         applySandboxScaling: Boolean,
-    ) = suspendCancellableCoroutine<Unit> { continuation ->
-        if (notifications.isEmpty()) {
-            continuation.resume(Unit) // Resume immediately as there's nothing to schedule
-            return@suspendCancellableCoroutine
-        }
-
-        createNotificationChannel()
-        val permissionRequestedAt = SystemClock.elapsedRealtime()
-        // A replacement request must release the previous waiter, too.
-        notificationPermissionCallback?.onPermissionResult(false)
-        val callback =
-            object : NotificationPermissionCallback {
-                override fun onPermissionResult(granted: Boolean) {
-                    if (notificationPermissionCallback === this) notificationPermissionCallback = null
-                    try {
-                        if (granted) {
-                            scheduleGrantedNotifications(
-                                notifications,
-                                factory,
-                                cancelExisting,
-                                applySandboxScaling,
-                                permissionRequestedAt,
-                            )
-                        }
-                    } catch (e: Exception) {
-                        if (continuation.isActive) continuation.resumeWithException(e)
-                        return
-                    }
-                    if (continuation.isActive) continuation.resume(Unit)
-                }
-            }
-        notificationPermissionCallback = callback
-        try {
-            checkAndRequestNotificationPermissions(this, callback)
-        } catch (e: Exception) {
-            if (notificationPermissionCallback === callback) notificationPermissionCallback = null
-            if (continuation.isActive) continuation.resumeWithException(e)
-        }
-    }
-
-    private fun scheduleGrantedNotifications(
-        notifications: List<LocalNotification>,
-        factory: DeviceHelperFactory,
-        cancelExisting: Boolean,
-        applySandboxScaling: Boolean,
-        permissionRequestedAt: Long,
-    ) {
-        // Web delays are anchored to checkout, so permission wait must not shift them.
-        val readyNotifications =
-            if (applySandboxScaling) {
-                notifications
-            } else {
-                val elapsed = SystemClock.elapsedRealtime() - permissionRequestedAt
-                notifications.mapNotNull { it.copy(delay = it.delay - elapsed).takeIf { reminder -> reminder.delay > 0 } }
-            }
-        if (readyNotifications.isEmpty()) return
-        NotificationScheduler.scheduleNotifications(
-            notifications = readyNotifications,
-            factory = factory,
-            context = this,
-            cancelExisting = cancelExisting,
-            applySandboxScaling = applySandboxScaling,
-        )
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel =
-                NotificationChannel(
-                    NOTIFICATION_CHANNEL_ID,
-                    NOTIFICATION_CHANNEL_NAME,
-                    importance,
-                ).apply {
-                    description = NOTIFICATION_CHANNEL_DESCRIPTION
-                }
-            channel.setShowBadge(false)
-            // Register the channel with the system
-            val notificationManager: NotificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun checkAndRequestNotificationPermissions(
-        context: Context,
-        callback: NotificationPermissionCallback,
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS,
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                if (!ActivityCompat.shouldShowRequestPermissionRationale(
-                        context as Activity,
-                        Manifest.permission.POST_NOTIFICATIONS,
-                    )
-                ) {
-                    // First time asking or user previously denied without 'Don't ask again'
-                    ActivityCompat.requestPermissions(
-                        context,
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        REQUEST_CODE_NOTIFICATION_PERMISSION,
-                    )
-                } else {
-                    // Permission previously denied with 'Don't ask again'
-                    callback.onPermissionResult(false)
-                }
-            } else {
-                callback.onPermissionResult(true)
-            }
-        } else {
-            callback.onPermissionResult(areNotificationsEnabled(context))
-        }
-    }
-
-    private fun areNotificationsEnabled(context: Context): Boolean {
-        val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
-            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
-                return false
-            }
-        }
-        return NotificationManagerCompat.from(context).areNotificationsEnabled()
-    }
+    ) = this.notifications.attemptToSchedule(notifications, factory, cancelExisting, applySandboxScaling)
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -1053,7 +921,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             val isGranted =
                 grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
             // Invoke the callback here
-            notificationPermissionCallback?.onPermissionResult(isGranted)
+            notifications.onPermissionResult(isGranted)
         }
     }
     //endregion

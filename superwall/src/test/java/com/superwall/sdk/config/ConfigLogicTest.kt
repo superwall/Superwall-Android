@@ -1597,4 +1597,41 @@ internal class ConfigLogicTest {
             )
         assertEquals(2, filteredTriggers.size)
     }
+
+    @Test
+    fun test_getAllActiveTreatmentPaywallIds_onlyReturnsPaywallsOfPassedTriggers() =
+        runTest {
+            val prioritizedTrigger =
+                Trigger.stub().apply {
+                    eventName = "prioritized"
+                    rules =
+                        listOf(
+                            TriggerRule.stub().apply {
+                                experimentId = "prioritized_exp"
+                                experimentGroupId = "prioritized_campaign"
+                            },
+                        )
+                }
+            val confirmedAssignments =
+                mapOf(
+                    "prioritized_exp" to
+                        Experiment.Variant("v1", Experiment.Variant.VariantType.TREATMENT, "prioritized_paywall"),
+                    "other_exp" to
+                        Experiment.Variant("v2", Experiment.Variant.VariantType.TREATMENT, "other_paywall"),
+                )
+            val unconfirmedAssignments =
+                mapOf(
+                    "other_unconfirmed_exp" to
+                        Experiment.Variant("v3", Experiment.Variant.VariantType.TREATMENT, "unconfirmed_paywall"),
+                )
+
+            val ids =
+                ConfigLogic.getAllActiveTreatmentPaywallIds(
+                    triggers = setOf(prioritizedTrigger),
+                    confirmedAssignments = confirmedAssignments,
+                    unconfirmedAssignments = unconfirmedAssignments,
+                    expressionEvaluator = expressionEvaluator,
+                )
+            assertEquals(setOf("prioritized_paywall"), ids)
+        }
 }

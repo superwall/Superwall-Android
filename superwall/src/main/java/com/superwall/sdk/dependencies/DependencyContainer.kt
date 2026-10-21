@@ -105,9 +105,9 @@ import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
+import com.superwall.sdk.paywall.view.PaywallNotifications
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
-import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.SuperwallStoreOwner
 import com.superwall.sdk.paywall.view.ViewModelFactory
 import com.superwall.sdk.paywall.view.ViewStorageViewModel
@@ -725,24 +725,26 @@ class DependencyContainer(
 
                     if (trialNotifications.isNotEmpty()) {
 
-                        val paywallActivity =
-                            (
-                                    paywallView.encapsulatingActivity?.get()
-                                        ?: activityProvider?.getCurrentActivity()
-                                    ) as? SuperwallPaywallActivity
+                        val paywallNotifications =
+                            PaywallNotifications.forPaywall(
+                                paywallView,
+                                activityProvider?.getCurrentActivity(),
+                            )
 
-                        if (paywallActivity != null) {
+                        if (paywallNotifications != null) {
                             ioScope.launch {
-                                paywallActivity.attemptToScheduleNotifications(
+                                paywallNotifications.attemptToSchedule(
                                     notifications = trialNotifications,
                                     factory = this@DependencyContainer,
+                                    cancelExisting = false,
+                                    applySandboxScaling = true,
                                 )
                             }
                         } else {
                             Logger.debug(
                                 LogLevel.warn,
                                 LogScope.paywallView,
-                                "No paywall activity available to schedule fallback notifications",
+                                "No paywall host available to schedule fallback notifications",
                             )
                         }
                     }
@@ -1395,12 +1397,13 @@ class DependencyContainer(
     override suspend fun scheduleTrialNotifications(notifications: List<LocalNotification>) {
         withContext(Dispatchers.Main.immediate) {
             val paywallView = Superwall.instance.paywallView ?: return@withContext
-            val activity =
-                (paywallView.encapsulatingActivity?.get() ?: activityProvider?.getCurrentActivity())
-                    as? SuperwallPaywallActivity ?: return@withContext
+            val paywallNotifications =
+                PaywallNotifications.forPaywall(paywallView, activityProvider?.getCurrentActivity())
+                    ?: return@withContext
+            val activity = paywallNotifications.activity ?: return@withContext
             if (!activity.isFinishing && !activity.isDestroyed) {
                 // Web reminders already use an absolute checkout timestamp, including in sandbox.
-                activity.attemptToScheduleNotifications(
+                paywallNotifications.attemptToSchedule(
                     notifications,
                     this@DependencyContainer,
                     cancelExisting = false,
