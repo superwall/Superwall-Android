@@ -17,8 +17,10 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.config.options.AD_CONSENT_ATTRIBUTE_KEYS
 import com.superwall.sdk.config.options.AdConsentPublisher
 import com.superwall.sdk.config.options.differsFrom
+import com.superwall.sdk.config.options.needsRepublish
 import com.superwall.sdk.config.options.AdConsent
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -204,11 +206,16 @@ class Superwall(
         }
 
     /**
-     * The user's consent for ad measurement, forwarded with the conversions Superwall
-     * uploads to Google Ads and Meta.
+     * The user's consent for how their data is used for advertising, which Superwall
+     * passes on with the conversions it uploads to Google Ads and Meta.
      *
-     * If not set, the SDK uses the consent stored by an IAB TCF consent banner when EU rules
-     * apply, otherwise granted. Changes are sent to Superwall straight away.
+     * If `adConsent` is never set, the SDK uses the consent stored by an IAB TCF consent
+     * banner when GDPR applies, and otherwise defaults to granted; apps with users in
+     * the EEA, UK or Switzerland that don't use a TCF banner should set it from their
+     * consent flow. Where the values came from is reported in the `adConsentSource`
+     * device attribute (`developer`, `tcf` or `default`).
+     *
+     * Both are reported as denied while [eventTrackingBehavior] is [EventTrackingBehavior.NONE].
      *
      * You can also set the initial value via [SuperwallOptions.adConsent] before calling
      * [configure].
@@ -233,7 +240,25 @@ class Superwall(
         if (options.eventTrackingBehavior == EventTrackingBehavior.NONE) {
             return
         }
+        if (sent.keys.any { it in AD_CONSENT_ATTRIBUTE_KEYS }) {
+            lastSentAdConsent = sent.filterKeys { it in AD_CONSENT_ATTRIBUTE_KEYS }
+        }
         if (dependencyContainer.deviceHelper.currentAdConsent.differsFrom(sent)) {
+            adConsentPublisher.publish()
+        }
+    }
+
+    /** The ad consent attributes of the latest device attributes send, or null before the first. */
+    @Volatile
+    private var lastSentAdConsent: Map<String, Any>? = null
+
+    /**
+     * Re-sends device attributes when the current ad consent differs from the last one sent.
+     * Called when the app comes to the foreground, like iOS.
+     */
+    internal fun republishAdConsentIfChanged() {
+        val current = dependencyContainer.deviceHelper.currentAdConsent
+        if (current.needsRepublish(lastSentAdConsent, options.eventTrackingBehavior)) {
             adConsentPublisher.publish()
         }
     }

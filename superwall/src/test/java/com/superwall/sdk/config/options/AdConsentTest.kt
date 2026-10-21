@@ -63,11 +63,10 @@ class AdConsentTest {
             When("converting the options to a map") {
                 val map = options.toMap()
 
-                Then("ad_consent holds both values") {
-                    assertEquals(
-                        mapOf("ad_user_data" to "denied", "ad_personalization" to "granted"),
-                        map["ad_consent"],
-                    )
+                Then("both values are flat keys, as on iOS") {
+                    assertEquals("denied", map["ad_user_data_consent"])
+                    assertEquals("granted", map["ad_personalization_consent"])
+                    assertEquals(null, map["ad_consent"])
                 }
             }
         }
@@ -98,6 +97,39 @@ class AdConsentTest {
             And("attributes without consent keys, such as an empty template, never differ") {
                 assertEquals(false, current.differsFrom(hashMapOf("deviceModel" to "Pixel")))
                 assertEquals(false, current.differsFrom(HashMap()))
+            }
+        }
+    }
+
+    @Test
+    fun `consent is resent only when it changed since the last send`() {
+        Given("tcf consent with personalization denied") {
+            val current =
+                ReportedAdConsent(
+                    AdConsent(adPersonalization = AdConsentStatus.DENIED),
+                    AdConsentSource.TCF,
+                )
+
+            Then("nothing is resent before the first send or while tracking is off") {
+                assertEquals(false, current.needsRepublish(null, EventTrackingBehavior.ALL))
+                assertEquals(
+                    false,
+                    current.needsRepublish(mapOf("adUserDataConsent" to "granted"), EventTrackingBehavior.NONE),
+                )
+            }
+            And("the same consent isn't resent but a change is") {
+                assertEquals(false, current.needsRepublish(current.toAttributes(), EventTrackingBehavior.ALL))
+                assertEquals(
+                    true,
+                    current.needsRepublish(
+                        mapOf(
+                            "adUserDataConsent" to "granted",
+                            "adPersonalizationConsent" to "granted",
+                            "adConsentSource" to "default",
+                        ),
+                        EventTrackingBehavior.ALL,
+                    ),
+                )
             }
         }
     }

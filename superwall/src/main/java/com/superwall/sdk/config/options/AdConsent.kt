@@ -38,12 +38,6 @@ internal fun AdConsent.effective(eventTrackingBehavior: EventTrackingBehavior): 
         this
     }
 
-internal fun AdConsent.toMap(): Map<String, Any> =
-    mapOf(
-        "ad_user_data" to adUserData.raw,
-        "ad_personalization" to adPersonalization.raw,
-    )
-
 /**
  * Where the reported ad consent came from, sent as the `adConsentSource` device attribute.
  */
@@ -64,6 +58,9 @@ internal data class ReportedAdConsent(
     val source: AdConsentSource,
 )
 
+/** The device attribute keys ad consent is reported under. */
+internal val AD_CONSENT_ATTRIBUTE_KEYS = setOf("adUserDataConsent", "adPersonalizationConsent", "adConsentSource")
+
 /** The device attributes this consent is reported as. */
 internal fun ReportedAdConsent.toAttributes(): Map<String, String> =
     mapOf(
@@ -80,6 +77,21 @@ internal fun ReportedAdConsent.differsFrom(sent: Map<String, Any>): Boolean {
     val attributes = toAttributes()
     if (attributes.keys.none(sent::containsKey)) return false
     return attributes.any { (key, value) -> sent[key] != value }
+}
+
+/**
+ * Whether this consent should be sent again because it differs from [lastSent], the consent
+ * attributes of the latest device attributes send. Never before the first send, or while
+ * tracking is [EventTrackingBehavior.NONE].
+ */
+internal fun ReportedAdConsent.needsRepublish(
+    lastSent: Map<String, Any>?,
+    eventTrackingBehavior: EventTrackingBehavior,
+): Boolean {
+    if (eventTrackingBehavior == EventTrackingBehavior.NONE || lastSent == null) {
+        return false
+    }
+    return differsFrom(lastSent)
 }
 
 /**

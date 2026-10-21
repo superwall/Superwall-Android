@@ -192,10 +192,10 @@ class ReportedAdConsentTest {
         Given("untouched options") {
             val options = SuperwallOptions()
 
-            Then("ad_consent_set is false until assigned") {
-                assertEquals(false, options.toMap()["ad_consent_set"])
+            Then("is_ad_consent_set is false until assigned") {
+                assertEquals(false, options.toMap()["is_ad_consent_set"])
                 options.adConsent = AdConsent()
-                assertEquals(true, options.toMap()["ad_consent_set"])
+                assertEquals(true, options.toMap()["is_ad_consent_set"])
             }
         }
     }

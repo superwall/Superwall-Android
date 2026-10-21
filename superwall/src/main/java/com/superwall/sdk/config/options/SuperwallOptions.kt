@@ -125,12 +125,16 @@ class SuperwallOptions() {
     // You can also change this at runtime via [com.superwall.sdk.Superwall.eventTrackingBehavior].
     var eventTrackingBehavior: EventTrackingBehavior = EventTrackingBehavior.ALL
 
-    // The user's consent for ad measurement, reported to Superwall as the device
-    // attributes `adUserDataConsent` and `adPersonalizationConsent` and forwarded with
-    // the conversions Superwall uploads to Google Ads and Meta.
+    // The user's consent for how their data is used for advertising, which Superwall
+    // passes on with the conversions it uploads to Google Ads and Meta.
     //
-    // If not set, the SDK uses the consent stored by an IAB TCF consent banner when EU rules
-    // apply, otherwise granted. Both are reported as denied while [eventTrackingBehavior] is
+    // If `adConsent` is never set, the SDK uses the consent stored by an IAB TCF consent
+    // banner when GDPR applies, and otherwise defaults to granted; apps with users in
+    // the EEA, UK or Switzerland that don't use a TCF banner should set it from their
+    // consent flow. Where the values came from is reported in the `adConsentSource`
+    // device attribute (`developer`, `tcf` or `default`).
+    //
+    // Both are reported as denied while [eventTrackingBehavior] is
     // [EventTrackingBehavior.NONE].
     //
     // You can also change this at runtime via [com.superwall.sdk.Superwall.adConsent].
@@ -237,8 +241,11 @@ internal fun SuperwallOptions.toMap(): Map<String, Any> =
         // backends/dashboards still reading it don't treat opted-out clients as the
         // default. Mirrors the deprecated property (true only for `ALL`).
         "is_external_data_collection_enabled" to (eventTrackingBehavior == EventTrackingBehavior.ALL),
-        "ad_consent" to adConsent.toMap(),
-        "ad_consent_set" to isAdConsentSet,
+        // Flat keys, like iOS's `adUserDataConsent`, `adPersonalizationConsent` and
+        // `isAdConsentSet`, in the snake_case the other Android keys use.
+        "ad_user_data_consent" to adConsent.adUserData.raw,
+        "ad_personalization_consent" to adConsent.adPersonalization.raw,
+        "is_ad_consent_set" to isAdConsentSet,
         localeIdentifier?.let { "locale_identifier" to it },
         "is_game_controller_enabled" to isGameControllerEnabled,
         "logging" to logging.toMap(),
