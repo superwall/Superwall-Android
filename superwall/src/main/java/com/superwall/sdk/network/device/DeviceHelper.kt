@@ -10,6 +10,8 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.DisplayMetrics
+import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
@@ -19,7 +21,6 @@ import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.config.options.AdConsent
 import com.superwall.sdk.config.options.ReportedAdConsent
 import com.superwall.sdk.config.options.reportedAdConsent
-import com.superwall.sdk.config.options.effective
 import com.superwall.sdk.dependencies.ActiveEntitlementsFactory
 import com.superwall.sdk.dependencies.CustomerInfoFactory
 import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
@@ -281,22 +282,40 @@ class DeviceHelper(
     val currencySymbol: String
         get() = _currency?.symbol ?: ""
 
+    /** The current offset from GMT, including daylight saving time. */
     val timezoneOffsetSeconds: Int
-        get() = TimeZone.getDefault().rawOffset / 1000
+        get() = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000
 
     val secondsFromGMT: String
-        get() = timezoneOffsetSeconds.toString()
+        get() = (TimeZone.getDefault().rawOffset / 1000).toString()
 
+    /** The full screen width in dp, comparable to iOS points and a browser's CSS pixels. */
     val screenWidth: Int
-        get() = classifier.getScreenWidth()
+        get() = (screenSizePixels.first / density).roundToInt()
 
+    /** The full screen height in dp, comparable to iOS points and a browser's CSS pixels. */
     val screenHeight: Int
-        get() = classifier.getScreenHeight()
+        get() = (screenSizePixels.second / density).roundToInt()
+
+    private val density: Float
+        get() = context.resources.displayMetrics.density
+
+    private val screenSizePixels: Pair<Int, Int>
+        get() {
+            val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val bounds = windowManager.maximumWindowMetrics.bounds
+                bounds.width() to bounds.height()
+            } else {
+                val metrics = DisplayMetrics()
+                @Suppress("DEPRECATION")
+                windowManager.defaultDisplay.getRealMetrics(metrics)
+                metrics.widthPixels to metrics.heightPixels
+            }
+        }
 
     val devicePixelRatio: Double
-        get() =
-            context.resources.displayMetrics.density
-                .toDouble()
+        get() = density.toDouble()
 
     val isFirstAppOpen: Boolean
         get() = !storage.didTrackFirstSession

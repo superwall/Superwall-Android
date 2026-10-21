@@ -7,14 +7,18 @@ import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.getConfig
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.MmpMatchResponse
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.MMPAcquisitionData
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
@@ -22,6 +26,8 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Owns the MMP (mobile measurement partner) install-attribution flow: firing the
@@ -42,8 +48,30 @@ internal class MMPAttributionManager(
     private val scope: CoroutineScope,
 ) {
     private val lock = Any()
-    private var startMatch: (() -> Boolean)? = null
+    private var startMatch: (() -> Job?)? = null
     private var hasStartedMatch = false
+
+    /** `true` from when this launch's install match is set up until it finishes or is skipped. */
+    private val isMatchPending = MutableStateFlow(false)
+
+    companion object {
+        /** How long a paywall waits for an install match that's still running. */
+        val presentationWaitTimeout: Duration = 2.seconds
+
+        fun usesAcquisitionAttributes(trigger: Trigger): Boolean =
+            trigger.rules.any { rule ->
+                listOfNotNull(rule.expression, rule.expressionCEL, rule.expressionJs)
+                    .any { it.contains("acquisition_") }
+            }
+    }
+
+    /**
+     * Marks this launch's install match as pending, so a paywall that's requested
+     * before the match is set up still waits for it.
+     */
+    fun markMatchPending() {
+        isMatchPending.value = true
+    }
 
     /**
      * Fires the install-attribution match and applies its result.
@@ -112,12 +140,13 @@ internal class MMPAttributionManager(
      * straight away. It's off by default, so it never fires unless the backend
      * enables it.
      *
-     * [startMatch] returns whether it started the match, or false if it skipped it
-     * because the app has opted out of tracking. A skipped match is tried again
-     * when the app opts back in, via [startMatchIfEnabled].
+     * [startMatch] returns the running match, or null if it skipped it because the
+     * app has opted out of tracking. A skipped match is tried again when the app
+     * opts back in, via [startMatchIfEnabled].
      */
-    fun matchInstallOnceEnabled(startMatch: () -> Boolean) {
+    fun matchInstallOnceEnabled(startMatch: () -> Job?) {
         synchronized(lock) { this.startMatch = startMatch }
+        isMatchPending.value = true
         scope.launch {
             configState.first { it.getConfig()?.isMmpEnabled == true }
             startMatchIfEnabled()
@@ -137,7 +166,42 @@ internal class MMPAttributionManager(
             if (hasStartedMatch || start == null) {
                 return
             }
-            hasStartedMatch = start()
+            val match = start()
+            if (match == null) {
+                // Skipped while opted out. Don't hold paywalls up in the meantime.
+                isMatchPending.value = false
+                return
+            }
+            hasStartedMatch = true
+            isMatchPending.value = true
+            scope.launch {
+                match.join()
+                isMatchPending.value = false
+            }
+        }
+    }
+
+    /**
+     * On a first launch, a paywall can be requested while the install match is still
+     * running. If the MMP is on and the placement's audiences use `acquisition_*`
+     * attributes, this waits for the match, up to [timeout], so they're there when the
+     * audiences are checked. Returns straight away otherwise.
+     */
+    suspend fun waitForPendingMatch(
+        trigger: Trigger?,
+        timeout: Duration = presentationWaitTimeout,
+    ) {
+        if (trigger == null || !isMatchPending.value) {
+            return
+        }
+        if (configState.value.getConfig()?.isMmpEnabled != true) {
+            return
+        }
+        if (!usesAcquisitionAttributes(trigger)) {
+            return
+        }
+        withTimeoutOrNull(timeout) {
+            isMatchPending.first { !it }
         }
     }
 

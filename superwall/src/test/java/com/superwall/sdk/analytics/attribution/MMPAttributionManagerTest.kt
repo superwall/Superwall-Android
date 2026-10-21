@@ -1,10 +1,17 @@
 package com.superwall.sdk.analytics.attribution
 
+import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
+import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.models.config.AttributionOptions
+import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.config.MmpAttributionOptions
+import com.superwall.sdk.models.triggers.Trigger
+import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.network.MmpMatchResponse
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.storage.LocalStorage
@@ -12,12 +19,12 @@ import com.superwall.sdk.storage.MMPAcquisitionData
 import com.superwall.sdk.storage.Storable
 import io.mockk.every
 import io.mockk.mockk
-import com.superwall.sdk.config.ConfigState
-import com.superwall.sdk.models.config.AttributionOptions
-import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.config.MmpAttributionOptions
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
@@ -281,7 +288,7 @@ class MMPAttributionManagerTest {
 
             gatedManager(backgroundScope, configState).matchInstallOnceEnabled {
                 starts += 1
-                true
+                Job().apply { complete() }
             }
             runCurrent()
 
@@ -297,7 +304,7 @@ class MMPAttributionManagerTest {
 
             manager.matchInstallOnceEnabled {
                 starts += 1
-                true
+                Job().apply { complete() }
             }
             runCurrent()
             assertEquals(0, starts)
@@ -318,9 +325,9 @@ class MMPAttributionManagerTest {
             val manager = gatedManager(backgroundScope, configState)
 
             manager.matchInstallOnceEnabled {
-                if (optedOut) return@matchInstallOnceEnabled false
+                if (optedOut) return@matchInstallOnceEnabled null
                 starts += 1
-                true
+                Job().apply { complete() }
             }
             runCurrent()
             assertEquals(0, starts)
@@ -330,5 +337,124 @@ class MMPAttributionManagerTest {
             manager.startMatchIfEnabled()
 
             assertEquals(1, starts)
+        }
+
+    private fun trigger(expression: String?) =
+        Trigger(
+            eventName = "campaign_trigger",
+            rules = listOf(TriggerRule.stub().copy(expression = expression)),
+        )
+
+    @Test
+    fun `audiences using acquisition attributes are detected in any expression`() {
+        assertTrue(MMPAttributionManager.usesAcquisitionAttributes(trigger("user.acquisition_source == \"tiktok\"")))
+        assertTrue(
+            MMPAttributionManager.usesAcquisitionAttributes(
+                Trigger(
+                    eventName = "campaign_trigger",
+                    rules = listOf(TriggerRule.stub().copy(expressionCEL = "user.acquisition_campaign == 'x'")),
+                ),
+            ),
+        )
+        assertFalse(MMPAttributionManager.usesAcquisitionAttributes(trigger("user.plan == \"pro\"")))
+        assertFalse(MMPAttributionManager.usesAcquisitionAttributes(trigger(null)))
+    }
+
+    @Test
+    fun `a paywall using acquisition attributes waits for a running match`() =
+        runTest {
+            val manager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
+            val match = Job()
+            manager.matchInstallOnceEnabled { match }
+            runCurrent()
+
+            val wait = async { manager.waitForPendingMatch(trigger("user.acquisition_source == \"tiktok\"")) }
+            advanceTimeBy(500)
+            assertFalse(wait.isCompleted)
+
+            match.complete()
+            runCurrent()
+            assertTrue(wait.isCompleted)
+            assertEquals(500L, currentTime)
+        }
+
+    @Test
+    fun `a match marked pending before it's set up also holds the paywall`() =
+        runTest {
+            val manager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
+            manager.markMatchPending()
+
+            val wait = async { manager.waitForPendingMatch(trigger("user.acquisition_source == \"tiktok\"")) }
+            runCurrent()
+            assertFalse(wait.isCompleted)
+
+            manager.matchInstallOnceEnabled { Job().apply { complete() } }
+            runCurrent()
+            assertTrue(wait.isCompleted)
+        }
+
+    @Test
+    fun `the wait gives up after the presentation timeout`() =
+        runTest {
+            val manager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
+            manager.matchInstallOnceEnabled { Job() }
+            runCurrent()
+
+            manager.waitForPendingMatch(trigger("user.acquisition_source == \"tiktok\""))
+
+            assertEquals(MMPAttributionManager.presentationWaitTimeout.inWholeMilliseconds, currentTime)
+        }
+
+    @Test
+    fun `the wait returns straight away when it isn't needed`() =
+        runTest {
+            val acquisitionTrigger = trigger("user.acquisition_source == \"tiktok\"")
+
+            // Audiences don't use acquisition attributes.
+            val manager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
+            manager.matchInstallOnceEnabled { Job() }
+            runCurrent()
+            manager.waitForPendingMatch(trigger("user.plan == \"pro\""))
+            manager.waitForPendingMatch(null)
+
+            // The MMP is off.
+            val offManager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = false)))
+            offManager.markMatchPending()
+            offManager.waitForPendingMatch(acquisitionTrigger)
+
+            // No match pending, or the match was skipped because tracking is off.
+            val idleManager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
+            idleManager.waitForPendingMatch(acquisitionTrigger)
+            idleManager.matchInstallOnceEnabled { null }
+            runCurrent()
+            idleManager.waitForPendingMatch(acquisitionTrigger)
+
+            assertEquals(0L, currentTime)
+        }
+
+    @Test
+    fun `attribution_match params are sent without a dollar prefix`() =
+        runTest {
+            val event =
+                InternalSuperwallEvent.AttributionMatch(
+                    AttributionMatchInfo(
+                        provider = AttributionMatchInfo.Provider.MMP,
+                        matched = true,
+                        source = "tiktok",
+                        confidence = AttributionMatchInfo.Confidence.HIGH,
+                        matchScore = 0.92,
+                        reason = "ip_and_fingerprint",
+                    ),
+                )
+
+            val params = TrackingLogic.processParameters(event, "session").audienceFilterParams
+
+            assertEquals("mmp", params["provider"])
+            assertEquals(true, params["matched"])
+            assertEquals("tiktok", params["source"])
+            assertEquals("high", params["confidence"])
+            assertEquals(0.92, params["match_score"])
+            assertEquals("ip_and_fingerprint", params["reason"])
+            assertNull(params["\$provider"])
         }
 }

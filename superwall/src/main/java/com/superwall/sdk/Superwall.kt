@@ -798,6 +798,10 @@ class Superwall(
                                 hadTrackedAppInstallBeforeConfigure = hadTrackedAppInstallBeforeConfigure,
                                 appInstalledAtMillis = dependencyContainer.deviceHelper.appInstalledAtMillis,
                             )
+                        if (shouldMatchInstall) {
+                            // Marked before config is fetched so a paywall can't get ahead of it.
+                            dependencyContainer.mmpAttributionManager.markMatchPending()
+                        }
 
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
@@ -824,7 +828,7 @@ class Superwall(
                                 // happen outside the event queue, so queue-level suppression
                                 // wouldn't catch them. It's tried again if the app opts back in.
                                 if (eventTrackingBehavior == EventTrackingBehavior.NONE) {
-                                    return@matchInstallOnceEnabled false
+                                    return@matchInstallOnceEnabled null
                                 }
                                 ioScope.launch {
                                     val installReferrerClickId =
@@ -832,12 +836,12 @@ class Superwall(
                                             .checkForMmpClickId()
                                             .getOrNull()
 
-                                    dependencyContainer.storage.recordMMPInstallAttributionRequest {
-                                        dependencyContainer.mmpAttributionManager
-                                            .matchInstall(installReferrerClickId)
-                                    }
+                                    dependencyContainer.storage
+                                        .recordMMPInstallAttributionRequest {
+                                            dependencyContainer.mmpAttributionManager
+                                                .matchInstall(installReferrerClickId)
+                                        }?.join()
                                 }
-                                true
                             }
                         }
                     }.toResult().fold({
