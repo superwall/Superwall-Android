@@ -56,13 +56,34 @@ class SuperwallOptions() {
                 }
 
         // Install-attribution matching runs on its own host, separate from the
-        // subscriptions API. Mirrors `mmpHost` on iOS.
+        // subscriptions API. Mirrors `mmpHost` on iOS, where release candidates
+        // also use the production host.
         open val mmpHost: String
             get() =
-                if (this is Release) {
+                if (this is Release || this is ReleaseCandidate) {
                     "mmp.superwall.com"
                 } else {
                     "mmp.superwall.dev"
+                }
+
+        // The host asked to learn the device's public IPv4 address. There's no
+        // non-production version, so it's null outside release builds.
+        open val ipV4EnrichmentHost: String?
+            get() =
+                if (this is Release || this is ReleaseCandidate) {
+                    "v4.superwall-enrichment.com"
+                } else {
+                    null
+                }
+
+        // The host asked over IPv6 to learn the device's public IPv6 address. It's
+        // reachable over both, so the SDK requires IPv6 for the request.
+        open val ipV6EnrichmentHost: String?
+            get() =
+                if (this is Release || this is ReleaseCandidate) {
+                    "beacon-v6.superwall.com"
+                } else {
+                    null
                 }
 
         open val port: Int?

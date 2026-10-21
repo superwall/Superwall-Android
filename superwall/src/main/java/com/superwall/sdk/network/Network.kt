@@ -146,6 +146,16 @@ open class Network(
         val deviceHelper = factory.deviceHelper
         val metadata =
             listOfNotNull(
+                deviceHelper.preferredLocaleIdentifier.takeIf { it.isNotEmpty() }?.let {
+                    "preferredLocaleIdentifier" to it
+                },
+                deviceHelper.preferredLanguageCode.takeIf { it.isNotEmpty() }?.let {
+                    "preferredLanguageCode" to it
+                },
+                deviceHelper.preferredRegionCode.takeIf { it.isNotEmpty() }?.let {
+                    "preferredRegionCode" to it
+                },
+                "interfaceType" to deviceHelper.interfaceType,
                 deviceHelper.appInstalledAtString.takeIf { it.isNotEmpty() }?.let {
                     "appInstalledAt" to it
                 },
@@ -175,6 +185,9 @@ open class Network(
                 vendorId = deviceHelper.vendorId,
                 aaid = advertisingIds.aaid,
                 appSetId = advertisingIds.appSetId,
+                idfv = deviceHelper.vendorId,
+                advertiserTrackingEnabled = advertisingIds.aaid != null,
+                applicationTrackingEnabled = true,
                 installReferrerClickId = installReferrerClickId,
                 appVersion = deviceHelper.appVersion,
                 sdkVersion = deviceHelper.sdkVersion,

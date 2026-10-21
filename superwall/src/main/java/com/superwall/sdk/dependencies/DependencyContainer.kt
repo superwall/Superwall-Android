@@ -80,6 +80,7 @@ import com.superwall.sdk.network.RequestExecutor
 import com.superwall.sdk.network.SubscriptionService
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
+import com.superwall.sdk.network.device.DeviceIpCollector
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallCacheState
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -475,6 +476,15 @@ class DependencyContainer(
                 factory = this,
                 classifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
                 tcfAdConsent = { tcfConsentReader.read() },
+                ipCollector =
+                    DeviceIpCollector(
+                        lookups =
+                            DeviceIpCollector.lookups(
+                                ipV4Url = options.networkEnvironment.ipV4EnrichmentHost?.let { "https://$it/api/v1/enrich" },
+                                ipV6Url = options.networkEnvironment.ipV6EnrichmentHost?.let { "https://$it/api/v1/enrich" },
+                            ),
+                        scope = ioScope,
+                    ),
             )
 
         assignments =
@@ -793,7 +803,9 @@ class DependencyContainer(
                 ioScope.launch {
                     reedemer.redeem(WebPaywallRedeemer.RedeemType.IntegrationAttributes)
                 }
-            }, vendorId = { VendorId(deviceHelper.vendorId) })
+            }, vendorId = { VendorId(deviceHelper.vendorId) }, startIpCollection = {
+                deviceHelper.startIpCollectionIfEnabled()
+            })
 
         mmpAttributionManager =
             MMPAttributionManager(

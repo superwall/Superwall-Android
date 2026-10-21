@@ -1,6 +1,7 @@
 package com.superwall.sdk.network
 
 import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.models.attribution.AttributionProvider
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -26,7 +27,6 @@ class MmpMatchResponseTest {
 
     private fun decode(raw: String): MmpMatchResponse = json.decodeFromString(raw)
 
-
     @Test
     fun `decodes queryParams with a duplicated key as an array`() {
         val response =
@@ -40,7 +40,13 @@ class MmpMatchResponseTest {
             )
 
         assertTrue(response.matched)
-        assertEquals("google", response.queryParams?.get("utm_source")?.jsonPrimitive?.contentOrNull)
+        assertEquals(
+            "google",
+            response.queryParams
+                ?.get("utm_source")
+                ?.jsonPrimitive
+                ?.contentOrNull,
+        )
         assertEquals(2, (response.queryParams?.get("tag") as JsonArray).size)
     }
 
@@ -224,5 +230,35 @@ class MmpMatchResponseTest {
             )
 
         assertTrue(!encoded.contains("integrationAttributes"))
+    }
+
+    @Test
+    fun `always encodes the tracking flags, like iOS`() {
+        val encoder =
+            Json {
+                namingStrategy = null
+                explicitNulls = false
+            }
+        val encoded =
+            encoder.encodeToString(
+                MmpMatchRequest.serializer(),
+                MmpMatchRequest(platform = "android", idfv = "vendor-id"),
+            )
+
+        assertTrue(encoded.contains("\"idfv\":\"vendor-id\""))
+        assertTrue(encoded.contains("\"advertiserTrackingEnabled\":false"))
+        assertTrue(encoded.contains("\"applicationTrackingEnabled\":true"))
+    }
+
+    @Test
+    fun `release candidates use the production MMP host, like iOS`() {
+        assertEquals("mmp.superwall.com", SuperwallOptions.NetworkEnvironment.Release().mmpHost)
+        assertEquals("mmp.superwall.com", SuperwallOptions.NetworkEnvironment.ReleaseCandidate().mmpHost)
+        assertEquals("mmp.superwall.dev", SuperwallOptions.NetworkEnvironment.Developer().mmpHost)
+        assertEquals(
+            "v4.superwall-enrichment.com",
+            SuperwallOptions.NetworkEnvironment.ReleaseCandidate().ipV4EnrichmentHost,
+        )
+        assertNull(SuperwallOptions.NetworkEnvironment.Developer().ipV6EnrichmentHost)
     }
 }

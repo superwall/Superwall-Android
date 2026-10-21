@@ -4,11 +4,14 @@ import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class MmpMatchRequest(
     val platform: String,
@@ -20,6 +23,13 @@ data class MmpMatchRequest(
     // stopped collecting them itself in 2.5.5.
     val aaid: String? = null,
     val appSetId: String? = null,
+    // Sent under iOS's name too, so the backend can treat both platforms' vendor ids alike.
+    val idfv: String? = null,
+    // Always sent, as on iOS. True when the developer has supplied the advertising id.
+    @EncodeDefault
+    val advertiserTrackingEnabled: Boolean = false,
+    @EncodeDefault
+    val applicationTrackingEnabled: Boolean = true,
     val installReferrerClickId: Long? = null,
     val appVersion: String? = null,
     val sdkVersion: String? = null,
