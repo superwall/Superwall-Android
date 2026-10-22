@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.8.8
+
+## Enhancements
+- Adds `AIRBRIDGE_ID` as an `AttributionProvider` (`airbridgeId`), for the Airbridge Device ID from `Airbridge.fetchDeviceUUID`.
+
 ## 2.8.7
 
 ## Fixes
