@@ -159,6 +159,7 @@ class AttributionProviderIntegrationTest {
                         mapOf(
                             AttributionProvider.ADJUST_ID to "adjust_test_123",
                             AttributionProvider.SINGULAR_DEVICE_ID to "singular_device_test_123",
+                            AttributionProvider.AIRBRIDGE_ID to "airbridge_test_123",
                             AttributionProvider.AMPLITUDE_DEVICE_ID to "amp_device_test_456",
                             AttributionProvider.AMPLITUDE_USER_ID to "amp_user_test_789",
                             AttributionProvider.APPSFLYER_ID to "appsflyer_test_abc",
@@ -189,6 +190,7 @@ class AttributionProviderIntegrationTest {
 
                     assertEquals("adjust_test_123", attributionProps["adjustId"])
                     assertEquals("singular_device_test_123", attributionProps["singularDeviceId"])
+                    assertEquals("airbridge_test_123", attributionProps["airbridgeId"])
                     assertEquals("amp_device_test_456", attributionProps["amplitudeDeviceId"])
                     assertEquals("amp_user_test_789", attributionProps["amplitudeUserId"])
                     assertEquals("appsflyer_test_abc", attributionProps["appsflyerId"])
@@ -208,7 +210,7 @@ class AttributionProviderIntegrationTest {
                     assertEquals("tenjin_test_def", attributionProps["tenjinId"])
                     assertEquals("posthog_test_ghi", attributionProps["posthogUserId"])
                     assertEquals("customerio_test_jkl", attributionProps["customerioId"])
-                    assertEquals(21, attributionProps.size)
+                    assertEquals(22, attributionProps.size)
                 }
             }
         }
