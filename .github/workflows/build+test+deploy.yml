@@ -189,7 +189,7 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
-  # Lets Flutter, Expo and KMP open a bump PR for a release, or re-send one
+  # Lets Flutter, Expo, KMP and Unity open a bump PR for a release, or re-send one
   # manually without running the build. The release above uses GITHUB_TOKEN,
   # which never fires `release` events for other workflows.
   notify_wrappers:
