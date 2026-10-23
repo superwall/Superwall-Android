@@ -17,8 +17,17 @@ internal class AdConsentPublisher(
     override val makeConfigAttributes: () -> Trackable,
     override val currentAdConsent: () -> ReportedAdConsent,
     override val eventTrackingBehavior: () -> EventTrackingBehavior,
+    override val updateEventsQueue: suspend (EventTrackingBehavior) -> Unit,
     override val actor: StateActor<AdConsentContext, AdConsentState>,
 ) : AdConsentContext {
+    /** Applies a changed tracking behavior and re-sends the config attributes and ad consent. */
+    fun trackingBehaviorChanged(
+        previous: EventTrackingBehavior,
+        current: EventTrackingBehavior,
+    ) {
+        effect(AdConsentState.Actions.TrackingBehaviorChanged(previous, current))
+    }
+
     /**
      * Re-sends device attributes when the ad consent [sent] carried differs from the current
      * consent. Called after every device attributes send.

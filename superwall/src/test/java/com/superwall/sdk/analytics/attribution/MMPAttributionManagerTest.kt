@@ -5,7 +5,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.config.ConfigState
-import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.models.config.AttributionOptions
@@ -15,13 +15,14 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.network.MmpMatchResponse
 import com.superwall.sdk.network.NetworkError
+import com.superwall.sdk.storage.DidCompleteMMPInstallAttributionRequest
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.MMPAcquisitionData
 import com.superwall.sdk.storage.Storable
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceTimeBy
@@ -54,12 +55,6 @@ class MMPAttributionManagerTest {
         return storage
     }
 
-    private fun identityManager(attributes: Map<String, Any> = emptyMap()): IdentityManager {
-        val identityManager = mockk<IdentityManager>(relaxed = true)
-        every { identityManager.userAttributes } returns attributes
-        return identityManager
-    }
-
     private fun matched(
         acquisitionAttributes: Map<String, JsonPrimitive>? =
             mapOf(
@@ -75,30 +70,62 @@ class MMPAttributionManagerTest {
         breakdown = mapOf("reason" to JsonPrimitive("ip_and_fingerprint")),
     )
 
+    private fun configWithMmp(enabled: Boolean) =
+        ConfigState.Retrieved(
+            Config.stub().copy(attributionOptions = AttributionOptions(mmp = MmpAttributionOptions(enabled))),
+        )
+
+    private fun manager(
+        scope: CoroutineScope,
+        configState: MutableStateFlow<ConfigState> = MutableStateFlow(configWithMmp(enabled = true)),
+        tracker: suspend (TrackableSuperwallEvent) -> Unit = {},
+        userAttributes: Map<String, Any> = emptyMap(),
+        setUserAttributes: (Map<String, Any?>) -> Unit = {},
+        installReferrerClickId: Long? = null,
+        eventTrackingBehavior: () -> EventTrackingBehavior = { EventTrackingBehavior.ALL },
+        sendMatchRequest: suspend (Long?) -> Either<MmpMatchResponse, NetworkError> = {
+            Either.Failure(NetworkError.Timeout)
+        },
+    ) = MMPAttributionManager(
+        storage = storage(),
+        tracker = tracker,
+        userAttributes = { userAttributes },
+        setUserAttributes = setUserAttributes,
+        sendMatchRequest = sendMatchRequest,
+        readInstallReferrerClickId = { installReferrerClickId },
+        eventTrackingBehavior = eventTrackingBehavior,
+        configState = configState,
+        scope = scope,
+        actor = SequentialActor(MMPAttributionState(), scope),
+    )
+
     @Test
     fun `a successful match caches the payload, merges attributes and tracks the outcome`() =
         runTest {
             val tracked = mutableListOf<TrackableSuperwallEvent>()
             val applied = mutableListOf<Map<String, Any?>>()
-
+            var sentClickId: Long? = null
             val manager =
-                MMPAttributionManager(
-                    configState = MutableStateFlow(ConfigState.None),
-                    scope = backgroundScope,
-                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
-                    storage = storage(),
-                    identityManager = identityManager(),
+                manager(
+                    backgroundScope,
                     tracker = { tracked += it },
                     setUserAttributes = { applied += it },
-                    sendMatchRequest = { Either.Success(matched()) },
+                    installReferrerClickId = 42L,
+                    sendMatchRequest = {
+                        sentClickId = it
+                        Either.Success(matched())
+                    },
                 )
 
-            val completed = manager.matchInstall(installReferrerClickId = 42L)
+            manager.matchInstallOnceEnabled()
+            runCurrent()
 
-            assertTrue(completed)
+            assertEquals(42L, sentClickId)
             assertEquals("tiktok", applied.single()["acquisition_source"])
             assertEquals("spring_sale", applied.single()["acquisition_campaign"])
             assertEquals(2, (stored[MMPAcquisitionData.key] as Map<*, *>).size)
+            assertEquals(true, stored[DidCompleteMMPInstallAttributionRequest.key])
+            assertEquals(MMPAttributionState.Match.Finished, manager.state.value.match)
 
             val event = tracked.single() as InternalSuperwallEvent.AttributionMatch
             assertTrue(event.info.matched)
@@ -113,16 +140,10 @@ class MMPAttributionManagerTest {
     fun `source falls back to the network name when no acquisition_source is present`() =
         runTest {
             val tracked = mutableListOf<TrackableSuperwallEvent>()
-
             val manager =
-                MMPAttributionManager(
-                    configState = MutableStateFlow(ConfigState.None),
-                    scope = backgroundScope,
-                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
-                    storage = storage(),
-                    identityManager = identityManager(),
+                manager(
+                    backgroundScope,
                     tracker = { tracked += it },
-                    setUserAttributes = {},
                     sendMatchRequest = {
                         Either.Success(
                             matched(acquisitionAttributes = mapOf("acquisition_campaign" to JsonPrimitive("x"))),
@@ -130,7 +151,8 @@ class MMPAttributionManagerTest {
                     },
                 )
 
-            manager.matchInstall(null)
+            manager.matchInstallOnceEnabled()
+            runCurrent()
 
             val event = tracked.single() as InternalSuperwallEvent.AttributionMatch
             assertEquals("tiktok_ads", event.info.source)
@@ -140,114 +162,88 @@ class MMPAttributionManagerTest {
     fun `an unmatched response still counts as a completed request`() =
         runTest {
             val tracked = mutableListOf<TrackableSuperwallEvent>()
-
             val manager =
-                MMPAttributionManager(
-                    configState = MutableStateFlow(ConfigState.None),
-                    scope = backgroundScope,
-                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
-                    storage = storage(),
-                    identityManager = identityManager(),
+                manager(
+                    backgroundScope,
                     tracker = { tracked += it },
-                    setUserAttributes = {},
                     sendMatchRequest = { Either.Success(MmpMatchResponse(matched = false)) },
                 )
 
+            manager.matchInstallOnceEnabled()
+            runCurrent()
+
             // A processed request that found nothing must not be retried on next launch.
-            assertTrue(manager.matchInstall(null))
+            assertEquals(true, stored[DidCompleteMMPInstallAttributionRequest.key])
             assertFalse((tracked.single() as InternalSuperwallEvent.AttributionMatch).info.matched)
             assertNull(stored[MMPAcquisitionData.key])
         }
 
     @Test
-    fun `a failed request tracks request_failed and does not count as completed`() =
+    fun `a failed request tracks request_failed and is retried next launch`() =
         runTest {
             val tracked = mutableListOf<TrackableSuperwallEvent>()
+            val manager = manager(backgroundScope, tracker = { tracked += it })
 
-            val manager =
-                MMPAttributionManager(
-                    configState = MutableStateFlow(ConfigState.None),
-                    scope = backgroundScope,
-                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
-                    storage = storage(),
-                    identityManager = identityManager(),
-                    tracker = { tracked += it },
-                    setUserAttributes = {},
-                    sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
-                )
+            manager.matchInstallOnceEnabled()
+            runCurrent()
 
-            assertFalse(manager.matchInstall(null))
-
+            assertNull(stored[DidCompleteMMPInstallAttributionRequest.key])
+            assertEquals(MMPAttributionState.Match.Finished, manager.state.value.match)
             val event = tracked.single() as InternalSuperwallEvent.AttributionMatch
             assertFalse(event.info.matched)
             assertEquals("request_failed", event.info.reason)
         }
 
     @Test
+    fun `a completed request isn't sent again`() =
+        runTest {
+            var requests = 0
+            val manager =
+                manager(backgroundScope, sendMatchRequest = {
+                    requests += 1
+                    Either.Success(matched())
+                })
+            stored[DidCompleteMMPInstallAttributionRequest.key] = true
+
+            manager.matchInstallOnceEnabled()
+            runCurrent()
+
+            assertEquals(0, requests)
+            assertFalse(manager.state.value.isMatchPending)
+        }
+
+    @Test
     fun `attributes already on the user are not re-applied`() =
         runTest {
             val applied = mutableListOf<Map<String, Any?>>()
-
             val manager =
-                MMPAttributionManager(
-                    configState = MutableStateFlow(ConfigState.None),
-                    scope = backgroundScope,
-                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
-                    storage = storage(),
-                    identityManager =
-                        identityManager(
-                            mapOf(
-                                "acquisition_source" to "tiktok",
-                                "acquisition_campaign" to "spring_sale",
-                            ),
-                        ),
-                    tracker = {},
+                manager(
+                    backgroundScope,
+                    userAttributes = mapOf("acquisition_source" to "tiktok", "acquisition_campaign" to "spring_sale"),
                     setUserAttributes = { applied += it },
                     sendMatchRequest = { Either.Success(matched()) },
                 )
 
-            manager.matchInstall(null)
+            manager.matchInstallOnceEnabled()
+            runCurrent()
 
             assertTrue(applied.isEmpty())
         }
 
     @Test
-    fun `reapply restores the cached payload to a new user without re-matching`() =
+    fun `cached attributes restore the payload to a new user without re-matching`() =
         runTest {
-            val applied = mutableListOf<Map<String, Any?>>()
             var requests = 0
-            val storage = storage()
-
-            // First run: match resolves and caches.
-            MMPAttributionManager(
-                configState = MutableStateFlow(ConfigState.None),
-                scope = backgroundScope,
-                actor = SequentialActor(MMPAttributionState(), backgroundScope),
-                storage = storage,
-                identityManager = identityManager(),
-                tracker = {},
-                setUserAttributes = {},
-                sendMatchRequest = {
+            val manager =
+                manager(backgroundScope, sendMatchRequest = {
                     requests += 1
                     Either.Success(matched())
-                },
-            ).matchInstall(null)
+                })
+            manager.matchInstallOnceEnabled()
+            runCurrent()
 
             // After `reset()` the user's attributes are gone, but the install-scoped cache isn't.
-            val cached =
-                MMPAttributionManager(
-                    configState = MutableStateFlow(ConfigState.None),
-                    scope = backgroundScope,
-                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
-                    storage = storage,
-                    identityManager = identityManager(),
-                    tracker = {},
-                    setUserAttributes = {},
-                    sendMatchRequest = {
-                        requests += 1
-                        Either.Success(matched())
-                    },
-                ).cachedAcquisitionAttributes()
+            val cached = manager(backgroundScope).cachedAcquisitionAttributes()
 
             assertEquals(1, requests)
             assertEquals("tiktok", cached["acquisition_source"])
@@ -256,99 +252,74 @@ class MMPAttributionManagerTest {
     @Test
     fun `cached attributes are empty when no match ever resolved`() =
         runTest {
-            val cached =
-                MMPAttributionManager(
-                    configState = MutableStateFlow(ConfigState.None),
-                    scope = backgroundScope,
-                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
-                    storage = storage(),
-                    identityManager = identityManager(),
-                    tracker = {},
-                    setUserAttributes = {},
-                    sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
-                ).cachedAcquisitionAttributes()
-
-            assertTrue(cached.isEmpty())
+            assertTrue(manager(backgroundScope).cachedAcquisitionAttributes().isEmpty())
         }
-
-    private fun configWithMmp(enabled: Boolean) =
-        ConfigState.Retrieved(
-            Config.stub().copy(attributionOptions = AttributionOptions(mmp = MmpAttributionOptions(enabled))),
-        )
-
-    private fun gatedManager(
-        scope: CoroutineScope,
-        configState: MutableStateFlow<ConfigState>,
-    ) = MMPAttributionManager(
-        configState = configState,
-        scope = scope,
-        actor = SequentialActor(MMPAttributionState(), scope),
-        storage = storage(),
-        identityManager = identityManager(),
-        tracker = {},
-        setUserAttributes = {},
-        sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
-    )
 
     @Test
     fun `the match never starts while config has the MMP off`() =
         runTest {
-            val configState = MutableStateFlow<ConfigState>(configWithMmp(enabled = false))
-            var starts = 0
+            var requests = 0
+            val manager =
+                manager(
+                    backgroundScope,
+                    configState = MutableStateFlow(configWithMmp(enabled = false)),
+                    sendMatchRequest = {
+                        requests += 1
+                        Either.Success(matched())
+                    },
+                )
 
-            gatedManager(backgroundScope, configState).matchInstallOnceEnabled {
-                starts += 1
-                Job().apply { complete() }
-            }
+            manager.matchInstallOnceEnabled()
             runCurrent()
 
-            assertEquals(0, starts)
+            assertEquals(0, requests)
         }
 
     @Test
     fun `the match starts once when config turns the MMP on`() =
         runTest {
             val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieving)
-            var starts = 0
-            val manager = gatedManager(backgroundScope, configState)
+            var requests = 0
+            val manager =
+                manager(backgroundScope, configState = configState, sendMatchRequest = {
+                    requests += 1
+                    Either.Success(matched())
+                })
 
-            manager.matchInstallOnceEnabled {
-                starts += 1
-                Job().apply { complete() }
-            }
+            manager.matchInstallOnceEnabled()
             runCurrent()
-            assertEquals(0, starts)
+            assertEquals(0, requests)
 
             configState.value = configWithMmp(enabled = true)
             runCurrent()
             manager.startMatchIfEnabled()
             runCurrent()
 
-            assertEquals(1, starts)
+            assertEquals(1, requests)
         }
 
     @Test
     fun `a match skipped while opted out starts when tracking is turned back on`() =
         runTest {
-            val configState = MutableStateFlow<ConfigState>(configWithMmp(enabled = true))
-            var optedOut = true
-            var starts = 0
-            val manager = gatedManager(backgroundScope, configState)
+            var behavior = EventTrackingBehavior.NONE
+            var requests = 0
+            val manager =
+                manager(backgroundScope, eventTrackingBehavior = { behavior }, sendMatchRequest = {
+                    requests += 1
+                    Either.Success(matched())
+                })
 
-            manager.matchInstallOnceEnabled {
-                if (optedOut) return@matchInstallOnceEnabled null
-                starts += 1
-                Job().apply { complete() }
-            }
+            manager.matchInstallOnceEnabled()
             runCurrent()
-            assertEquals(0, starts)
+            assertEquals(0, requests)
+            assertEquals(MMPAttributionState.Match.Skipped, manager.state.value.match)
 
-            optedOut = false
+            behavior = EventTrackingBehavior.ALL
             manager.startMatchIfEnabled()
             manager.startMatchIfEnabled()
             runCurrent()
 
-            assertEquals(1, starts)
+            assertEquals(1, requests)
         }
 
     private fun trigger(expression: String?) =
@@ -357,9 +328,11 @@ class MMPAttributionManagerTest {
             rules = listOf(TriggerRule.stub().copy(expression = expression)),
         )
 
+    private val acquisitionTrigger = trigger("user.acquisition_source == \"tiktok\"")
+
     @Test
     fun `audiences using acquisition attributes are detected in any expression`() {
-        assertTrue(MMPAttributionManager.usesAcquisitionAttributes(trigger("user.acquisition_source == \"tiktok\"")))
+        assertTrue(MMPAttributionManager.usesAcquisitionAttributes(acquisitionTrigger))
         assertTrue(
             MMPAttributionManager.usesAcquisitionAttributes(
                 Trigger(
@@ -375,16 +348,16 @@ class MMPAttributionManagerTest {
     @Test
     fun `a paywall using acquisition attributes waits for a running match`() =
         runTest {
-            val manager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
-            val match = Job()
-            manager.matchInstallOnceEnabled { match }
+            val response = CompletableDeferred<Either<MmpMatchResponse, NetworkError>>()
+            val manager = manager(backgroundScope, sendMatchRequest = { response.await() })
+            manager.matchInstallOnceEnabled()
             runCurrent()
 
-            val wait = async { manager.waitForPendingMatch(trigger("user.acquisition_source == \"tiktok\"")) }
+            val wait = async { manager.waitForPendingMatch(acquisitionTrigger) }
             advanceTimeBy(500)
             assertFalse(wait.isCompleted)
 
-            match.complete()
+            response.complete(Either.Success(matched()))
             runCurrent()
             assertTrue(wait.isCompleted)
             assertEquals(500L, currentTime)
@@ -393,14 +366,14 @@ class MMPAttributionManagerTest {
     @Test
     fun `a match marked pending before it's set up also holds the paywall`() =
         runTest {
-            val manager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
+            val manager = manager(backgroundScope, sendMatchRequest = { Either.Success(matched()) })
             manager.markMatchPending()
 
-            val wait = async { manager.waitForPendingMatch(trigger("user.acquisition_source == \"tiktok\"")) }
+            val wait = async { manager.waitForPendingMatch(acquisitionTrigger) }
             runCurrent()
             assertFalse(wait.isCompleted)
 
-            manager.matchInstallOnceEnabled { Job().apply { complete() } }
+            manager.matchInstallOnceEnabled()
             runCurrent()
             assertTrue(wait.isCompleted)
         }
@@ -408,11 +381,14 @@ class MMPAttributionManagerTest {
     @Test
     fun `the wait gives up after the presentation timeout`() =
         runTest {
-            val manager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
-            manager.matchInstallOnceEnabled { Job() }
+            val manager =
+                manager(backgroundScope, sendMatchRequest = {
+                    CompletableDeferred<Either<MmpMatchResponse, NetworkError>>().await()
+                })
+            manager.matchInstallOnceEnabled()
             runCurrent()
 
-            manager.waitForPendingMatch(trigger("user.acquisition_source == \"tiktok\""))
+            manager.waitForPendingMatch(acquisitionTrigger)
 
             assertEquals(MMPAttributionManager.presentationWaitTimeout.inWholeMilliseconds, currentTime)
         }
@@ -420,24 +396,32 @@ class MMPAttributionManagerTest {
     @Test
     fun `the wait returns straight away when it isn't needed`() =
         runTest {
-            val acquisitionTrigger = trigger("user.acquisition_source == \"tiktok\"")
+            val neverResponds: suspend (Long?) -> Either<MmpMatchResponse, NetworkError> = {
+                CompletableDeferred<Either<MmpMatchResponse, NetworkError>>().await()
+            }
 
             // Audiences don't use acquisition attributes.
-            val manager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
-            manager.matchInstallOnceEnabled { Job() }
+            val manager = manager(backgroundScope, sendMatchRequest = neverResponds)
+            manager.matchInstallOnceEnabled()
             runCurrent()
             manager.waitForPendingMatch(trigger("user.plan == \"pro\""))
             manager.waitForPendingMatch(null)
 
             // The MMP is off.
-            val offManager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = false)))
+            val offManager =
+                manager(backgroundScope, configState = MutableStateFlow(configWithMmp(enabled = false)))
             offManager.markMatchPending()
             offManager.waitForPendingMatch(acquisitionTrigger)
 
             // No match pending, or the match was skipped because tracking is off.
-            val idleManager = gatedManager(backgroundScope, MutableStateFlow(configWithMmp(enabled = true)))
+            val idleManager =
+                manager(
+                    backgroundScope,
+                    eventTrackingBehavior = { EventTrackingBehavior.NONE },
+                    sendMatchRequest = neverResponds,
+                )
             idleManager.waitForPendingMatch(acquisitionTrigger)
-            idleManager.matchInstallOnceEnabled { null }
+            idleManager.matchInstallOnceEnabled()
             runCurrent()
             idleManager.waitForPendingMatch(acquisitionTrigger)
 

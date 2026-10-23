@@ -25,8 +25,7 @@ class MMPInstallAttributionTest {
 
     private val dayMs = 24L * 60 * 60 * 1000
 
-    private fun installedDaysAgo(days: Double): Long =
-        System.currentTimeMillis() - (days * dayMs).toLong()
+    private fun installedDaysAgo(days: Double): Long = System.currentTimeMillis() - (days * dayMs).toLong()
 
     @Before
     fun setUp() {
@@ -136,32 +135,5 @@ class MMPInstallAttributionTest {
                 appInstalledAtMillis = System.currentTimeMillis() + dayMs,
             ),
         )
-    }
-
-    @Test
-    fun `a completed request is not re-run once recorded`() {
-        var calls = 0
-        storage.write(DidCompleteMMPInstallAttributionRequest, true)
-
-        storage.recordMMPInstallAttributionRequest {
-            calls += 1
-            true
-        }
-
-        assertEquals(0, calls)
-    }
-
-    @Test
-    fun `a failed request does not mark the match complete`() {
-        storage.recordMMPInstallAttributionRequest { false }
-
-        assertNull(storage.read(DidCompleteMMPInstallAttributionRequest))
-    }
-
-    @Test
-    fun `a successful request marks the match complete`() {
-        storage.recordMMPInstallAttributionRequest { true }
-
-        assertEquals(true, storage.read(DidCompleteMMPInstallAttributionRequest))
     }
 }

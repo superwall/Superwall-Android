@@ -2,7 +2,6 @@ package com.superwall.sdk.config.options
 
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.misc.primitives.StoreContext
-import kotlinx.coroutines.Job
 
 /**
  * All dependencies available to ad consent [AdConsentState.Actions].
@@ -14,13 +13,15 @@ internal interface AdConsentContext : StoreContext<AdConsentState, AdConsentCont
     val currentAdConsent: () -> ReportedAdConsent
     val eventTrackingBehavior: () -> EventTrackingBehavior
 
+    /** Applies a tracking behavior to the events queue, returning once it has. */
+    val updateEventsQueue: suspend (EventTrackingBehavior) -> Unit
+
     /**
      * Queues a send of the current ad consent. One superseded by a later publish is dropped,
-     * so an older snapshot is never tracked after a newer one. The send waits for [after], so
-     * it can't be queued before an events-queue change it follows.
+     * so an older snapshot is never tracked after a newer one.
      */
-    fun publish(after: Job? = null) {
+    fun publish() {
         update(AdConsentState.Updates.Queued)
-        effect(AdConsentState.Actions.Publish(after))
+        effect(AdConsentState.Actions.Publish)
     }
 }

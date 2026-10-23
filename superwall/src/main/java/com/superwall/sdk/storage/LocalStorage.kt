@@ -15,7 +15,6 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -217,21 +216,6 @@ open class LocalStorage(
 
         write(IsEligibleForMMPInstallAttributionMatch, true)
         return true
-    }
-
-    fun recordMMPInstallAttributionRequest(matchRequest: suspend () -> Boolean): Job? {
-        val didCompleteRequest = read(DidCompleteMMPInstallAttributionRequest) ?: false
-        if (didCompleteRequest) {
-            return null
-        }
-
-        // Intentionally fire-and-forget so the match never blocks the caller. Matches the iOS SDK,
-        // where `recordMMPInstallAttributionMatch` returns a detached Task.
-        return ioScope.launch {
-            if (matchRequest()) {
-                write(DidCompleteMMPInstallAttributionRequest, true)
-            }
-        }
     }
 
     open fun clearCachedSessionEvents() {

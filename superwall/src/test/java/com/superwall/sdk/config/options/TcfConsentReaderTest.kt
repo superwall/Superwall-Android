@@ -275,6 +275,7 @@ class TcfConsentReaderTest {
             makeConfigAttributes = { configAttributes },
             currentAdConsent = { reportedAdConsent(options, reader.read()) },
             eventTrackingBehavior = { options.eventTrackingBehavior },
+            updateEventsQueue = {},
             actor = SequentialActor(AdConsentState(), scope),
         )
 

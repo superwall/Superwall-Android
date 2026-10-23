@@ -274,6 +274,7 @@ class DependencyContainer(
             makeConfigAttributes = { makeConfigAttributes() },
             currentAdConsent = { deviceHelper.currentAdConsent },
             eventTrackingBehavior = { makeSuperwallOptions().eventTrackingBehavior },
+            updateEventsQueue = { eventsQueue.setTrackingBehavior(it) },
             actor = SequentialActor(AdConsentState(), ioScope),
         )
     }
@@ -828,12 +829,14 @@ class DependencyContainer(
         mmpAttributionManager =
             MMPAttributionManager(
                 storage = storage,
-                identityManager = identityManager,
                 tracker = { track(it) },
+                userAttributes = { identityManager.userAttributes },
                 setUserAttributes = { Superwall.instance.setUserAttributes(it) },
                 sendMatchRequest = { clickId ->
                     network.matchMMPInstall(clickId, attributionManager.integrationAttributes)
                 },
+                readInstallReferrerClickId = { deepLinkReferrer.checkForMmpClickId().getOrNull() },
+                eventTrackingBehavior = { makeSuperwallOptions().eventTrackingBehavior },
                 configState = configManager.configState,
                 scope = ioScope,
                 actor = SequentialActor(MMPAttributionState(), ioScope),

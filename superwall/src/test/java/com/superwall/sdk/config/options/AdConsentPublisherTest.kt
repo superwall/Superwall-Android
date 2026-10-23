@@ -9,7 +9,6 @@ import com.superwall.sdk.misc.primitives.SequentialActor
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -25,6 +24,7 @@ class AdConsentPublisherTest {
         makeDeviceAttributes: suspend () -> HashMap<String, Any>,
         currentAdConsent: ReportedAdConsent = ReportedAdConsent(AdConsent.Custom(), AdConsentSource.DEFAULT),
         eventTrackingBehavior: EventTrackingBehavior = EventTrackingBehavior.ALL,
+        updateEventsQueue: suspend (EventTrackingBehavior) -> Unit = {},
     ) = AdConsentPublisher(
         scope = scope,
         tracker = track,
@@ -32,6 +32,7 @@ class AdConsentPublisherTest {
         makeConfigAttributes = { configAttributes },
         currentAdConsent = { currentAdConsent },
         eventTrackingBehavior = { eventTrackingBehavior },
+        updateEventsQueue = updateEventsQueue,
         actor = SequentialActor(AdConsentState(), scope),
     )
 
@@ -100,28 +101,66 @@ class AdConsentPublisherTest {
         }
 
     @Test
-    fun `publish waits for the events-queue change it follows`() =
+    fun `a tracking change resends consent only once the events queue has changed`() =
         runTest {
-            Given("a queue change that hasn't run yet") {
+            Given("an events queue that takes a while to apply the change") {
                 val tracked = mutableListOf<Trackable>()
-                val queueUpdated = Job()
+                val queueUpdated = CompletableDeferred<Unit>()
+                var appliedBehavior: EventTrackingBehavior? = null
                 val publisher =
                     publisher(
                         scope = backgroundScope,
                         track = { tracked += it },
                         makeDeviceAttributes = { hashMapOf("adUserDataConsent" to "denied") },
+                        updateEventsQueue = {
+                            queueUpdated.await()
+                            appliedBehavior = it
+                        },
                     )
 
-                When("it publishes after that change") {
-                    publisher.publish(after = queueUpdated)
+                When("tracking is turned back on") {
+                    publisher.trackingBehaviorChanged(EventTrackingBehavior.NONE, EventTrackingBehavior.ALL)
                     runCurrent()
                     val trackedBeforeChange = tracked.size
-                    queueUpdated.complete()
+                    queueUpdated.complete(Unit)
                     runCurrent()
 
-                    Then("nothing is tracked until the queue has changed") {
+                    Then("device and config attributes follow the queue change") {
                         assertEquals(0, trackedBeforeChange)
-                        assertEquals(2, tracked.size)
+                        assertEquals(EventTrackingBehavior.ALL, appliedBehavior)
+                        assertTrue(tracked[0] is InternalSuperwallEvent.DeviceAttributes)
+                        assertTrue(tracked[1] === configAttributes)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `opting out sends nothing and an unchanged ALL sends only config attributes`() =
+        runTest {
+            Given("a publisher") {
+                val tracked = mutableListOf<Trackable>()
+                val publisher =
+                    publisher(
+                        scope = backgroundScope,
+                        track = { tracked += it },
+                        makeDeviceAttributes = { hashMapOf("adUserDataConsent" to "granted") },
+                    )
+
+                When("tracking is turned off") {
+                    publisher.trackingBehaviorChanged(EventTrackingBehavior.ALL, EventTrackingBehavior.NONE)
+                    runCurrent()
+
+                    Then("nothing is sent") {
+                        assertTrue(tracked.isEmpty())
+                    }
+                }
+                When("ALL is set again while already ALL") {
+                    publisher.trackingBehaviorChanged(EventTrackingBehavior.ALL, EventTrackingBehavior.ALL)
+                    runCurrent()
+
+                    Then("only the config attributes are sent") {
+                        assertEquals(listOf(configAttributes), tracked)
                     }
                 }
             }

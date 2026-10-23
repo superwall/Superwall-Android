@@ -78,13 +78,14 @@ class EventsQueue(
         }
     }
 
-    fun setTrackingBehavior(behavior: EventTrackingBehavior): Job =
-        launch {
+    suspend fun setTrackingBehavior(behavior: EventTrackingBehavior) {
+        withContext(this@EventsQueue.coroutineContext) {
             trackingBehavior = behavior
             if (behavior != EventTrackingBehavior.ALL) {
                 elements.clear()
             }
         }
+    }
 
     private fun trackingAllowed(event: Trackable): Boolean =
         when (trackingBehavior) {

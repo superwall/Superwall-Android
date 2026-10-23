@@ -173,8 +173,6 @@ class Superwall(
             val previous = options.eventTrackingBehavior
             options.eventTrackingBehavior = newValue
 
-            val queueUpdated = dependencyContainer.eventsQueue.setTrackingBehavior(newValue)
-
             mainScope.launch {
                 paywallView?.webView?.messageHandler?.passEventTrackingBehaviorToWebView(newValue)
             }
@@ -183,23 +181,7 @@ class Superwall(
                 dependencyContainer.mmpAttributionManager.startMatchIfEnabled()
             }
 
-            // When opting out entirely, don't emit the config-attributes event —
-            // it would otherwise transmit attributes right after the opt-out.
-            if (newValue == EventTrackingBehavior.NONE) {
-                return
-            }
-
-            // Ad consent may not have reached Superwall: nothing is sent while tracking is
-            // off, and anything but ALL clears the events queue, which can hold a consent
-            // update. Re-send it with the config attributes once the queue has changed.
-            if (previous != newValue || newValue != EventTrackingBehavior.ALL) {
-                adConsentPublisher.publish(after = queueUpdated)
-                return
-            }
-
-            ioScope.launch {
-                track(dependencyContainer.makeConfigAttributes())
-            }
+            adConsentPublisher.trackingBehaviorChanged(previous, newValue)
         }
 
     /**
@@ -821,27 +803,7 @@ class Superwall(
                         }
 
                         if (shouldMatchInstall) {
-                            dependencyContainer.mmpAttributionManager.matchInstallOnceEnabled {
-                                // Skip matching when the app has opted out of all event collection.
-                                // The `/api/match` call and the `acquisition_*` attribute writes
-                                // happen outside the event queue, so queue-level suppression
-                                // wouldn't catch them. It's tried again if the app opts back in.
-                                if (eventTrackingBehavior == EventTrackingBehavior.NONE) {
-                                    return@matchInstallOnceEnabled null
-                                }
-                                ioScope.launch {
-                                    val installReferrerClickId =
-                                        dependencyContainer.deepLinkReferrer
-                                            .checkForMmpClickId()
-                                            .getOrNull()
-
-                                    dependencyContainer.storage
-                                        .recordMMPInstallAttributionRequest {
-                                            dependencyContainer.mmpAttributionManager
-                                                .matchInstall(installReferrerClickId)
-                                        }?.join()
-                                }
-                            }
+                            dependencyContainer.mmpAttributionManager.matchInstallOnceEnabled()
                         }
                     }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {

@@ -3,7 +3,6 @@ package com.superwall.sdk.config.options
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.misc.primitives.Reducer
 import com.superwall.sdk.misc.primitives.TypedAction
-import kotlinx.coroutines.Job
 
 /**
  * What the ad consent publisher has queued and last sent.
@@ -30,18 +29,41 @@ internal data class AdConsentState(
         override val execute: suspend AdConsentContext.() -> Unit,
     ) : TypedAction<AdConsentContext> {
         /** Sends the current ad consent as device and config attributes. */
-        data class Publish(
-            val after: Job?,
+        object Publish : Actions(
+            exec@{
+                update(Updates.Dequeued)
+                if (state.value.queuedPublishes > 0) {
+                    // A newer publish will send the latest consent.
+                    return@exec
+                }
+                tracker(InternalSuperwallEvent.DeviceAttributes(makeDeviceAttributes()))
+                tracker(makeConfigAttributes())
+            },
+        )
+
+        /**
+         * Applies a new tracking behavior to the events queue, then sends the config
+         * attributes. Nothing is sent when opting out entirely, since it would transmit
+         * attributes right after the opt-out.
+         *
+         * Ad consent may not have reached Superwall: nothing is sent while tracking is off,
+         * and anything but ALL clears the events queue, which can hold a consent update. So
+         * the consent is sent again with the config attributes, once the queue has changed.
+         */
+        data class TrackingBehaviorChanged(
+            val previous: EventTrackingBehavior,
+            val current: EventTrackingBehavior,
         ) : Actions(
                 exec@{
-                    after?.join()
-                    update(Updates.Dequeued)
-                    if (state.value.queuedPublishes > 0) {
-                        // A newer publish will send the latest consent.
+                    updateEventsQueue(current)
+                    if (current == EventTrackingBehavior.NONE) {
                         return@exec
                     }
-                    tracker(InternalSuperwallEvent.DeviceAttributes(makeDeviceAttributes()))
-                    tracker(makeConfigAttributes())
+                    if (previous != current || current != EventTrackingBehavior.ALL) {
+                        publish()
+                    } else {
+                        tracker(makeConfigAttributes())
+                    }
                 },
             )
 
