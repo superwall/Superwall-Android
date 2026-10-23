@@ -9,26 +9,42 @@ import org.junit.Test
 
 class AdConsentTest {
     @Test
-    fun `ad consent defaults to granted`() {
+    fun `ad consent defaults to unspecified, which stands for granted`() {
         Given("default superwall options") {
             val options = SuperwallOptions()
 
-            Then("both consent signals are granted") {
-                assertEquals(AdConsent(AdConsentStatus.GRANTED, AdConsentStatus.GRANTED), options.adConsent)
+            Then("consent is unspecified and both signals are granted") {
+                assertEquals(AdConsent.Unspecified, options.adConsent)
+                assertEquals(false, options.isAdConsentSet)
+                assertEquals(AdConsent.Custom(AdConsentStatus.Granted, AdConsentStatus.Granted), options.adConsent.statuses)
+            }
+        }
+    }
+
+    @Test
+    fun `only custom consent counts as set`() {
+        Given("options with custom consent") {
+            val options = SuperwallOptions()
+            options.adConsent = AdConsent.Custom()
+
+            Then("it's set until it's unspecified again") {
+                assertEquals(true, options.isAdConsentSet)
+                options.adConsent = AdConsent.Unspecified
+                assertEquals(false, options.isAdConsentSet)
             }
         }
     }
 
     @Test
     fun `consent statuses match the wire format`() {
-        assertEquals("granted", AdConsentStatus.GRANTED.raw)
-        assertEquals("denied", AdConsentStatus.DENIED.raw)
+        assertEquals("granted", AdConsentStatus.Granted.raw)
+        assertEquals("denied", AdConsentStatus.Denied.raw)
     }
 
     @Test
     fun `effective consent is unchanged unless tracking is none`() {
         Given("a consent with personalization denied") {
-            val consent = AdConsent(adPersonalization = AdConsentStatus.DENIED)
+            val consent = AdConsent.Custom(adPersonalization = AdConsentStatus.Denied)
 
             When("tracking is ALL or SUPERWALL_ONLY") {
                 Then("the consent is reported as set") {
@@ -42,13 +58,13 @@ class AdConsentTest {
     @Test
     fun `effective consent is denied when tracking is none`() {
         Given("a fully granted consent") {
-            val consent = AdConsent()
+            val consent = AdConsent.Custom()
 
             When("tracking is NONE") {
                 val effective = consent.effective(EventTrackingBehavior.NONE)
 
                 Then("both signals are denied") {
-                    assertEquals(AdConsent(AdConsentStatus.DENIED, AdConsentStatus.DENIED), effective)
+                    assertEquals(AdConsent.Custom(AdConsentStatus.Denied, AdConsentStatus.Denied), effective)
                 }
             }
         }
@@ -58,7 +74,7 @@ class AdConsentTest {
     fun `toMap encodes ad consent`() {
         Given("options with ad user data denied") {
             val options = SuperwallOptions()
-            options.adConsent = AdConsent(adUserData = AdConsentStatus.DENIED)
+            options.adConsent = AdConsent.Custom(adUserData = AdConsentStatus.Denied)
 
             When("converting the options to a map") {
                 val map = options.toMap()
@@ -77,7 +93,7 @@ class AdConsentTest {
         Given("tcf consent with personalization denied") {
             val current =
                 ReportedAdConsent(
-                    AdConsent(adPersonalization = AdConsentStatus.DENIED),
+                    AdConsent.Custom(adPersonalization = AdConsentStatus.Denied),
                     AdConsentSource.TCF,
                 )
 
@@ -87,11 +103,23 @@ class AdConsentTest {
             And("an older granted send or a different source differ") {
                 assertEquals(
                     true,
-                    current.differsFrom(hashMapOf("adUserDataConsent" to "granted", "adPersonalizationConsent" to "granted", "adConsentSource" to "tcf")),
+                    current.differsFrom(
+                        hashMapOf(
+                            "adUserDataConsent" to "granted",
+                            "adPersonalizationConsent" to "granted",
+                            "adConsentSource" to "tcf",
+                        ),
+                    ),
                 )
                 assertEquals(
                     true,
-                    current.differsFrom(hashMapOf("adUserDataConsent" to "granted", "adPersonalizationConsent" to "denied", "adConsentSource" to "default")),
+                    current.differsFrom(
+                        hashMapOf(
+                            "adUserDataConsent" to "granted",
+                            "adPersonalizationConsent" to "denied",
+                            "adConsentSource" to "default",
+                        ),
+                    ),
                 )
             }
             And("attributes without consent keys, such as an empty template, never differ") {
@@ -106,7 +134,7 @@ class AdConsentTest {
         Given("tcf consent with personalization denied") {
             val current =
                 ReportedAdConsent(
-                    AdConsent(adPersonalization = AdConsentStatus.DENIED),
+                    AdConsent.Custom(adPersonalization = AdConsentStatus.Denied),
                     AdConsentSource.TCF,
                 )
 

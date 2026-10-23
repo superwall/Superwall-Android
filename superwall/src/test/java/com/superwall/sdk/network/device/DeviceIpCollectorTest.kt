@@ -1,5 +1,7 @@
 package com.superwall.sdk.network.device
 
+import com.superwall.sdk.misc.primitives.SequentialActor
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -15,12 +17,17 @@ import java.io.IOException
 class DeviceIpCollectorTest {
     private var now = Instant.parse("2026-10-21T12:00:00Z").toEpochMilli()
 
+    private fun collector(
+        scope: CoroutineScope,
+        lookups: List<DeviceIpCollector.Lookup> = emptyList(),
+    ) = DeviceIpCollector(lookups, scope, now = { now }, actor = SequentialActor(DeviceIpState(), scope))
+
     private fun timestamp(offsetMillis: Long = 0) = Instant.ofEpochMilli(now + offsetMillis).toString()
 
     @Test
     fun `records each family with its own timestamp`() =
         runTest {
-            val collector = DeviceIpCollector(emptyList(), backgroundScope, now = { now })
+            val collector = collector(backgroundScope)
 
             collector.record(
                 mapOf(
@@ -46,7 +53,7 @@ class DeviceIpCollectorTest {
     @Test
     fun `falls back to ipAddress but an ipV6 without its own time is ignored`() =
         runTest {
-            val collector = DeviceIpCollector(emptyList(), backgroundScope, now = { now })
+            val collector = collector(backgroundScope)
 
             collector.record(
                 mapOf(
@@ -63,7 +70,7 @@ class DeviceIpCollectorTest {
     @Test
     fun `ignores invalid, mapped, stale and older addresses`() =
         runTest {
-            val collector = DeviceIpCollector(emptyList(), backgroundScope, now = { now })
+            val collector = collector(backgroundScope)
 
             collector.record(mapOf("ipV4" to "999.1.1.1", "ipV4ObservedAt" to timestamp()))
             collector.record(mapOf("ipV6" to "::ffff:203.0.113.7", "ipV6ObservedAt" to timestamp()))
@@ -78,7 +85,7 @@ class DeviceIpCollectorTest {
     @Test
     fun `an observation drops out once it is 15 minutes old`() =
         runTest {
-            val collector = DeviceIpCollector(emptyList(), backgroundScope, now = { now })
+            val collector = collector(backgroundScope)
             collector.record(mapOf("ipV4" to "203.0.113.7", "ipV4ObservedAt" to timestamp()))
 
             now += 15 * 60_000L
@@ -95,13 +102,15 @@ class DeviceIpCollectorTest {
                     fetches += 1
                     mapOf("ipV4" to "203.0.113.7", "ipV4ObservedAt" to timestamp())
                 }
-            val collector = DeviceIpCollector(listOf(lookup), backgroundScope, now = { now })
+            val collector = collector(backgroundScope, listOf(lookup))
 
             collector.refreshIfNeeded()
             runCurrent()
             assertEquals("203.0.113.7", collector.attributes()["ipV4"])
 
-            assertNull(collector.refreshIfNeeded())
+            collector.refreshIfNeeded()
+            runCurrent()
+            assertEquals(1, fetches)
             now += 15 * 60_000L
             collector.refreshIfNeeded()
             runCurrent()
@@ -117,12 +126,14 @@ class DeviceIpCollectorTest {
                     fetches += 1
                     throw IOException("offline")
                 }
-            val collector = DeviceIpCollector(listOf(lookup), backgroundScope, now = { now })
+            val collector = collector(backgroundScope, listOf(lookup))
 
             collector.refreshIfNeeded()
             runCurrent()
             now += 30_000L
-            assertNull(collector.refreshIfNeeded())
+            collector.refreshIfNeeded()
+            runCurrent()
+            assertEquals(1, fetches)
             now += 30_000L
             collector.refreshIfNeeded()
             runCurrent()
@@ -139,9 +150,11 @@ class DeviceIpCollectorTest {
                     fetches += 1
                     mapOf("ipV4" to "203.0.113.7", "ipV4ObservedAt" to timestamp())
                 }
-            val collector = DeviceIpCollector(listOf(lookup), backgroundScope, now = { now })
+            val collector = collector(backgroundScope, listOf(lookup))
 
-            assertNull(collector.refreshIpV4IfOnlyIpV6IsKnown())
+            collector.refreshIpV4IfOnlyIpV6IsKnown()
+            runCurrent()
+            assertEquals(0, fetches)
 
             collector.record(mapOf("ipV6" to "2001:db8::1", "ipV6ObservedAt" to timestamp()))
             collector.refreshIpV4IfOnlyIpV6IsKnown()
@@ -149,7 +162,9 @@ class DeviceIpCollectorTest {
             assertEquals(1, fetches)
 
             // A fresh IPv4 address is now known.
-            assertNull(collector.refreshIpV4IfOnlyIpV6IsKnown())
+            collector.refreshIpV4IfOnlyIpV6IsKnown()
+            runCurrent()
+            assertEquals(1, fetches)
         }
 
     @Test

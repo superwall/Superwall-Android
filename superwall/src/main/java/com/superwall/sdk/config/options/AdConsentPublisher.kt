@@ -1,41 +1,37 @@
 package com.superwall.sdk.config.options
 
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
+import com.superwall.sdk.misc.primitives.StateActor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Sends the current ad consent to Superwall as device and config attributes.
  *
- * Sends run one at a time, and one superseded by a later [publish] is dropped, so
- * an older snapshot is never tracked after a newer one. A send waits for [after],
- * so it can't be queued before an events-queue change it follows.
+ * Facade over an [AdConsentState] actor: sends run one at a time in its queue, and
+ * [publish] drops a send that a later one supersedes.
  */
 internal class AdConsentPublisher(
-    private val scope: CoroutineScope,
-    private val track: suspend (Trackable) -> Unit,
-    private val makeDeviceAttributes: suspend () -> HashMap<String, Any>,
-    private val makeConfigAttributes: () -> Trackable,
-) {
-    private val generation = AtomicLong()
-    private val mutex = Mutex()
+    override val scope: CoroutineScope,
+    override val tracker: suspend (Trackable) -> Unit,
+    override val makeDeviceAttributes: suspend () -> HashMap<String, Any>,
+    override val makeConfigAttributes: () -> Trackable,
+    override val currentAdConsent: () -> ReportedAdConsent,
+    override val eventTrackingBehavior: () -> EventTrackingBehavior,
+    override val actor: StateActor<AdConsentContext, AdConsentState>,
+) : AdConsentContext {
+    /**
+     * Re-sends device attributes when the ad consent [sent] carried differs from the current
+     * consent. Called after every device attributes send.
+     */
+    fun reconcileAfterSend(sent: Map<String, Any>) {
+        effect(AdConsentState.Actions.ReconcileAfterSend(sent))
+    }
 
-    fun publish(after: Job? = null): Job {
-        val current = generation.incrementAndGet()
-        return scope.launch {
-            after?.join()
-            mutex.withLock {
-                if (current != generation.get()) {
-                    return@withLock
-                }
-                track(InternalSuperwallEvent.DeviceAttributes(makeDeviceAttributes()))
-                track(makeConfigAttributes())
-            }
-        }
+    /**
+     * Re-sends device attributes when the current ad consent differs from the last one sent.
+     * Called when the app comes to the foreground, like iOS.
+     */
+    fun republishIfChanged() {
+        effect(AdConsentState.Actions.RepublishIfChanged)
     }
 }

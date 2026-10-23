@@ -17,11 +17,8 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
-import com.superwall.sdk.config.options.AD_CONSENT_ATTRIBUTE_KEYS
-import com.superwall.sdk.config.options.AdConsentPublisher
-import com.superwall.sdk.config.options.differsFrom
-import com.superwall.sdk.config.options.needsRepublish
 import com.superwall.sdk.config.options.AdConsent
+import com.superwall.sdk.config.options.AdConsentPublisher
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.customercenter.CustomerCenterConfiguration
@@ -209,11 +206,11 @@ class Superwall(
      * The user's consent for how their data is used for advertising, which Superwall
      * passes on with the conversions it uploads to Google Ads and Meta.
      *
-     * If `adConsent` is never set, the SDK uses the consent stored by an IAB TCF consent
-     * banner when GDPR applies, and otherwise defaults to granted; apps with users in
-     * the EEA, UK or Switzerland that don't use a TCF banner should set it from their
-     * consent flow. Where the values came from is reported in the `adConsentSource`
-     * device attribute (`developer`, `tcf` or `default`).
+     * While `adConsent` is [AdConsent.Unspecified], the default, the SDK uses the consent
+     * stored by an IAB TCF consent banner when GDPR applies, and otherwise defaults to
+     * granted; apps with users in the EEA, UK or Switzerland that don't use a TCF banner
+     * should set an [AdConsent.Custom] from their consent flow. Where the values came from
+     * is reported in the `adConsentSource` device attribute (`developer`, `tcf` or `default`).
      *
      * Both are reported as denied while [eventTrackingBehavior] is [EventTrackingBehavior.NONE].
      *
@@ -237,40 +234,19 @@ class Superwall(
      * consent. Called after every device attributes send.
      */
     internal fun reconcileAdConsentAfterPublish(sent: Map<String, Any>) {
-        if (options.eventTrackingBehavior == EventTrackingBehavior.NONE) {
-            return
-        }
-        if (sent.keys.any { it in AD_CONSENT_ATTRIBUTE_KEYS }) {
-            lastSentAdConsent = sent.filterKeys { it in AD_CONSENT_ATTRIBUTE_KEYS }
-        }
-        if (dependencyContainer.deviceHelper.currentAdConsent.differsFrom(sent)) {
-            adConsentPublisher.publish()
-        }
+        adConsentPublisher.reconcileAfterSend(sent)
     }
-
-    /** The ad consent attributes of the latest device attributes send, or null before the first. */
-    @Volatile
-    private var lastSentAdConsent: Map<String, Any>? = null
 
     /**
      * Re-sends device attributes when the current ad consent differs from the last one sent.
      * Called when the app comes to the foreground, like iOS.
      */
     internal fun republishAdConsentIfChanged() {
-        val current = dependencyContainer.deviceHelper.currentAdConsent
-        if (current.needsRepublish(lastSentAdConsent, options.eventTrackingBehavior)) {
-            adConsentPublisher.publish()
-        }
+        adConsentPublisher.republishIfChanged()
     }
 
-    private val adConsentPublisher by lazy {
-        AdConsentPublisher(
-            scope = ioScope,
-            track = { track(it) },
-            makeDeviceAttributes = { dependencyContainer.makeSessionDeviceAttributes() },
-            makeConfigAttributes = { dependencyContainer.makeConfigAttributes() },
-        )
-    }
+    private val adConsentPublisher: AdConsentPublisher
+        get() = dependencyContainer.adConsentPublisher
 
     /**
      * The presented paywall view.
@@ -508,8 +484,7 @@ class Superwall(
     /**
      * Properties stored about the device session, set internally by Superwall
      * */
-    suspend fun deviceAttributes(): Map<String, Any?> =
-        dependencyContainer.makeSessionDeviceAttributes()
+    suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
 
     /**
      * Gets the current integration identifiers as a map.
@@ -765,7 +740,6 @@ class Superwall(
 
     internal val dependencyContainer: DependencyContainer
         get() = _dependencyContainer
-
 
     // / Used to serially execute register calls.
     internal val serialTaskManager = SerialTaskManager()
@@ -1445,7 +1419,7 @@ class Superwall(
                     scope = LogScope.superwallCore,
                     message =
                         "You are trying to observe purchases but the SuperwallOption shouldObservePurchases is " +
-                                "false. Please set it to true to be able to observe purchases.",
+                            "false. Please set it to true to be able to observe purchases.",
                 )
                 return@launchWithTracking
             }
@@ -1693,11 +1667,11 @@ class Superwall(
                                     val url =
                                         "https://play.google.com/store/apps/details?id=$packageName"
                                     (
-                                            activityProvider?.getCurrentActivity()
-                                                ?: paywallView.encapsulatingActivity?.get()
-                                            )?.startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse(url)),
-                                        )
+                                        activityProvider?.getCurrentActivity()
+                                            ?: paywallView.encapsulatingActivity?.get()
+                                    )?.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                                    )
                                 }
                             }
                         } catch (e: Exception) {

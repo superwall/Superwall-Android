@@ -8,6 +8,7 @@ import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
+import com.superwall.sdk.misc.primitives.SequentialActor
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -19,8 +20,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 
-private val GRANTED = AdConsentStatus.GRANTED
-private val DENIED = AdConsentStatus.DENIED
+private val GRANTED = AdConsentStatus.Granted
+private val DENIED = AdConsentStatus.Denied
 
 // Purposes 1-10. Index n-1 is purpose n.
 private const val ALL_PURPOSES = "1111111111"
@@ -31,22 +32,22 @@ class TcfAdConsentMappingTest {
         Given("GDPR applies") {
             When("purposes 1, 3, 4 and 7 are all agreed") {
                 Then("both are granted") {
-                    assertEquals(AdConsent(GRANTED, GRANTED), tcfAdConsent(1, ALL_PURPOSES))
+                    assertEquals(AdConsent.Custom(GRANTED, GRANTED), tcfAdConsent(1, ALL_PURPOSES))
                 }
             }
             When("only purposes 1 and 7 are agreed") {
                 Then("only ad user data is granted") {
-                    assertEquals(AdConsent(GRANTED, DENIED), tcfAdConsent(1, "1000001000"))
+                    assertEquals(AdConsent.Custom(GRANTED, DENIED), tcfAdConsent(1, "1000001000"))
                 }
             }
             When("only purposes 3 and 4 are agreed") {
                 Then("only ad personalization is granted") {
-                    assertEquals(AdConsent(DENIED, GRANTED), tcfAdConsent(1, "0011000000"))
+                    assertEquals(AdConsent.Custom(DENIED, GRANTED), tcfAdConsent(1, "0011000000"))
                 }
             }
             When("none of them are agreed") {
                 Then("both are denied") {
-                    assertEquals(AdConsent(DENIED, DENIED), tcfAdConsent(1, "0100010111"))
+                    assertEquals(AdConsent.Custom(DENIED, DENIED), tcfAdConsent(1, "0100010111"))
                 }
             }
         }
@@ -56,7 +57,7 @@ class TcfAdConsentMappingTest {
     fun `one missing purpose of a pair denies that signal`() {
         Given("purpose 7 and purpose 4 not agreed") {
             Then("both are denied") {
-                assertEquals(AdConsent(DENIED, DENIED), tcfAdConsent(1, "1110000000"))
+                assertEquals(AdConsent.Custom(DENIED, DENIED), tcfAdConsent(1, "1110000000"))
             }
         }
     }
@@ -65,9 +66,9 @@ class TcfAdConsentMappingTest {
     fun `gdprApplies is read defensively`() {
         Given("purpose consents for everything") {
             Then("1, \"1\" and true mean GDPR applies") {
-                assertEquals(AdConsent(GRANTED, GRANTED), tcfAdConsent(1, ALL_PURPOSES))
-                assertEquals(AdConsent(GRANTED, GRANTED), tcfAdConsent("1", ALL_PURPOSES))
-                assertEquals(AdConsent(GRANTED, GRANTED), tcfAdConsent(true, ALL_PURPOSES))
+                assertEquals(AdConsent.Custom(GRANTED, GRANTED), tcfAdConsent(1, ALL_PURPOSES))
+                assertEquals(AdConsent.Custom(GRANTED, GRANTED), tcfAdConsent("1", ALL_PURPOSES))
+                assertEquals(AdConsent.Custom(GRANTED, GRANTED), tcfAdConsent(true, ALL_PURPOSES))
             }
             Then("anything else means there is no banner consent") {
                 assertNull(tcfAdConsent(0, ALL_PURPOSES))
@@ -98,14 +99,14 @@ class TcfAdConsentMappingTest {
             val consent = tcfAdConsent(1, "1111")
 
             Then("purpose 7 is not agreed, so ad user data is denied") {
-                assertEquals(AdConsent(DENIED, GRANTED), consent)
+                assertEquals(AdConsent.Custom(DENIED, GRANTED), consent)
             }
         }
     }
 }
 
 class ReportedAdConsentTest {
-    private val banner = AdConsent(DENIED, GRANTED)
+    private val banner = AdConsent.Custom(DENIED, GRANTED)
 
     @Test
     fun `default is granted when nothing is set`() {
@@ -113,7 +114,7 @@ class ReportedAdConsentTest {
             val reported = reportedAdConsent(SuperwallOptions(), null)
 
             Then("both are granted from the default source") {
-                assertEquals(ReportedAdConsent(AdConsent(), AdConsentSource.DEFAULT), reported)
+                assertEquals(ReportedAdConsent(AdConsent.Custom(), AdConsentSource.DEFAULT), reported)
                 assertEquals("default", reported.source.raw)
             }
         }
@@ -134,27 +135,27 @@ class ReportedAdConsentTest {
     @Test
     fun `developer consent wins over the banner`() {
         Given("the developer denied ad user data and a banner granting personalization only") {
-            val options = SuperwallOptions { adConsent = AdConsent(adUserData = DENIED, adPersonalization = DENIED) }
-            val reported = reportedAdConsent(options, AdConsent(GRANTED, GRANTED))
+            val options = SuperwallOptions { adConsent = AdConsent.Custom(adUserData = DENIED, adPersonalization = DENIED) }
+            val reported = reportedAdConsent(options, AdConsent.Custom(GRANTED, GRANTED))
 
             Then("the developer's values are reported") {
-                assertEquals(ReportedAdConsent(AdConsent(DENIED, DENIED), AdConsentSource.DEVELOPER), reported)
+                assertEquals(ReportedAdConsent(AdConsent.Custom(DENIED, DENIED), AdConsentSource.DEVELOPER), reported)
                 assertEquals("developer", reported.source.raw)
             }
         }
     }
 
     @Test
-    fun `explicitly setting the default value still wins over the banner`() {
-        Given("the developer assigned the default consent") {
+    fun `custom consent with the default values still wins over the banner`() {
+        Given("the developer assigned custom consent with the default values") {
             val options = SuperwallOptions()
-            options.adConsent = AdConsent()
+            options.adConsent = AdConsent.Custom()
 
             When("a banner denies everything") {
-                val reported = reportedAdConsent(options, AdConsent(DENIED, DENIED))
+                val reported = reportedAdConsent(options, AdConsent.Custom(DENIED, DENIED))
 
                 Then("granted is reported from the developer source") {
-                    assertEquals(ReportedAdConsent(AdConsent(), AdConsentSource.DEVELOPER), reported)
+                    assertEquals(ReportedAdConsent(AdConsent.Custom(), AdConsentSource.DEVELOPER), reported)
                 }
             }
         }
@@ -166,18 +167,18 @@ class ReportedAdConsentTest {
             fun options(set: Boolean) =
                 SuperwallOptions {
                     eventTrackingBehavior = EventTrackingBehavior.NONE
-                    if (set) adConsent = AdConsent()
+                    if (set) adConsent = AdConsent.Custom()
                 }
 
             Then("every source reports denied") {
-                val denied = AdConsent(DENIED, DENIED)
+                val denied = AdConsent.Custom(DENIED, DENIED)
                 assertEquals(
                     ReportedAdConsent(denied, AdConsentSource.DEVELOPER),
-                    reportedAdConsent(options(set = true), AdConsent()),
+                    reportedAdConsent(options(set = true), AdConsent.Custom()),
                 )
                 assertEquals(
                     ReportedAdConsent(denied, AdConsentSource.TCF),
-                    reportedAdConsent(options(set = false), AdConsent()),
+                    reportedAdConsent(options(set = false), AdConsent.Custom()),
                 )
                 assertEquals(
                     ReportedAdConsent(denied, AdConsentSource.DEFAULT),
@@ -194,7 +195,7 @@ class ReportedAdConsentTest {
 
             Then("is_ad_consent_set is false until assigned") {
                 assertEquals(false, options.toMap()["is_ad_consent_set"])
-                options.adConsent = AdConsent()
+                options.adConsent = AdConsent.Custom()
                 assertEquals(true, options.toMap()["is_ad_consent_set"])
             }
         }
@@ -238,11 +239,11 @@ class TcfConsentReaderTest {
         Given("a banner granting only ad user data") {
             Then("an Int, String or Boolean gdprApplies is read") {
                 writeBanner(1, "1000001000")
-                assertEquals(AdConsent(GRANTED, DENIED), reader.read())
+                assertEquals(AdConsent.Custom(GRANTED, DENIED), reader.read())
                 writeBanner("1", "1000001000")
-                assertEquals(AdConsent(GRANTED, DENIED), reader.read())
+                assertEquals(AdConsent.Custom(GRANTED, DENIED), reader.read())
                 writeBanner(true, "1000001000")
-                assertEquals(AdConsent(GRANTED, DENIED), reader.read())
+                assertEquals(AdConsent.Custom(GRANTED, DENIED), reader.read())
             }
             Then("0 or missing gdprApplies gives no consent") {
                 writeBanner(0, "1000001000")
@@ -269,16 +270,12 @@ class TcfConsentReaderTest {
     ): AdConsentPublisher =
         AdConsentPublisher(
             scope = scope,
-            track = { tracked += it },
-            makeDeviceAttributes = {
-                val reported = reportedAdConsent(options, reader.read())
-                hashMapOf(
-                    "adUserDataConsent" to reported.consent.adUserData.raw,
-                    "adPersonalizationConsent" to reported.consent.adPersonalization.raw,
-                    "adConsentSource" to reported.source.raw,
-                )
-            },
+            tracker = { tracked += it },
+            makeDeviceAttributes = { HashMap(reportedAdConsent(options, reader.read()).toAttributes()) },
             makeConfigAttributes = { configAttributes },
+            currentAdConsent = { reportedAdConsent(options, reader.read()) },
+            eventTrackingBehavior = { options.eventTrackingBehavior },
+            actor = SequentialActor(AdConsentState(), scope),
         )
 
     @Test
@@ -287,12 +284,12 @@ class TcfConsentReaderTest {
             Given("an observed reader with no banner yet") {
                 val options = SuperwallOptions()
                 val tracked = mutableListOf<Trackable>()
-                val publisher = observedPublisher(options, tracked, this@runTest)
+                val publisher = observedPublisher(options, tracked, backgroundScope)
                 reader.observeReportedChanges({ options }) { publisher.publish() }
 
                 When("the banner stores consent for ad user data only") {
                     writeBanner(1, "1000001000")
-                    testScheduler.advanceUntilIdle()
+                    testScheduler.runCurrent()
 
                     Then("exactly one publish reports the banner values from tcf") {
                         val devices = tracked.filterIsInstance<InternalSuperwallEvent.DeviceAttributes>()
@@ -313,7 +310,7 @@ class TcfConsentReaderTest {
                 writeBanner(1, ALL_PURPOSES)
                 val options = SuperwallOptions()
                 val tracked = mutableListOf<Trackable>()
-                val publisher = observedPublisher(options, tracked, this@runTest)
+                val publisher = observedPublisher(options, tracked, backgroundScope)
                 reader.observeReportedChanges({ options }) { publisher.publish() }
 
                 When("the banner rewrites the same consent and other keys change") {
@@ -321,7 +318,7 @@ class TcfConsentReaderTest {
                     writeBanner(1, "1111111111111")
                     preferences.edit().putString("IABTCF_TCString", "abc").commit()
                     shadowOf(Looper.getMainLooper()).idle()
-                    testScheduler.advanceUntilIdle()
+                    testScheduler.runCurrent()
 
                     Then("nothing is published") {
                         assertEquals(0, tracked.size)
@@ -334,19 +331,19 @@ class TcfConsentReaderTest {
     fun `no publish when the developer's consent takes precedence`() =
         runTest {
             Given("the developer set consent, even to the default") {
-                val options = SuperwallOptions { adConsent = AdConsent() }
+                val options = SuperwallOptions { adConsent = AdConsent.Custom() }
                 val tracked = mutableListOf<Trackable>()
-                val publisher = observedPublisher(options, tracked, this@runTest)
+                val publisher = observedPublisher(options, tracked, backgroundScope)
                 reader.observeReportedChanges({ options }) { publisher.publish() }
 
                 When("the banner stores denied consent") {
                     writeBanner(1, "0000000000")
-                    testScheduler.advanceUntilIdle()
+                    testScheduler.runCurrent()
 
                     Then("nothing is published and the developer's value is still reported") {
                         assertEquals(0, tracked.size)
                         assertEquals(
-                            ReportedAdConsent(AdConsent(), AdConsentSource.DEVELOPER),
+                            ReportedAdConsent(AdConsent.Custom(), AdConsentSource.DEVELOPER),
                             reportedAdConsent(options, reader.read()),
                         )
                     }
@@ -360,12 +357,12 @@ class TcfConsentReaderTest {
             Given("tracking is NONE") {
                 val options = SuperwallOptions { eventTrackingBehavior = EventTrackingBehavior.NONE }
                 val tracked = mutableListOf<Trackable>()
-                val publisher = observedPublisher(options, tracked, this@runTest)
+                val publisher = observedPublisher(options, tracked, backgroundScope)
                 reader.observeReportedChanges({ options }) { publisher.publish() }
 
                 When("the banner stores consent") {
                     writeBanner(1, ALL_PURPOSES)
-                    testScheduler.advanceUntilIdle()
+                    testScheduler.runCurrent()
 
                     Then("nothing is published") {
                         assertEquals(0, tracked.size)
@@ -381,12 +378,12 @@ class TcfConsentReaderTest {
                 writeBanner(1, "0000000000")
                 val options = SuperwallOptions()
                 val tracked = mutableListOf<Trackable>()
-                val publisher = observedPublisher(options, tracked, this@runTest)
+                val publisher = observedPublisher(options, tracked, backgroundScope)
                 reader.observeReportedChanges({ options }) { publisher.publish() }
 
                 When("the banner data is cleared") {
                     writeBanner(null, null)
-                    testScheduler.advanceUntilIdle()
+                    testScheduler.runCurrent()
 
                     Then("one publish reports granted from the default source") {
                         val devices = tracked.filterIsInstance<InternalSuperwallEvent.DeviceAttributes>()

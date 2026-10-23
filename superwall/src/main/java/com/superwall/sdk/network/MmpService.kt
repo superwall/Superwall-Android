@@ -6,6 +6,7 @@ import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -14,56 +15,56 @@ import kotlinx.serialization.json.JsonElement
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class MmpMatchRequest(
-    val platform: String,
-    val appUserId: String? = null,
-    val deviceId: String? = null,
-    val vendorId: String? = null,
+    @SerialName("platform") val platform: String,
+    @SerialName("appUserId") val appUserId: String? = null,
+    @SerialName("deviceId") val deviceId: String? = null,
+    @SerialName("vendorId") val vendorId: String? = null,
     // The Android counterpart to iOS's `idfa`/`idfv`. Sourced from the developer-supplied
     // `AttributionProvider.GOOGLE_ADS` / `GOOGLE_APP_SET` integration attributes — the SDK
     // stopped collecting them itself in 2.5.5.
-    val aaid: String? = null,
-    val appSetId: String? = null,
+    @SerialName("aaid") val aaid: String? = null,
+    @SerialName("appSetId") val appSetId: String? = null,
     // Sent under iOS's name too, so the backend can treat both platforms' vendor ids alike.
-    val idfv: String? = null,
+    @SerialName("idfv") val idfv: String? = null,
     // Always sent, as on iOS. Android has no app-level tracking prompt like ATT, so both are true.
     @EncodeDefault
-    val advertiserTrackingEnabled: Boolean = true,
+    @SerialName("advertiserTrackingEnabled") val advertiserTrackingEnabled: Boolean = true,
     @EncodeDefault
-    val applicationTrackingEnabled: Boolean = true,
-    val installReferrerClickId: Long? = null,
-    val appVersion: String? = null,
-    val sdkVersion: String? = null,
-    val osVersion: String? = null,
-    val deviceModel: String? = null,
-    val deviceLocale: String? = null,
-    val deviceLanguageCode: String? = null,
-    val timezoneOffsetSeconds: Int? = null,
-    val screenWidth: Int? = null,
-    val screenHeight: Int? = null,
-    val devicePixelRatio: Double? = null,
-    val bundleId: String? = null,
-    val clientTimestamp: String? = null,
-    val metadata: Map<String, String>? = null,
+    @SerialName("applicationTrackingEnabled") val applicationTrackingEnabled: Boolean = true,
+    @SerialName("installReferrerClickId") val installReferrerClickId: Long? = null,
+    @SerialName("appVersion") val appVersion: String? = null,
+    @SerialName("sdkVersion") val sdkVersion: String? = null,
+    @SerialName("osVersion") val osVersion: String? = null,
+    @SerialName("deviceModel") val deviceModel: String? = null,
+    @SerialName("deviceLocale") val deviceLocale: String? = null,
+    @SerialName("deviceLanguageCode") val deviceLanguageCode: String? = null,
+    @SerialName("timezoneOffsetSeconds") val timezoneOffsetSeconds: Int? = null,
+    @SerialName("screenWidth") val screenWidth: Int? = null,
+    @SerialName("screenHeight") val screenHeight: Int? = null,
+    @SerialName("devicePixelRatio") val devicePixelRatio: Double? = null,
+    @SerialName("bundleId") val bundleId: String? = null,
+    @SerialName("clientTimestamp") val clientTimestamp: String? = null,
+    @SerialName("metadata") val metadata: Map<String, String>? = null,
     // The remaining third-party attribution identifiers the developer has set via
     // `Superwall.setIntegrationAttributes` — the MMP ids (`adjustId`, `appsflyerId`,
     // `singularDeviceId`, `kochavaDeviceId`, `tenjinId`) and friends. The advertising
     // identifiers are promoted out of this map into [aaid] and [appSetId].
-    val integrationAttributes: Map<String, String>? = null,
+    @SerialName("integrationAttributes") val integrationAttributes: Map<String, String>? = null,
 )
 
 @Serializable
 data class MmpMatchResponse(
-    val matched: Boolean,
-    val confidence: AttributionMatchInfo.Confidence? = null,
-    val matchScore: Double? = null,
-    val clickId: Long? = null,
-    val linkId: String? = null,
-    val network: String? = null,
-    val redirectUrl: String? = null,
-    val queryParams: Map<String, JsonElement>? = null,
-    val acquisitionAttributes: Map<String, JsonElement>? = null,
-    val matchedAt: String? = null,
-    val breakdown: Map<String, JsonElement>? = null,
+    @SerialName("matched") val matched: Boolean,
+    @SerialName("confidence") val confidence: AttributionMatchInfo.Confidence? = null,
+    @SerialName("matchScore") val matchScore: Double? = null,
+    @SerialName("clickId") val clickId: Long? = null,
+    @SerialName("linkId") val linkId: String? = null,
+    @SerialName("network") val network: String? = null,
+    @SerialName("redirectUrl") val redirectUrl: String? = null,
+    @SerialName("queryParams") val queryParams: Map<String, JsonElement>? = null,
+    @SerialName("acquisitionAttributes") val acquisitionAttributes: Map<String, JsonElement>? = null,
+    @SerialName("matchedAt") val matchedAt: String? = null,
+    @SerialName("breakdown") val breakdown: Map<String, JsonElement>? = null,
 )
 
 /**

@@ -128,26 +128,22 @@ class SuperwallOptions() {
     // The user's consent for how their data is used for advertising, which Superwall
     // passes on with the conversions it uploads to Google Ads and Meta.
     //
-    // If `adConsent` is never set, the SDK uses the consent stored by an IAB TCF consent
-    // banner when GDPR applies, and otherwise defaults to granted; apps with users in
-    // the EEA, UK or Switzerland that don't use a TCF banner should set it from their
-    // consent flow. Where the values came from is reported in the `adConsentSource`
-    // device attribute (`developer`, `tcf` or `default`).
+    // While `adConsent` is [AdConsent.Unspecified], the default, the SDK uses the consent
+    // stored by an IAB TCF consent banner when GDPR applies, and otherwise defaults to
+    // granted; apps with users in the EEA, UK or Switzerland that don't use a TCF banner
+    // should set an [AdConsent.Custom] from their consent flow. Where the values came from
+    // is reported in the `adConsentSource` device attribute (`developer`, `tcf` or `default`).
     //
     // Both are reported as denied while [eventTrackingBehavior] is
     // [EventTrackingBehavior.NONE].
     //
     // You can also change this at runtime via [com.superwall.sdk.Superwall.adConsent].
-    var adConsent: AdConsent = AdConsent()
-        set(value) {
-            field = value
-            isAdConsentSet = true
-        }
+    var adConsent: AdConsent = AdConsent.Unspecified
 
-    // Whether [adConsent] was ever assigned, even to its default. Only then does it take
-    // precedence over an IAB TCF consent banner.
-    internal var isAdConsentSet: Boolean = false
-        private set
+    // Whether the app has set [adConsent]. Only then does it take precedence over an IAB TCF
+    // consent banner.
+    internal val isAdConsentSet: Boolean
+        get() = adConsent is AdConsent.Custom
 
     // Enables the sending of non-Superwall tracked events and properties back to the Superwall servers.
     // Defaults to `true`.
@@ -243,8 +239,8 @@ internal fun SuperwallOptions.toMap(): Map<String, Any> =
         "is_external_data_collection_enabled" to (eventTrackingBehavior == EventTrackingBehavior.ALL),
         // Flat keys, like iOS's `adUserDataConsent`, `adPersonalizationConsent` and
         // `isAdConsentSet`, in the snake_case the other Android keys use.
-        "ad_user_data_consent" to adConsent.adUserData.raw,
-        "ad_personalization_consent" to adConsent.adPersonalization.raw,
+        "ad_user_data_consent" to adConsent.statuses.adUserData.raw,
+        "ad_personalization_consent" to adConsent.statuses.adPersonalization.raw,
         "is_ad_consent_set" to isAdConsentSet,
         localeIdentifier?.let { "locale_identifier" to it },
         "is_game_controller_enabled" to isGameControllerEnabled,

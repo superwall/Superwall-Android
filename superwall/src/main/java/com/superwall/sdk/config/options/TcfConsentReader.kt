@@ -15,7 +15,7 @@ internal const val IABTCF_PURPOSE_CONSENTS = "IABTCF_PurposeConsents"
 internal fun tcfAdConsent(
     gdprApplies: Any?,
     purposeConsents: Any?,
-): AdConsent? {
+): AdConsent.Custom? {
     val applies =
         when (gdprApplies) {
             is Int -> gdprApplies == 1
@@ -29,9 +29,9 @@ internal fun tcfAdConsent(
 
     fun agreed(vararg purposes: Int) = purposes.all { purposeConsents.getOrNull(it - 1) == '1' }
 
-    fun status(granted: Boolean) = if (granted) AdConsentStatus.GRANTED else AdConsentStatus.DENIED
+    fun status(granted: Boolean) = if (granted) AdConsentStatus.Granted else AdConsentStatus.Denied
 
-    return AdConsent(
+    return AdConsent.Custom(
         adUserData = status(agreed(1, 7)),
         adPersonalization = status(agreed(3, 4)),
     )
@@ -44,12 +44,12 @@ internal fun tcfAdConsent(
 internal class TcfConsentReader(
     private val preferences: SharedPreferences,
 ) {
-    private var lastConsent: AdConsent? = null
+    private var lastConsent: AdConsent.Custom? = null
 
     // SharedPreferences holds listeners weakly, so this keeps it registered.
     private var listener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
-    fun read(): AdConsent? =
+    fun read(): AdConsent.Custom? =
         try {
             tcfAdConsent(
                 gdprApplies = preferences.untyped(IABTCF_GDPR_APPLIES),
@@ -64,7 +64,7 @@ internal class TcfConsentReader(
      * TCF keys changes it. Only the first call registers.
      */
     @Synchronized
-    fun observe(onChange: (previous: AdConsent?, current: AdConsent?) -> Unit) {
+    fun observe(onChange: (previous: AdConsent.Custom?, current: AdConsent.Custom?) -> Unit) {
         if (listener != null) return
         lastConsent = read()
         val listener =

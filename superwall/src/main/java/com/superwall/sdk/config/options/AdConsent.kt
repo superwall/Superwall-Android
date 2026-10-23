@@ -3,12 +3,12 @@ package com.superwall.sdk.config.options
 /**
  * Whether the user has granted or denied a consent signal.
  */
-enum class AdConsentStatus(
+sealed class AdConsentStatus(
     val raw: String,
 ) {
-    GRANTED("granted"),
-    DENIED("denied"),
-    ;
+    object Granted : AdConsentStatus("granted")
+
+    object Denied : AdConsentStatus("denied")
 
     override fun toString(): String = raw
 }
@@ -16,24 +16,43 @@ enum class AdConsentStatus(
 /**
  * The user's consent for ad measurement, forwarded with the conversions Superwall
  * uploads to Google Ads and Meta.
- *
- * - [adUserData]: consent to send user data to ad networks for advertising.
- * - [adPersonalization]: consent for them to use that data for personalized advertising.
- *
- * Both default to [AdConsentStatus.GRANTED].
  */
-data class AdConsent(
-    val adUserData: AdConsentStatus = AdConsentStatus.GRANTED,
-    val adPersonalization: AdConsentStatus = AdConsentStatus.GRANTED,
-)
+sealed class AdConsent {
+    /**
+     * The app hasn't set consent. The SDK uses the consent stored by an IAB TCF consent
+     * banner when GDPR applies, and otherwise reports both as [AdConsentStatus.Granted].
+     */
+    object Unspecified : AdConsent()
+
+    /**
+     * Consent the app collected itself, which takes precedence over an IAB TCF consent banner.
+     *
+     * - [adUserData]: consent to send user data to ad networks for advertising.
+     * - [adPersonalization]: consent for them to use that data for personalized advertising.
+     *
+     * Both default to [AdConsentStatus.Granted].
+     */
+    data class Custom(
+        val adUserData: AdConsentStatus = AdConsentStatus.Granted,
+        val adPersonalization: AdConsentStatus = AdConsentStatus.Granted,
+    ) : AdConsent()
+}
+
+/** The statuses this consent stands for, which are both granted while it's [AdConsent.Unspecified]. */
+internal val AdConsent.statuses: AdConsent.Custom
+    get() =
+        when (this) {
+            is AdConsent.Custom -> this
+            AdConsent.Unspecified -> AdConsent.Custom()
+        }
 
 /**
  * The consent actually reported. Everything is denied when [EventTrackingBehavior.NONE]
  * is set, regardless of [AdConsent].
  */
-internal fun AdConsent.effective(eventTrackingBehavior: EventTrackingBehavior): AdConsent =
+internal fun AdConsent.Custom.effective(eventTrackingBehavior: EventTrackingBehavior): AdConsent.Custom =
     if (eventTrackingBehavior == EventTrackingBehavior.NONE) {
-        AdConsent(adUserData = AdConsentStatus.DENIED, adPersonalization = AdConsentStatus.DENIED)
+        AdConsent.Custom(adUserData = AdConsentStatus.Denied, adPersonalization = AdConsentStatus.Denied)
     } else {
         this
     }
@@ -54,7 +73,7 @@ internal enum class AdConsentSource(
  * [EventTrackingBehavior.NONE] rule was applied.
  */
 internal data class ReportedAdConsent(
-    val consent: AdConsent,
+    val consent: AdConsent.Custom,
     val source: AdConsentSource,
 )
 
@@ -95,19 +114,20 @@ internal fun ReportedAdConsent.needsRepublish(
 }
 
 /**
- * Picks the consent to report: the developer's [SuperwallOptions.adConsent] if it was ever
- * set, else the IAB TCF [bannerConsent] if present, else the granted default. Everything is
- * denied while [SuperwallOptions.eventTrackingBehavior] is [EventTrackingBehavior.NONE].
+ * Picks the consent to report: the developer's [SuperwallOptions.adConsent] if it's
+ * [AdConsent.Custom], else the IAB TCF [bannerConsent] if present, else the granted default.
+ * Everything is denied while [SuperwallOptions.eventTrackingBehavior] is [EventTrackingBehavior.NONE].
  */
 internal fun reportedAdConsent(
     options: SuperwallOptions,
-    bannerConsent: AdConsent?,
+    bannerConsent: AdConsent.Custom?,
 ): ReportedAdConsent {
+    val developerConsent = options.adConsent
     val (consent, source) =
         when {
-            options.isAdConsentSet -> options.adConsent to AdConsentSource.DEVELOPER
+            developerConsent is AdConsent.Custom -> developerConsent to AdConsentSource.DEVELOPER
             bannerConsent != null -> bannerConsent to AdConsentSource.TCF
-            else -> AdConsent() to AdConsentSource.DEFAULT
+            else -> AdConsent.Custom() to AdConsentSource.DEFAULT
         }
     return ReportedAdConsent(consent.effective(options.eventTrackingBehavior), source)
 }

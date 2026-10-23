@@ -55,8 +55,8 @@ import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.paywall.view.webview.templating.models.DeviceTemplate
-import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.IntegrationAttributes
+import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.ReviewCount
@@ -66,7 +66,6 @@ import com.superwall.sdk.storage.core_data.convertToJsonElement
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.utilities.withErrorTracking
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -94,7 +93,7 @@ class DeviceHelper(
     val network: SuperwallAPI,
     val factory: Factory,
     private val classifier: DeviceClassifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
-    private val tcfAdConsent: () -> AdConsent? = { null },
+    private val tcfAdConsent: () -> AdConsent.Custom? = { null },
     private val ipCollector: DeviceIpCollector? = null,
 ) {
     interface Factory :
@@ -835,11 +834,11 @@ class DeviceHelper(
      *
      * @param config The config just applied, or null to keep the latest one.
      */
-    fun startIpCollectionIfEnabled(config: Config? = null): Job? {
+    fun startIpCollectionIfEnabled(config: Config? = null) {
         config?.let { isMmpEnabled = it.isMmpEnabled }
-        val collector = ipCollector ?: return null
-        return when (ipCollection()) {
-            IpCollection.NONE -> null
+        val collector = ipCollector ?: return
+        when (ipCollection()) {
+            IpCollection.NONE -> Unit
             IpCollection.IPV4_FOR_APPSFLYER -> collector.refreshIpV4IfOnlyIpV6IsKnown()
             IpCollection.ALL -> collector.refreshIfNeeded()
         }

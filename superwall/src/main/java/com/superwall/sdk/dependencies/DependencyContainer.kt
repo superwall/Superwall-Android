@@ -8,15 +8,16 @@ import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
-import com.superwall.sdk.SdkContextImpl
 import com.superwall.sdk.SdkContext
+import com.superwall.sdk.SdkContextImpl
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.AttributionManager
-import com.superwall.sdk.analytics.attribution.MMPAttributionManager
 import com.superwall.sdk.analytics.ClassifierDataFactory
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.SessionEventsManager
+import com.superwall.sdk.analytics.attribution.MMPAttributionManager
+import com.superwall.sdk.analytics.attribution.MMPAttributionState
 import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -31,11 +32,12 @@ import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.PaywallPreload
+import com.superwall.sdk.config.options.AdConsentPublisher
+import com.superwall.sdk.config.options.AdConsentState
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.config.options.TcfConsentReader
 import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.customercenter.CustomerCenterManager
-import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
 import com.superwall.sdk.deeplinks.DeepLinkRouter
@@ -61,6 +63,7 @@ import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.misc.sha256Hex
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
@@ -69,6 +72,7 @@ import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.BaseHostService
 import com.superwall.sdk.network.CollectorService
@@ -81,6 +85,7 @@ import com.superwall.sdk.network.SubscriptionService
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.device.DeviceIpCollector
+import com.superwall.sdk.network.device.DeviceIpState
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallCacheState
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -148,7 +153,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.superwall.sdk.models.serialization.DateSerializer
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
@@ -261,6 +265,19 @@ class DependencyContainer(
     internal val mmpAttributionManager: MMPAttributionManager
     internal val deepLinkReferrer: DeepLinkReferrer
 
+    /** Sends the current ad consent to Superwall as device and config attributes. */
+    internal val adConsentPublisher: AdConsentPublisher by lazy {
+        AdConsentPublisher(
+            scope = ioScope,
+            tracker = { Superwall.instance.track(it) },
+            makeDeviceAttributes = { makeSessionDeviceAttributes() },
+            makeConfigAttributes = { makeConfigAttributes() },
+            currentAdConsent = { deviceHelper.currentAdConsent },
+            eventTrackingBehavior = { makeSuperwallOptions().eventTrackingBehavior },
+            actor = SequentialActor(AdConsentState(), ioScope),
+        )
+    }
+
     /** Ad consent stored by the app's IAB TCF consent banner, in its default SharedPreferences. */
     internal val tcfConsentReader: TcfConsentReader by lazy {
         TcfConsentReader(
@@ -297,7 +314,7 @@ class DependencyContainer(
                 ioScope = ioScope(),
                 factory = this,
                 json = json(),
-                _apiKey = apiKey
+                _apiKey = apiKey,
             )
         entitlements = Entitlements(storage, actorScope = ioScope)
         val options = options ?: SuperwallOptions()
@@ -484,6 +501,7 @@ class DependencyContainer(
                                 ipV6Url = options.networkEnvironment.ipV6EnrichmentHost?.let { "https://$it/api/v1/enrich" },
                             ),
                         scope = ioScope,
+                        actor = SequentialActor(DeviceIpState(), ioScope),
                     ),
             )
 
@@ -811,13 +829,14 @@ class DependencyContainer(
             MMPAttributionManager(
                 storage = storage,
                 identityManager = identityManager,
-                track = { track(it) },
+                tracker = { track(it) },
                 setUserAttributes = { Superwall.instance.setUserAttributes(it) },
                 sendMatchRequest = { clickId ->
                     network.matchMMPInstall(clickId, attributionManager.integrationAttributes)
                 },
                 configState = configManager.configState,
                 scope = ioScope,
+                actor = SequentialActor(MMPAttributionState(), ioScope),
             )
 
         /**
@@ -876,8 +895,8 @@ class DependencyContainer(
                 "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
                 "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
                 "X-Entitlement-Status" to
-                        Superwall.instance.entitlements.status.value
-                            .toString(),
+                    Superwall.instance.entitlements.status.value
+                        .toString(),
                 "Content-Type" to "application/json",
                 "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
                 "X-Static-Config-Build-Id" to (configManager.config?.buildId ?: ""),
@@ -1026,11 +1045,9 @@ class DependencyContainer(
             audienceFilterParams = HashMap(identityManager.userAttributes),
         )
 
-    override fun makeHasExternalPurchaseController(): Boolean =
-        storeManager.purchaseController.hasExternalPurchaseController
+    override fun makeHasExternalPurchaseController(): Boolean = storeManager.purchaseController.hasExternalPurchaseController
 
-    override fun makeHasInternalPurchaseController(): Boolean =
-        storeManager.purchaseController.hasInternalPurchaseController
+    override fun makeHasInternalPurchaseController(): Boolean = storeManager.purchaseController.hasInternalPurchaseController
 
     override fun isWebToAppEnabled(): Boolean = configManager.config?.featureFlags?.web2App ?: false
 
@@ -1120,8 +1137,7 @@ class DependencyContainer(
 
     override fun makeFeatureFlags(): FeatureFlags? = configManager.config?.featureFlags
 
-    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> =
-        configManager.config?.allComputedProperties ?: emptyList()
+    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> = configManager.config?.allComputedProperties ?: emptyList()
 
     override suspend fun makeIdentityInfo(): IdentityInfo =
         IdentityInfo(
@@ -1172,8 +1188,7 @@ class DependencyContainer(
             appSessionId = appSessionManager.appSession.id,
         )
 
-    override suspend fun activeProductIds(): List<String> =
-        storeManager.receiptManager.purchases.toList()
+    override suspend fun activeProductIds(): List<String> = storeManager.receiptManager.purchases.toList()
 
     override suspend fun makeIdentityManager(): IdentityManager = identityManager
 
@@ -1200,8 +1215,7 @@ class DependencyContainer(
         get() = ViewModelFactory()
     private val vmProvider = ViewModelProvider(storeOwner, vmFactory)
 
-    override fun makeViewStore(): ViewStorageViewModel =
-        vmProvider[ViewStorageViewModel::class.java]
+    override fun makeViewStore(): ViewStorageViewModel = vmProvider[ViewStorageViewModel::class.java]
 
     /**
      * The only way Activities and debug UI should reach paywall views, so the
@@ -1271,8 +1285,7 @@ class DependencyContainer(
 
     override fun context(): Context = context
 
-    override fun experimentalProperties(): Map<String, Any> =
-        storeManager.receiptManager.experimentalProperties()
+    override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
 
     override fun getCurrentUserAttributes(): Map<String, Any> = identityManager.userAttributes
 
@@ -1280,16 +1293,13 @@ class DependencyContainer(
 
     override fun demandScore(): Int? = deviceHelper.demandScore
 
-    override suspend fun track(event: TrackableSuperwallEvent): Result<TrackingResult> =
-        Superwall.instance.track(event)
+    override suspend fun track(event: TrackableSuperwallEvent): Result<TrackingResult> = Superwall.instance.track(event)
 
     override fun delegate(): SuperwallDelegateAdapter = delegateAdapter
 
-    override fun customerInfoFlow(): StateFlow<CustomerInfo> =
-        Superwall.instance.customerInfo
+    override fun customerInfoFlow(): StateFlow<CustomerInfo> = Superwall.instance.customerInfo
 
-    override fun activeEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
-        entitlements.active
+    override fun activeEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> = entitlements.active
 
     override fun storefrontCountryCode(): String? = storeManager.storefrontCountryCode
 
@@ -1323,8 +1333,7 @@ class DependencyContainer(
         delegateAdapter.didRedeemLink(redemptionResult)
     }
 
-    override fun maxAge(): Long =
-        configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
+    override fun maxAge(): Long = configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
 
     override fun getActiveDeviceEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
         entitlements.activeDeviceEntitlements
@@ -1370,28 +1379,29 @@ class DependencyContainer(
             ?.flatMap { entitlements.byProductId(it) }
             ?.toSet() ?: emptySet()
 
-    override fun getPaywallInfo(): PaywallInfo =
-        Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
+    override fun getPaywallInfo(): PaywallInfo = Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
 
     override fun trackRestorationFailed(message: String) {
         trackRestorationFailure(message)
     }
 
     override suspend fun receipts(): List<TransactionReceipt> =
-        googleBillingWrapper.queryAllPurchases().map {
-            val id = it.products.firstOrNull() ?: return@map null
-            val product = storeManager.products(setOf(id)).firstOrNull() ?: return@map null
-            TransactionReceipt(
-                it.purchaseToken,
-                it.orderId,
-                id,
-                if (product.rawStoreProduct?.isSubscription == true) {
-                    TransactionReceipt.ProductType.SUBSCRIPTION
-                } else {
-                    TransactionReceipt.ProductType.IAP
-                },
-            )
-        }.filterNotNull()
+        googleBillingWrapper
+            .queryAllPurchases()
+            .map {
+                val id = it.products.firstOrNull() ?: return@map null
+                val product = storeManager.products(setOf(id)).firstOrNull() ?: return@map null
+                TransactionReceipt(
+                    it.purchaseToken,
+                    it.orderId,
+                    id,
+                    if (product.rawStoreProduct?.isSubscription == true) {
+                        TransactionReceipt.ProductType.SUBSCRIPTION
+                    } else {
+                        TransactionReceipt.ProductType.IAP
+                    },
+                )
+            }.filterNotNull()
 
     override fun getExternalAccountId(): String = identityManager.externalAccountId
 

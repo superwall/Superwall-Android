@@ -1,13 +1,8 @@
 package com.superwall.sdk.network.device
 
 import com.superwall.sdk.BuildConfig
-import com.superwall.sdk.logger.LogLevel
-import com.superwall.sdk.logger.LogScope
-import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.primitives.StateActor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -31,163 +26,50 @@ import javax.net.ssl.SSLSocketFactory
  * Best-effort, session-local observations of the device's public IP addresses, for install
  * attribution. Never waits on the network when reading attributes. Mirrors `DeviceIPCollector`
  * on iOS.
+ *
+ * Facade over a [DeviceIpState] actor: observations and lookup schedules live in its state, and
+ * lookups are claimed in its queue so the same one never starts twice.
  */
 class DeviceIpCollector internal constructor(
-    private val lookups: List<Lookup>,
-    private val scope: CoroutineScope,
-    private val now: () -> Long = { System.currentTimeMillis() },
-) {
+    override val lookups: List<Lookup>,
+    override val scope: CoroutineScope,
+    override val now: () -> Long = { System.currentTimeMillis() },
+    override val actor: StateActor<DeviceIpContext, DeviceIpState>,
+) : DeviceIpContext {
     /**
      * One address lookup with its own schedule, so a failing IPv6 lookup doesn't hold up or
      * speed up the IPv4 one.
      */
-    internal class Lookup(
+    class Lookup internal constructor(
         val name: String,
         val family: Int,
         val fetch: suspend () -> Map<String, String>,
-    ) {
-        internal var lastAttempt: Long? = null
-        internal var nextAttemptAt: Long? = null
-    }
-
-    private val lock = Any()
-    private val observations = mutableMapOf<String, String>()
+    )
 
     /**
-     * Whether an IPv6 address has been seen this session. Kept after that address goes stale,
-     * since enrichment may not run again this session.
-     */
-    private var hasSeenIpV6 = false
-
-    /**
-     * Starts any lookups that are due, in the background. The returned job finishes when they
-     * do and is only there so tests can wait for it.
+     * Starts any lookups that are due, in the background.
      *
      * @param families The address families to look up, or null for all of them.
      */
-    internal fun refreshIfNeeded(families: Set<Int>? = null): Job? {
-        val date = now()
-        val started = mutableListOf<Job>()
-        synchronized(lock) {
-            for (lookup in lookups) {
-                if (families != null && lookup.family !in families) {
-                    continue
-                }
-                val nextAttemptAt = lookup.nextAttemptAt
-                if (nextAttemptAt != null && date < nextAttemptAt) {
-                    continue
-                }
-                lookup.lastAttempt = date
-                lookup.nextAttemptAt = date + LIFETIME_MILLIS
-                started += start(lookup, date)
-            }
-        }
-        if (started.isEmpty()) {
-            return null
-        }
-        return scope.launch { started.joinAll() }
+    internal fun refreshIfNeeded(families: Set<Int>? = null) {
+        effect(DeviceIpState.Actions.Refresh(families))
     }
 
-    private fun start(
-        lookup: Lookup,
-        attemptedAt: Long,
-    ): Job =
-        scope.launch {
-            try {
-                record(lookup.fetch())
-            } catch (e: Throwable) {
-                synchronized(lock) {
-                    // Try again sooner than a success would, unless a newer attempt started.
-                    if (lookup.lastAttempt == attemptedAt) {
-                        lookup.nextAttemptAt = attemptedAt + RETRY_DELAY_MILLIS
-                    }
-                }
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.network,
-                    message = "Couldn't fetch the device's ${lookup.name} address",
-                    error = e,
-                )
-            }
-        }
-
     internal fun record(device: Map<String, String>) {
-        synchronized(lock) {
-            for (family in listOf(4, 6)) {
-                val key = "ipV$family"
-                // Each address only counts with its own timestamp, so an `ipV6` with no time
-                // can't borrow the time of an IPv4 `ipAddress`.
-                val familyAddress = device[key]
-                val address = familyAddress ?: device["ipAddress"]
-                val timestamp =
-                    if (familyAddress != null) device["${key}ObservedAt"] else device["ipAddressObservedAt"]
-                if (address == null || timestamp == null) {
-                    continue
-                }
-                val date = parseDate(timestamp) ?: continue
-                if (!isValid(address, family) || !isFresh(date)) {
-                    continue
-                }
-                val previousDate = observations["${key}ObservedAt"]?.let { parseDate(it) }
-                if (previousDate != null && previousDate > date) {
-                    continue
-                }
-                observations[key] = address
-                observations["${key}ObservedAt"] = timestamp
-                if (family == 6) {
-                    hasSeenIpV6 = true
-                }
-            }
-        }
+        update(DeviceIpState.Updates.Recorded(device, now()))
     }
 
     /**
      * Starts the IPv4 lookup only when the device has been on IPv6 this session and no fresh
-     * IPv4 address is known. On an IPv4 network the device's own requests already show its
-     * IPv4 address, so there's nothing to look up.
+     * IPv4 address is known.
      */
-    internal fun refreshIpV4IfOnlyIpV6IsKnown(): Job? {
-        val shouldRefresh = synchronized(lock) { hasSeenIpV6 && !hasFreshObservation(4) }
-        if (!shouldRefresh) {
-            return null
-        }
-        return refreshIfNeeded(setOf(4))
+    internal fun refreshIpV4IfOnlyIpV6IsKnown() {
+        effect(DeviceIpState.Actions.RefreshIpV4IfOnlyIpV6IsKnown)
     }
 
-    internal fun attributes(families: Set<Int> = setOf(4, 6)): Map<String, String> =
-        synchronized(lock) {
-            families
-                .sorted()
-                .filter { hasFreshObservation(it) }
-                .flatMap { family ->
-                    val key = "ipV$family"
-                    listOf(
-                        key to observations.getValue(key),
-                        "${key}ObservedAt" to observations.getValue("${key}ObservedAt"),
-                    )
-                }.toMap()
-        }
-
-    private fun hasFreshObservation(family: Int): Boolean {
-        val date = observations["ipV${family}ObservedAt"]?.let { parseDate(it) } ?: return false
-        return isFresh(date)
-    }
-
-    private fun isFresh(date: Long): Boolean {
-        val age = now() - date
-        return age >= -60_000 && age < LIFETIME_MILLIS
-    }
+    internal fun attributes(families: Set<Int> = setOf(4, 6)): Map<String, String> = state.value.attributes(families, now())
 
     internal companion object {
-        private const val LIFETIME_MILLIS = 15 * 60 * 1000L
-
-        /**
-         * How long to wait after a failed fetch. Shorter than the lifetime so a blip is retried
-         * soon, but long enough that an outage or offline device doesn't send a request on every
-         * read of the device attributes.
-         */
-        private const val RETRY_DELAY_MILLIS = 60 * 1000L
-
         private const val TIMEOUT_MILLIS = 3_000
         private const val MAX_RESPONSE_SIZE = 16_384
 

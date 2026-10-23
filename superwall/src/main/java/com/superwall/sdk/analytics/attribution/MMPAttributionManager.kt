@@ -4,20 +4,18 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.config.ConfigState
-import com.superwall.sdk.config.getConfig
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.MmpMatchResponse
 import com.superwall.sdk.network.NetworkError
-import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.MMPAcquisitionData
+import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -37,23 +35,19 @@ import kotlin.time.Duration.Companion.seconds
  * [sendMatchRequest] is used purely as transport — it sends the request and returns the
  * decoded response. Everything attribution-specific lives here, mirroring how
  * `AttributionPoster` owns the Apple Search Ads flow on iOS.
+ *
+ * Facade over an [MMPAttributionState] actor, which tracks where this launch's match is.
  */
 internal class MMPAttributionManager(
-    private val storage: LocalStorage,
+    override val storage: Storage,
     private val identityManager: IdentityManager,
-    private val track: suspend (TrackableSuperwallEvent) -> Unit,
+    override val tracker: suspend (TrackableSuperwallEvent) -> Unit,
     private val setUserAttributes: (Map<String, Any?>) -> Unit,
     private val sendMatchRequest: suspend (Long?) -> Either<MmpMatchResponse, NetworkError>,
-    private val configState: StateFlow<ConfigState>,
-    private val scope: CoroutineScope,
-) {
-    private val lock = Any()
-    private var startMatch: (() -> Job?)? = null
-    private var hasStartedMatch = false
-
-    /** `true` from when this launch's install match is set up until it finishes or is skipped. */
-    private val isMatchPending = MutableStateFlow(false)
-
+    override val configState: StateFlow<ConfigState>,
+    override val scope: CoroutineScope,
+    override val actor: StateActor<MMPAttributionContext, MMPAttributionState>,
+) : MMPAttributionContext {
     companion object {
         /** How long a paywall waits for an install match that's still running. */
         val presentationWaitTimeout: Duration = 2.seconds
@@ -70,7 +64,7 @@ internal class MMPAttributionManager(
      * before the match is set up still waits for it.
      */
     fun markMatchPending() {
-        isMatchPending.value = true
+        update(MMPAttributionState.Updates.MarkPending)
     }
 
     /**
@@ -93,7 +87,7 @@ internal class MMPAttributionManager(
                     mergeAcquisitionAttributesIfNeeded(it)
                 }
 
-                track(
+                tracker(
                     InternalSuperwallEvent.AttributionMatch(
                         AttributionMatchInfo(
                             provider = AttributionMatchInfo.Provider.MMP,
@@ -114,7 +108,7 @@ internal class MMPAttributionManager(
             }
 
             is Either.Failure -> {
-                track(
+                tracker(
                     InternalSuperwallEvent.AttributionMatch(
                         AttributionMatchInfo(
                             provider = AttributionMatchInfo.Provider.MMP,
@@ -132,8 +126,7 @@ internal class MMPAttributionManager(
      * ever resolved. The identity reset merges these into every new user, since the
      * backend match only succeeds within the 7-day install window.
      */
-    fun cachedAcquisitionAttributes(): Map<String, Any?> =
-        storage.read(MMPAcquisitionData)?.toAttributeValues().orEmpty()
+    fun cachedAcquisitionAttributes(): Map<String, Any?> = storage.read(MMPAcquisitionData)?.toAttributeValues().orEmpty()
 
     /**
      * Calls [startMatch] once config turns the MMP on for this app, which may be
@@ -145,12 +138,7 @@ internal class MMPAttributionManager(
      * opts back in, via [startMatchIfEnabled].
      */
     fun matchInstallOnceEnabled(startMatch: () -> Job?) {
-        synchronized(lock) { this.startMatch = startMatch }
-        isMatchPending.value = true
-        scope.launch {
-            configState.first { it.getConfig()?.isMmpEnabled == true }
-            startMatchIfEnabled()
-        }
+        effect(MMPAttributionState.Actions.MatchOnceEnabled(startMatch))
     }
 
     /**
@@ -158,27 +146,7 @@ internal class MMPAttributionManager(
      * yet. Called when config arrives and when the app turns tracking back on.
      */
     fun startMatchIfEnabled() {
-        if (configState.value.getConfig()?.isMmpEnabled != true) {
-            return
-        }
-        synchronized(lock) {
-            val start = startMatch
-            if (hasStartedMatch || start == null) {
-                return
-            }
-            val match = start()
-            if (match == null) {
-                // Skipped while opted out. Don't hold paywalls up in the meantime.
-                isMatchPending.value = false
-                return
-            }
-            hasStartedMatch = true
-            isMatchPending.value = true
-            scope.launch {
-                match.join()
-                isMatchPending.value = false
-            }
-        }
+        effect(MMPAttributionState.Actions.StartIfEnabled)
     }
 
     /**
@@ -191,17 +159,17 @@ internal class MMPAttributionManager(
         trigger: Trigger?,
         timeout: Duration = presentationWaitTimeout,
     ) {
-        if (trigger == null || !isMatchPending.value) {
+        if (trigger == null || !state.value.isMatchPending) {
             return
         }
-        if (configState.value.getConfig()?.isMmpEnabled != true) {
+        if (!isMmpEnabled) {
             return
         }
         if (!usesAcquisitionAttributes(trigger)) {
             return
         }
         withTimeoutOrNull(timeout) {
-            isMatchPending.first { !it }
+            state.first { !it.isMatchPending }
         }
     }
 

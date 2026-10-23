@@ -11,6 +11,7 @@ import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.identity.IdentityInfo
+import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.models.config.AttributionOptions
 import com.superwall.sdk.models.config.Config
@@ -93,7 +94,8 @@ class DeviceHelperIpCollectionTest {
         mockkObject(Superwall.Companion)
         every { Superwall.instance } returns superwall
 
-        collector = DeviceIpCollector(emptyList(), CoroutineScope(Dispatchers.Unconfined))
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        collector = DeviceIpCollector(emptyList(), scope, actor = SequentialActor(DeviceIpState(), scope))
         collector.record(
             mapOf(
                 "ipV4" to "203.0.113.7",

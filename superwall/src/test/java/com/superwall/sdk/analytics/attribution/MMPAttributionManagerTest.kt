@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.models.config.AttributionOptions
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.MmpAttributionOptions
@@ -83,10 +84,11 @@ class MMPAttributionManagerTest {
             val manager =
                 MMPAttributionManager(
                     configState = MutableStateFlow(ConfigState.None),
-                    scope = this,
+                    scope = backgroundScope,
+                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
                     storage = storage(),
                     identityManager = identityManager(),
-                    track = { tracked += it },
+                    tracker = { tracked += it },
                     setUserAttributes = { applied += it },
                     sendMatchRequest = { Either.Success(matched()) },
                 )
@@ -115,10 +117,11 @@ class MMPAttributionManagerTest {
             val manager =
                 MMPAttributionManager(
                     configState = MutableStateFlow(ConfigState.None),
-                    scope = this,
+                    scope = backgroundScope,
+                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
                     storage = storage(),
                     identityManager = identityManager(),
-                    track = { tracked += it },
+                    tracker = { tracked += it },
                     setUserAttributes = {},
                     sendMatchRequest = {
                         Either.Success(
@@ -141,10 +144,11 @@ class MMPAttributionManagerTest {
             val manager =
                 MMPAttributionManager(
                     configState = MutableStateFlow(ConfigState.None),
-                    scope = this,
+                    scope = backgroundScope,
+                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
                     storage = storage(),
                     identityManager = identityManager(),
-                    track = { tracked += it },
+                    tracker = { tracked += it },
                     setUserAttributes = {},
                     sendMatchRequest = { Either.Success(MmpMatchResponse(matched = false)) },
                 )
@@ -163,10 +167,11 @@ class MMPAttributionManagerTest {
             val manager =
                 MMPAttributionManager(
                     configState = MutableStateFlow(ConfigState.None),
-                    scope = this,
+                    scope = backgroundScope,
+                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
                     storage = storage(),
                     identityManager = identityManager(),
-                    track = { tracked += it },
+                    tracker = { tracked += it },
                     setUserAttributes = {},
                     sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
                 )
@@ -186,7 +191,8 @@ class MMPAttributionManagerTest {
             val manager =
                 MMPAttributionManager(
                     configState = MutableStateFlow(ConfigState.None),
-                    scope = this,
+                    scope = backgroundScope,
+                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
                     storage = storage(),
                     identityManager =
                         identityManager(
@@ -195,7 +201,7 @@ class MMPAttributionManagerTest {
                                 "acquisition_campaign" to "spring_sale",
                             ),
                         ),
-                    track = {},
+                    tracker = {},
                     setUserAttributes = { applied += it },
                     sendMatchRequest = { Either.Success(matched()) },
                 )
@@ -215,10 +221,11 @@ class MMPAttributionManagerTest {
             // First run: match resolves and caches.
             MMPAttributionManager(
                 configState = MutableStateFlow(ConfigState.None),
-                scope = this,
+                scope = backgroundScope,
+                actor = SequentialActor(MMPAttributionState(), backgroundScope),
                 storage = storage,
                 identityManager = identityManager(),
-                track = {},
+                tracker = {},
                 setUserAttributes = {},
                 sendMatchRequest = {
                     requests += 1
@@ -230,10 +237,11 @@ class MMPAttributionManagerTest {
             val cached =
                 MMPAttributionManager(
                     configState = MutableStateFlow(ConfigState.None),
-                    scope = this,
+                    scope = backgroundScope,
+                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
                     storage = storage,
                     identityManager = identityManager(),
-                    track = {},
+                    tracker = {},
                     setUserAttributes = {},
                     sendMatchRequest = {
                         requests += 1
@@ -251,10 +259,11 @@ class MMPAttributionManagerTest {
             val cached =
                 MMPAttributionManager(
                     configState = MutableStateFlow(ConfigState.None),
-                    scope = this,
+                    scope = backgroundScope,
+                    actor = SequentialActor(MMPAttributionState(), backgroundScope),
                     storage = storage(),
                     identityManager = identityManager(),
-                    track = {},
+                    tracker = {},
                     setUserAttributes = {},
                     sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
                 ).cachedAcquisitionAttributes()
@@ -273,9 +282,10 @@ class MMPAttributionManagerTest {
     ) = MMPAttributionManager(
         configState = configState,
         scope = scope,
+        actor = SequentialActor(MMPAttributionState(), scope),
         storage = storage(),
         identityManager = identityManager(),
-        track = {},
+        tracker = {},
         setUserAttributes = {},
         sendMatchRequest = { Either.Failure(NetworkError.Timeout) },
     )
@@ -312,6 +322,7 @@ class MMPAttributionManagerTest {
             configState.value = configWithMmp(enabled = true)
             runCurrent()
             manager.startMatchIfEnabled()
+            runCurrent()
 
             assertEquals(1, starts)
         }
@@ -335,6 +346,7 @@ class MMPAttributionManagerTest {
             optedOut = false
             manager.startMatchIfEnabled()
             manager.startMatchIfEnabled()
+            runCurrent()
 
             assertEquals(1, starts)
         }

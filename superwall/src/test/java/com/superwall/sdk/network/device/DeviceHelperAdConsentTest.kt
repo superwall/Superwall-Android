@@ -53,7 +53,7 @@ class DeviceHelperAdConsentTest {
     private var currentUserId: String? = "user-1"
     private var currentEntitlements = setOf(Entitlement("basic"))
     private val options = SuperwallOptions()
-    private var bannerConsent: AdConsent? = null
+    private var bannerConsent: AdConsent.Custom? = null
 
     @Before
     fun setUp() {
@@ -130,9 +130,9 @@ class DeviceHelperAdConsentTest {
 
                 When("ad consent is changed at runtime") {
                     options.adConsent =
-                        AdConsent(
-                            adUserData = AdConsentStatus.DENIED,
-                            adPersonalization = AdConsentStatus.GRANTED,
+                        AdConsent.Custom(
+                            adUserData = AdConsentStatus.Denied,
+                            adPersonalization = AdConsentStatus.Granted,
                         )
                     val second = deviceHelper.getTemplateDevice()
 
@@ -149,7 +149,7 @@ class DeviceHelperAdConsentTest {
     fun `tracking behavior NONE reports denied regardless of consent`() =
         runTest {
             Given("granted ad consent and a memoized template") {
-                options.adConsent = AdConsent()
+                options.adConsent = AdConsent.Custom()
                 deviceHelper.getTemplateDevice()
 
                 When("event tracking is set to NONE") {
@@ -172,7 +172,7 @@ class DeviceHelperAdConsentTest {
                 val cachedAfterFirst = deviceHelper.cachedTemplate
 
                 When("an IAB TCF banner stores consent for ad user data only") {
-                    bannerConsent = AdConsent(AdConsentStatus.GRANTED, AdConsentStatus.DENIED)
+                    bannerConsent = AdConsent.Custom(AdConsentStatus.Granted, AdConsentStatus.Denied)
                     val template = deviceHelper.getTemplateDevice()
 
                     Then("the template is rebuilt with the banner values and the tcf source") {
@@ -189,10 +189,10 @@ class DeviceHelperAdConsentTest {
     fun `developer consent wins over the banner`() =
         runTest {
             Given("a banner denying everything") {
-                bannerConsent = AdConsent(AdConsentStatus.DENIED, AdConsentStatus.DENIED)
+                bannerConsent = AdConsent.Custom(AdConsentStatus.Denied, AdConsentStatus.Denied)
 
                 When("the developer sets the default consent") {
-                    options.adConsent = AdConsent()
+                    options.adConsent = AdConsent.Custom()
                     val template = deviceHelper.getTemplateDevice()
 
                     Then("granted is reported from the developer source") {
@@ -212,7 +212,7 @@ class DeviceHelperAdConsentTest {
                 val cachedAfterFirst = deviceHelper.cachedTemplate
 
                 When("a banner grants everything, so only the source changes") {
-                    bannerConsent = AdConsent()
+                    bannerConsent = AdConsent.Custom()
                     val template = deviceHelper.getTemplateDevice()
 
                     Then("the template reports the tcf source") {
