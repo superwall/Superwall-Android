@@ -12,6 +12,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Fixes
 - Fix web checkout codes passed through the Play install referrer never being redeemed. A code is now redeemed once, on the first launch after install.
 
+## 2.8.8
+
+## Enhancements
+- Adds `AIRBRIDGE_ID` as an `AttributionProvider` (`airbridgeId`), for the Airbridge Device ID from `Airbridge.fetchDeviceUUID`.
+
 ## 2.8.7
 
 ## Fixes

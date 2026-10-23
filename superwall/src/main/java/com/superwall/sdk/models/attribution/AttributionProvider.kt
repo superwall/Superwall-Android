@@ -19,6 +19,10 @@ enum class AttributionProvider(
     @SerialName("singularDeviceId")
     SINGULAR_DEVICE_ID("singularDeviceId"),
 
+    /** The Airbridge Device ID, from `Airbridge.fetchDeviceUUID`. */
+    @SerialName("airbridgeId")
+    AIRBRIDGE_ID("airbridgeId"),
+
     /** The Amplitude device identifier. */
     @SerialName("amplitudeDeviceId")
     AMPLITUDE_DEVICE_ID("amplitudeDeviceId"),
