@@ -8,6 +8,7 @@ data class Api(
     val collector: Collector,
     val enrichment: Enrichment,
     val subscription: Subscriptions,
+    val mmp: Mmp,
 ) {
     companion object {
         const val version1 = "/api/v1/"
@@ -21,6 +22,7 @@ data class Api(
         collector = Collector(networkEnvironment),
         enrichment = Enrichment(networkEnvironment),
         subscription = Subscriptions(networkEnvironment),
+        mmp = Mmp(networkEnvironment),
     )
 
     data class Base(
@@ -37,6 +39,13 @@ data class Api(
         val host: String
             get() = networkEnvironment.subscriptionHost
 //            get() = "10.0.2.2:9909"
+    }
+
+    data class Mmp(
+        private val networkEnvironment: SuperwallOptions.NetworkEnvironment,
+    ) {
+        val host: String
+            get() = networkEnvironment.mmpHost
     }
 
     data class Collector(

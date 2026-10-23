@@ -78,8 +78,8 @@ class EventsQueue(
         }
     }
 
-    fun setTrackingBehavior(behavior: EventTrackingBehavior) {
-        launch {
+    suspend fun setTrackingBehavior(behavior: EventTrackingBehavior) {
+        withContext(this@EventsQueue.coroutineContext) {
             trackingBehavior = behavior
             if (behavior != EventTrackingBehavior.ALL) {
                 elements.clear()

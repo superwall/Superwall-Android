@@ -15,5 +15,8 @@ interface IdentityContext : BaseContext<IdentityState, IdentityContext> {
     val sdkContext: SdkContext
     val webPaywallRedeemer: () -> WebPaywallRedeemer
     val completeReset: () -> Unit
+
+    /** Install-scoped attributes (MMP `acquisition_*`) that every new identity keeps after a reset. */
+    val installScopedAttributes: () -> Map<String, Any?>
     val notifyUserChange: ((Map<String, Any>) -> Unit)?
 }

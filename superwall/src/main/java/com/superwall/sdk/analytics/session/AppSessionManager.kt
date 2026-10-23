@@ -56,7 +56,17 @@ class AppSessionManager(
         backgroundScope.launch {
             Superwall.instance.track(InternalSuperwallEvent.AppOpen())
         }
+        // A new session sends fresh device attributes, which already carry the current consent.
+        val willSendDeviceAttributes =
+            didTrackAppLaunch && AppSessionLogic.didStartNewSession(lastAppClose, appSessionTimeout)
         sessionCouldRefresh()
+        if (!willSendDeviceAttributes) {
+            // Catches a consent change made while the app was in the background, such as one
+            // stored by a consent banner in another process.
+            backgroundScope.launch {
+                Superwall.instance.republishAdConsentIfChanged()
+            }
+        }
     }
 
     // Called when the app goes to the background
