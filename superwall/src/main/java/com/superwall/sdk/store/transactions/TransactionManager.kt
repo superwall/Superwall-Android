@@ -1208,6 +1208,14 @@ class TransactionManager(
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
+                // Notify the paywall for every internal purchase, including one-time products,
+                // so it can run its post-purchase actions.
+                notifyOfTransactionComplete(
+                    purchaseSource.paywallInfo.cacheKey,
+                    trialEnd,
+                    product.fullIdentifier,
+                    didStartFreeTrial,
+                )
                 if (product.subscriptionPeriod == null) {
                     val nonRecurringEvent =
                         InternalSuperwallEvent.NonRecurringProductPurchase(
@@ -1216,12 +1224,6 @@ class TransactionManager(
                         )
                     track(nonRecurringEvent)
                 } else {
-                    notifyOfTransactionComplete(
-                        purchaseSource.paywallInfo.cacheKey,
-                        trialEnd,
-                        product.fullIdentifier,
-                        didStartFreeTrial,
-                    )
                     if (didStartFreeTrial) {
                         val freeTrialEvent =
                             InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
