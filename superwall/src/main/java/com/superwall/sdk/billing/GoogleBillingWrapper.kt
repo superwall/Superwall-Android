@@ -198,6 +198,11 @@ class GoogleBillingWrapper(
         }
     }
 
+    override suspend fun querySubscriptionPurchases(): List<Purchase> {
+        if (availability.value is BillingAvailability.Unavailable) return emptyList()
+        return retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() } ?: emptyList()
+    }
+
     override suspend fun consume(purchaseToken: String): Result<String> =
         suspendCoroutine { cont ->
             val useCase =

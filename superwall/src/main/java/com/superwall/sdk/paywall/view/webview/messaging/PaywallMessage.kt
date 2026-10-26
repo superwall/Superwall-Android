@@ -7,6 +7,7 @@ import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.CustomCallbackBehavior
 import com.superwall.sdk.permissions.PermissionType
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
+import com.superwall.sdk.store.ProductReplacement
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -68,6 +69,8 @@ sealed class PaywallMessage {
         val product: String,
         val productId: String,
         val shouldDismiss: Boolean,
+        // Set when the purchase should replace the user's existing subscription
+        val replacementMode: ProductReplacement.Mode? = null,
     ) : PaywallMessage()
 
     data class Custom(
@@ -213,6 +216,10 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage? {
                 json["product"]!!.jsonPrimitive.content,
                 json["product_identifier"]!!.jsonPrimitive.content,
                 json["should_dismiss"]?.jsonPrimitive?.booleanOrNull ?: true,
+                // An unknown mode falls back to a normal purchase
+                ProductReplacement.Mode.fromRawName(
+                    (json["replacement"] as? JsonObject)?.get("mode")?.jsonPrimitive?.contentOrNull,
+                ),
             )
 
         "custom" -> PaywallMessage.Custom(json["data"]!!.jsonPrimitive.content)

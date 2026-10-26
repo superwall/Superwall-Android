@@ -16,6 +16,8 @@ interface Billing {
 
     suspend fun queryAllPurchases(): List<Purchase>
 
+    suspend fun querySubscriptionPurchases(): List<Purchase>
+
     suspend fun consume(purchaseToken: String): Result<String>
 
     suspend fun getStorefrontCountryCode(): String?

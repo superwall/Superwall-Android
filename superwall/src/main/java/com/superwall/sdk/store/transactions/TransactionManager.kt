@@ -44,6 +44,7 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.PurchasingProductdIds
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -100,6 +101,8 @@ class TransactionManager(
         data class Internal(
             val productId: String,
             val state: PaywallViewState,
+            // Set when the paywall asks to replace the user's existing subscription
+            val replacementMode: ProductReplacement.Mode? = null,
         ) : PurchaseSource() {
             val paywallInfo: PaywallInfo
                 get() = state.info
@@ -378,6 +381,7 @@ class TransactionManager(
             activityProvider.getCurrentActivity()
                 ?: return PurchaseResult.Failed("Activity not found - required for starting the billing flow")
 
+        val replacement = resolveReplacement(product, purchaseSource)
         prepareToPurchase(product, purchaseSource)
         val result =
             storeManager.purchaseController.purchase(
@@ -385,6 +389,7 @@ class TransactionManager(
                 product = product,
                 offerId = rawStoreProduct.offerId,
                 basePlanId = rawStoreProduct.basePlanId,
+                replacement = replacement,
             )
 
         if (purchaseSource is PurchaseSource.ExternalPurchase &&
@@ -445,6 +450,70 @@ class TransactionManager(
             }
         }
         return result
+    }
+
+    /**
+     * Finds the subscription a purchase should replace when the paywall asked for a
+     * replacement. Only an active subscription that shares an entitlement with [product]
+     * is replaced; without one, the purchase is a normal purchase.
+     */
+    private suspend fun resolveReplacement(
+        product: StoreProduct,
+        purchaseSource: PurchaseSource,
+    ): ProductReplacement? {
+        val mode = (purchaseSource as? PurchaseSource.Internal)?.replacementMode ?: return null
+        val entitlementIds = entitlementsById(product.fullIdentifier).map { it.id }.toSet()
+        if (entitlementIds.isEmpty()) {
+            log(message = "Not replacing a subscription: ${product.fullIdentifier} has no entitlements.")
+            return null
+        }
+
+        val replacement =
+            if (product.isCustomProduct) {
+                // Custom store subscriptions aren't visible to Play, so go by the active
+                // entitlements the PurchaseController reported.
+                val shared =
+                    (subscriptionStatus() as? SubscriptionStatus.Active)
+                        ?.entitlements
+                        ?.filter { it.id in entitlementIds }
+                        .orEmpty()
+                if (shared.isEmpty()) {
+                    null
+                } else {
+                    ProductReplacement(
+                        mode = mode,
+                        oldProductId = shared.firstNotNullOfOrNull { it.latestProductId },
+                        oldPurchaseToken = null,
+                    )
+                }
+            } else {
+                // Only a subscription can replace a subscription
+                if (product.rawStoreProduct?.underlyingProductDetails?.productType != BillingClient.ProductType.SUBS) {
+                    return null
+                }
+                storeManager.billing
+                    .querySubscriptionPurchases()
+                    .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                    .filter { purchase ->
+                        purchase.products.any { productId ->
+                            entitlementsById(productId).any { it.id in entitlementIds }
+                        }
+                    }.maxByOrNull { it.purchaseTime }
+                    ?.let {
+                        ProductReplacement(
+                            mode = mode,
+                            oldProductId = it.products.firstOrNull(),
+                            oldPurchaseToken = it.purchaseToken,
+                        )
+                    }
+            }
+
+        log(
+            message =
+                replacement?.let { "Replacing ${it.oldProductId} with ${product.fullIdentifier} (${mode.rawName})." }
+                    ?: "Not replacing a subscription: none shares an entitlement with ${product.fullIdentifier}.",
+        )
+        return replacement
     }
 
     /**
@@ -532,6 +601,7 @@ class TransactionManager(
                 product = product,
                 basePlanId = null,
                 offerId = null,
+                replacement = resolveReplacement(product, purchaseSource),
             )
 
         // For an external-only controller the dev's flow owns the rest of the lifecycle; still

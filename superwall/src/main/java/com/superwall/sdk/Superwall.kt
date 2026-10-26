@@ -1475,6 +1475,7 @@ class Superwall(
                                     Internal(
                                         paywallEvent.productId,
                                         paywallView.controller.state,
+                                        replacementMode = paywallEvent.replacementMode,
                                     ),
                                     shouldDismiss = paywallEvent.shouldDismiss,
                                 )

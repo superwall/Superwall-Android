@@ -297,6 +297,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Purchased()
 
@@ -402,6 +403,7 @@ class TransactionManagerTest {
                         any(),
                         any<StoreProduct>(),
                         "basePlan",
+                        any(),
                         any(),
                     )
                 } returns PurchaseResult.Purchased()
@@ -528,6 +530,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Failed("Test failure")
 
@@ -584,6 +587,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Failed("Test failure")
 
@@ -634,6 +638,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Pending()
 
@@ -679,6 +684,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Cancelled()
 
@@ -723,6 +729,7 @@ class TransactionManagerTest {
                     purchaseController.purchase(
                         any(),
                         any<StoreProduct>(),
+                        any(),
                         any(),
                         any(),
                     )
@@ -914,6 +921,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Purchased()
 
@@ -960,6 +968,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         any(),
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Purchased()
 
@@ -1003,6 +1012,7 @@ class TransactionManagerTest {
                     purchaseController.purchase(
                         any(),
                         any<StoreProduct>(),
+                        any(),
                         any(),
                         any(),
                     )
@@ -1053,6 +1063,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Purchased()
 
@@ -1100,6 +1111,7 @@ class TransactionManagerTest {
                         any(),
                         any<StoreProduct>(),
                         "basePlan",
+                        any(),
                         any(),
                     )
                 } returns PurchaseResult.Purchased()
