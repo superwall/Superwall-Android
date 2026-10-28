@@ -5,15 +5,26 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.network.NetworkRequestData.HttpMethod
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
+import kotlin.coroutines.CoroutineContext
 
 class RequestExecutor(
+    // HttpURLConnection is blocking, so requests always run on this context regardless
+    // of the caller's dispatcher. This keeps every network-backed suspend API main-safe.
+    private val ioContext: CoroutineContext = Dispatchers.IO,
     val buildHeaders: suspend (isForDebugging: Boolean, requestId: String) -> Map<String, String>,
 ) {
-    suspend fun execute(requestData: NetworkRequestData<*>): Either<RequestResult, NetworkError> {
+    suspend fun execute(requestData: NetworkRequestData<*>): Either<RequestResult, NetworkError> =
+        withContext(ioContext) {
+            executeBlocking(requestData)
+        }
+
+    private suspend fun executeBlocking(requestData: NetworkRequestData<*>): Either<RequestResult, NetworkError> {
         try {
             val headers = buildHeaders(requestData.isForDebugging, requestData.requestId)
             val request =
@@ -60,7 +71,7 @@ class RequestExecutor(
                 HttpURLConnection.HTTP_MOVED_PERM, HttpURLConnection.HTTP_MOVED_TEMP, HttpURLConnection.HTTP_SEE_OTHER -> {
                     val location = request.getHeaderField("Location")
                     request.disconnect()
-                    return execute(requestData.copyWithUrl(URI(location)))
+                    return executeBlocking(requestData.copyWithUrl(URI(location)))
                 }
                 else -> {
                     Logger.debug(

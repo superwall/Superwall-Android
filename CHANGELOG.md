@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fixes paywalls not running post-purchase actions (e.g. navigating to a thank-you page) after a one-time product purchase, because `transaction_complete` was only sent to the paywall for subscriptions.
+- Fixes `getProducts()` (and other network-backed suspend APIs) not being main-safe: network requests now always run on `Dispatchers.IO`, so the `/products` fallback no longer fails with `NetworkOnMainThreadException` when called from the main thread.
 
 ## 2.8.8
 
