@@ -213,6 +213,20 @@ class MMPAttributionManagerTest {
         }
 
     @Test
+    fun `a match that throws still finishes so paywalls stop waiting`() =
+        runTest {
+            val manager =
+                manager(backgroundScope, sendMatchRequest = { error("failed to build request") })
+
+            manager.matchInstallOnceEnabled()
+            runCurrent()
+
+            assertEquals(MMPAttributionState.Match.Finished, manager.state.value.match)
+            assertFalse(manager.state.value.isMatchPending)
+            assertNull(stored[DidCompleteMMPInstallAttributionRequest.key])
+        }
+
+    @Test
     fun `attributes already on the user are not re-applied`() =
         runTest {
             val applied = mutableListOf<Map<String, Any?>>()

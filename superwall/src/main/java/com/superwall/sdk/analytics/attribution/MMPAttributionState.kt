@@ -118,56 +118,61 @@ internal data class MMPAttributionState(
          * request is tried again on the next launch while the install window is open.
          */
         object MatchInstall : Actions({
-            when (val result = sendMatchRequest(readInstallReferrerClickId())) {
-                is Either.Success -> {
-                    val response = result.value
+            // Finish even if something here throws, or `isMatchPending` would stay true and
+            // every paywall using `acquisition_*` would wait out its full timeout.
+            try {
+                when (val result = sendMatchRequest(readInstallReferrerClickId())) {
+                    is Either.Success -> {
+                        val response = result.value
 
-                    response.acquisitionAttributes?.let {
-                        persist(MMPAcquisitionData, it)
-                        val attributes = it.toAttributeValues()
-                        val currentAttributes = userAttributes()
-                        val hasChanges =
-                            attributes.any { (key, value) ->
-                                currentAttributes[key]?.toString() != value.toString()
+                        response.acquisitionAttributes?.let {
+                            persist(MMPAcquisitionData, it)
+                            val attributes = it.toAttributeValues()
+                            val currentAttributes = userAttributes()
+                            val hasChanges =
+                                attributes.any { (key, value) ->
+                                    currentAttributes[key]?.toString() != value.toString()
+                                }
+                            if (hasChanges) {
+                                setUserAttributes(attributes)
                             }
-                        if (hasChanges) {
-                            setUserAttributes(attributes)
                         }
+
+                        tracker(
+                            InternalSuperwallEvent.AttributionMatch(
+                                AttributionMatchInfo(
+                                    provider = AttributionMatchInfo.Provider.MMP,
+                                    matched = response.matched,
+                                    source =
+                                        response.acquisitionAttributes.readString("acquisition_source")
+                                            ?: response.network,
+                                    confidence = response.confidence,
+                                    matchScore = response.matchScore,
+                                    reason = response.breakdown.readString("reason"),
+                                ),
+                            ),
+                        )
+
+                        // A successful response means the request was processed, even if no
+                        // attribution match was found.
+                        persist(DidCompleteMMPInstallAttributionRequest, true)
                     }
 
-                    tracker(
-                        InternalSuperwallEvent.AttributionMatch(
-                            AttributionMatchInfo(
-                                provider = AttributionMatchInfo.Provider.MMP,
-                                matched = response.matched,
-                                source =
-                                    response.acquisitionAttributes.readString("acquisition_source")
-                                        ?: response.network,
-                                confidence = response.confidence,
-                                matchScore = response.matchScore,
-                                reason = response.breakdown.readString("reason"),
+                    is Either.Failure -> {
+                        tracker(
+                            InternalSuperwallEvent.AttributionMatch(
+                                AttributionMatchInfo(
+                                    provider = AttributionMatchInfo.Provider.MMP,
+                                    matched = false,
+                                    reason = "request_failed",
+                                ),
                             ),
-                        ),
-                    )
-
-                    // A successful response means the request was processed, even if no
-                    // attribution match was found.
-                    persist(DidCompleteMMPInstallAttributionRequest, true)
+                        )
+                    }
                 }
-
-                is Either.Failure -> {
-                    tracker(
-                        InternalSuperwallEvent.AttributionMatch(
-                            AttributionMatchInfo(
-                                provider = AttributionMatchInfo.Provider.MMP,
-                                matched = false,
-                                reason = "request_failed",
-                            ),
-                        ),
-                    )
-                }
+            } finally {
+                update(Updates.Finish)
             }
-            update(Updates.Finish)
         })
     }
 }
