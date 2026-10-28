@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import java.util.concurrent.Executors
 import kotlin.time.Duration.Companion.seconds
@@ -20,15 +21,15 @@ class RequestExecutorTest {
     fun `execute runs off the caller's dispatcher`() =
         runBlocking {
             Given("a request executor with a dedicated io context") {
-                val ioThreadName = "test-io"
+                var ioThread: Thread? = null
                 val ioDispatcher =
                     Executors
-                        .newSingleThreadExecutor { Thread(it, ioThreadName) }
+                        .newSingleThreadExecutor { Thread(it, "test-io").also { t -> ioThread = t } }
                         .asCoroutineDispatcher()
-                var headersThread: String? = null
+                var headersThread: Thread? = null
                 val executor =
                     RequestExecutor(ioContext = ioDispatcher) { _, _ ->
-                        headersThread = Thread.currentThread().name
+                        headersThread = Thread.currentThread()
                         emptyMap()
                     }
                 val requestData =
@@ -42,11 +43,12 @@ class RequestExecutorTest {
                     val callerThread =
                         withContext(callerContext) {
                             executor.execute(requestData)
-                            Thread.currentThread().name
+                            Thread.currentThread()
                         }
 
                     Then("the request work runs on the io context, not the caller's thread") {
-                        assertEquals(ioThreadName, headersThread)
+                        assertNotNull(headersThread)
+                        assertEquals(ioThread, headersThread)
                         assertNotEquals(callerThread, headersThread)
                     }
                     callerContext.close()
