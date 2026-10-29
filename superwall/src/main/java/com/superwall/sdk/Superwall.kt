@@ -51,6 +51,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.device.InterfaceStyle
+import com.superwall.sdk.notifications.NotificationTokenLogic
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.PresentationItems
@@ -1080,6 +1081,112 @@ class Superwall(
      * @deprecated Use the static method [Superwall.handleDeepLink] instead.
      */
     fun handleDeepLink(uri: Uri): Result<Boolean> = DeepLinkRouter.handleDeepLink(uri)
+    //endregion
+
+    //region Notifications
+
+    /**
+     * Registers the device's Firebase Cloud Messaging (FCM) token with Superwall, so
+     * Superwall can send it push notifications.
+     *
+     * Call this from your `FirebaseMessagingService.onNewToken`, and with
+     * `FirebaseMessaging.getInstance().token` when your app starts. It's safe to call on
+     * every launch: an unchanged token is only sent again once a day, to tell Superwall the
+     * device is still registered.
+     *
+     * Call [configure] first: [Superwall.instance] throws until it has been called. If
+     * `onNewToken` can run before your app configures Superwall, for example when the
+     * service starts in the background, keep the token and pass it in once you've configured.
+     *
+     * ```kotlin
+     * override fun onNewToken(token: String) {
+     *     Superwall.instance.setPushToken(token)
+     * }
+     * ```
+     *
+     * The token only travels to Superwall's servers. It never appears in
+     * [SuperwallDelegate.handleSuperwallEvent], [SuperwallDelegate.handleLog], user
+     * attributes or audience filters. Along with it, Superwall receives whether the app can
+     * post notifications, which is checked again each time the app comes to the foreground.
+     *
+     * The SDK has no Firebase dependency and doesn't request notification permission itself.
+     *
+     * @param token The FCM registration token.
+     */
+    fun setPushToken(token: String) {
+        withErrorTracking {
+            dependencyContainer.notificationTokenManager.setPushToken(token)
+        }
+    }
+
+    /**
+     * Stops Superwall sending push notifications to this device.
+     *
+     * The choice is remembered across launches, [reset] and [identify] until you call
+     * [optInToNotifications]. It doesn't change the system's notification permission.
+     */
+    fun optOutOfNotifications() {
+        withErrorTracking {
+            dependencyContainer.notificationTokenManager.setEnabled(false)
+        }
+    }
+
+    /**
+     * Lets Superwall send push notifications to this device again after
+     * [optOutOfNotifications].
+     *
+     * Devices are opted in by default, so you only need this to undo an opt-out.
+     */
+    fun optInToNotifications() {
+        withErrorTracking {
+            dependencyContainer.notificationTokenManager.setEnabled(true)
+        }
+    }
+
+    /**
+     * Tells Superwall the user opened a notification, so it can measure the notifications it
+     * sends.
+     *
+     * Call this with the intent that launched your activity from a notification tap, for
+     * example from `onCreate` and `onNewIntent`. Notifications that Superwall didn't send are
+     * ignored, so you can pass every intent in.
+     *
+     * This works as is for notifications FCM displays itself, whose tap intent carries the
+     * notification's data keys as extras. If your app builds the notification itself in
+     * `onMessageReceived`, copy the `sw` data value into the extras of the tap
+     * `PendingIntent`'s intent:
+     *
+     * ```kotlin
+     * val intent = Intent(this, MainActivity::class.java)
+     *     .putExtra("sw", message.data["sw"])
+     * ```
+     *
+     * @param intent The intent whose extras carry the notification's data.
+     */
+    fun handleNotificationOpen(intent: Intent) {
+        withErrorTracking {
+            val superwallData =
+                intent.getStringExtra(NotificationTokenLogic.SUPERWALL_DATA_KEY) ?: return@withErrorTracking
+            handleNotificationOpen(mapOf(NotificationTokenLogic.SUPERWALL_DATA_KEY to superwallData))
+        }
+    }
+
+    /**
+     * Tells Superwall the user opened a notification, so it can measure the notifications it
+     * sends.
+     *
+     * Use this when you have the data map of a notification the user tapped. Call it only
+     * for a tap: never from `onMessageReceived` when a message is delivered, which would
+     * count every delivery as an open. Notifications that Superwall didn't send are ignored,
+     * so you can pass every tapped one in.
+     *
+     * @param data The notification's FCM data.
+     */
+    fun handleNotificationOpen(data: Map<String, String>) {
+        withErrorTracking {
+            dependencyContainer.notificationTokenManager.trackOpen(data)
+        }
+    }
     //endregion
 
     //region Preloading

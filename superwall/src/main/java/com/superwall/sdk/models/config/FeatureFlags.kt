@@ -21,6 +21,8 @@ data class FeatureFlags(
     @SerialName("enable_multiple_paywall_urls") var enableMultiplePaywallUrls: Boolean,
     @SerialName("enable_cel_logging") var enableCELLogging: Boolean,
     @SerialName("web_2_app") var web2App: Boolean,
+    /** Whether the SDK reports the device's push token to Superwall, so Superwall can send it notifications. */
+    @SerialName("user_notifications") var userNotifications: Boolean = false,
 )
 
 fun List<RawFeatureFlag>.value(
