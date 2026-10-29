@@ -58,18 +58,17 @@ data class DeviceTemplate(
     val appBuildString: String,
     val appBuildStringNumber: Int?,
     val interfaceStyleMode: String,
-    @SerialName("capabilities")
-    val capabilities: List<String>,
-    @SerialName("capabilities_config")
-    val capabilitiesConfig: JsonElement,
-    @SerialName("platform_wrapper")
-    val platformWrapper: String,
-    @SerialName("platform_wrapper_version")
-    val platformWrapperVersion: String,
+    @SerialName("capabilities") val capabilities: List<String>,
+    @SerialName("capabilities_config") val capabilitiesConfig: JsonElement,
+    @SerialName("platform_wrapper") val platformWrapper: String,
+    @SerialName("platform_wrapper_version") val platformWrapperVersion: String,
     val deviceTier: String,
     val reviewRequestCount: Int,
     val kotlinVersion: String,
     val storeFrontCountryCode: String? = null,
+    @SerialName("adUserDataConsent") val adUserDataConsent: String = "granted",
+    @SerialName("adPersonalizationConsent") val adPersonalizationConsent: String = "granted",
+    @SerialName("adConsentSource") val adConsentSource: String = "default",
 ) {
     fun toDictionary(json: Json): Map<String, Any> = json.encodeToJsonElement(serializer(), this).jsonObject.toNullableTypedMap()
 }

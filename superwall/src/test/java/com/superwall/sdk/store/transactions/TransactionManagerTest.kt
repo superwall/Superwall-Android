@@ -10,6 +10,7 @@ import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
+import com.superwall.sdk.billing.BillingError
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
@@ -26,6 +27,7 @@ import com.superwall.sdk.products.mockProductDetails
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.PurchasingProductdIds
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -33,10 +35,12 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import io.mockk.MockKAnnotations
 import io.mockk.clearMocks
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.slot
 import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
@@ -82,6 +86,7 @@ class TransactionManagerTest {
     private val stateUpdates = mutableListOf<Pair<String, PaywallViewState.Updates>>()
     private val transactionCompleteCalls = mutableListOf<Pair<String, Long?>>()
     private val transactionCompleteTrialFlags = mutableListOf<Boolean>()
+    private val transactionCompleteProductIds = mutableListOf<String>()
     private var subscriptionStatusValue: SubscriptionStatus = SubscriptionStatus.Active(setOf(Entitlement("test")))
     private var webEntitlementsValue: Set<Entitlement> = emptySet()
     private val entitlementsMap = mutableMapOf<String, Set<Entitlement>>()
@@ -98,6 +103,7 @@ class TransactionManagerTest {
         stateUpdates.clear()
         transactionCompleteCalls.clear()
         transactionCompleteTrialFlags.clear()
+        transactionCompleteProductIds.clear()
         refreshReceiptCalled = false
         showRestoreDialogCalled = false
         webEntitlementsValue = emptySet()
@@ -141,6 +147,7 @@ class TransactionManagerTest {
                 notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
                     transactionCompleteCalls.add(cacheKey to trialEndDate)
                     transactionCompleteTrialFlags.add(didStartFreeTrial)
+                    transactionCompleteProductIds.add(id)
                 },
             )
     }
@@ -417,7 +424,9 @@ class TransactionManagerTest {
     @Test
     fun tryToRestore_restoredWithWebEntitlementsButInactiveStatus_tracksRestoreComplete() =
         runTest {
-            Given("a restore that succeeds while the SDK subscription status is inactive but the user holds web-granted entitlements covering the paywall") {
+            Given(
+                "a restore that succeeds while the SDK subscription status is inactive but the user holds web-granted entitlements covering the paywall",
+            ) {
                 // Reproduces the app2web + external purchase controller bug: a successful web
                 // redemption triggers a native restore. The redeemed Stripe entitlement lives in
                 // the web entitlements (merged CustomerInfo) but was never written into
@@ -502,7 +511,7 @@ class TransactionManagerTest {
                 val product = mockStoreProduct(productId, rawProduct)
                 every { storeManager.getProductFromCache(productId) } returns product
                 coEvery {
-                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any())
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
                 } returns PurchaseResult.Purchased()
                 every { factory.makeHasExternalPurchaseController() } returns true
                 every { factory.makeTransactionVerifier() } returns
@@ -535,6 +544,206 @@ class TransactionManagerTest {
 
     // endregion
 
+    // region product replacement
+
+    private fun purchaseWithReplacement(
+        mode: ProductReplacement.Mode?,
+        existingPurchases: List<Purchase>,
+        newProductId: String = "annual",
+    ): ProductReplacement? {
+        val rawProduct =
+            mockk<RawStoreProduct>(relaxed = true) {
+                every { fullIdentifier } returns newProductId
+                every { underlyingProductDetails } returns mockProductDetails(newProductId)
+            }
+        every { storeManager.getProductFromCache(newProductId) } returns mockStoreProduct(newProductId, rawProduct)
+        coEvery { storeManager.billing.querySubscriptionPurchases() } returns Result.success(existingPurchases)
+        val replacement = slot<ProductReplacement?>()
+        coEvery {
+            storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), captureNullable(replacement))
+        } returns PurchaseResult.Cancelled()
+
+        runTest {
+            transactionManager.purchase(
+                TransactionManager.PurchaseSource.Internal(newProductId, mockk(relaxed = true), mode),
+            )
+        }
+        return replacement.captured
+    }
+
+    private fun mockSubscriptionPurchase(
+        productId: String,
+        token: String,
+        purchaseTime: Long,
+        state: Int = Purchase.PurchaseState.PURCHASED,
+    ): Purchase =
+        mockk {
+            every { products } returns listOf(productId)
+            every { purchaseToken } returns token
+            every { this@mockk.purchaseTime } returns purchaseTime
+            every { purchaseState } returns state
+        }
+
+    @Test
+    fun purchase_withReplacement_replacesLatestSubscriptionSharingAnEntitlement() {
+        Given("a user with two active subscriptions that share the new product's entitlement and one that doesn't") {
+            entitlementsMap["annual"] = setOf(Entitlement("pro"))
+            entitlementsMap["monthly"] = setOf(Entitlement("pro"))
+            entitlementsMap["weekly"] = setOf(Entitlement("pro"))
+            entitlementsMap["other"] = setOf(Entitlement("other"))
+            val purchases =
+                listOf(
+                    mockSubscriptionPurchase("weekly", "weekly_token", purchaseTime = 1),
+                    mockSubscriptionPurchase("monthly", "monthly_token", purchaseTime = 2),
+                    mockSubscriptionPurchase("other", "other_token", purchaseTime = 3),
+                )
+
+            When("the paywall purchases the annual product with a replacement") {
+                val replacement = purchaseWithReplacement(ProductReplacement.Mode.CHARGE_PRORATED, purchases)
+
+                Then("the most recent subscription sharing the entitlement is replaced") {
+                    assertEquals(
+                        ProductReplacement(ProductReplacement.Mode.CHARGE_PRORATED, "monthly", "monthly_token"),
+                        replacement,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun purchase_withReplacement_withoutSharedEntitlement_purchasesNormally() {
+        Given("a user whose only subscription grants a different entitlement") {
+            entitlementsMap["annual"] = setOf(Entitlement("pro"))
+            entitlementsMap["other"] = setOf(Entitlement("other"))
+            val purchases = listOf(mockSubscriptionPurchase("other", "other_token", purchaseTime = 1))
+
+            When("the paywall purchases the annual product with a replacement") {
+                val replacement = purchaseWithReplacement(ProductReplacement.Mode.DEFAULT, purchases)
+
+                Then("no replacement is passed to the purchase controller") {
+                    assertNull(replacement)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun purchase_withReplacement_ignoresPendingSubscriptions() {
+        Given("a user whose subscription sharing the entitlement is still pending") {
+            entitlementsMap["annual"] = setOf(Entitlement("pro"))
+            entitlementsMap["monthly"] = setOf(Entitlement("pro"))
+            val purchases =
+                listOf(
+                    mockSubscriptionPurchase("monthly", "monthly_token", 1, Purchase.PurchaseState.PENDING),
+                )
+
+            When("the paywall purchases the annual product with a replacement") {
+                val replacement = purchaseWithReplacement(ProductReplacement.Mode.DEFAULT, purchases)
+
+                Then("no replacement is passed to the purchase controller") {
+                    assertNull(replacement)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun purchase_withReplacement_whenSubscriptionQueryFails_doesNotPurchase() {
+        Given("a user whose subscriptions Play can't report") {
+            entitlementsMap["annual"] = setOf(Entitlement("pro"))
+            val rawProduct =
+                mockk<RawStoreProduct>(relaxed = true) {
+                    every { fullIdentifier } returns "annual"
+                    every { underlyingProductDetails } returns mockProductDetails("annual")
+                }
+            every { storeManager.getProductFromCache("annual") } returns mockStoreProduct("annual", rawProduct)
+            coEvery { storeManager.billing.querySubscriptionPurchases() } returns
+                Result.failure(BillingError.UnknownError)
+
+            When("the paywall purchases the annual product with a replacement") {
+                var result: PurchaseResult? = null
+                runTest {
+                    result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(
+                                "annual",
+                                mockk(relaxed = true),
+                                ProductReplacement.Mode.DEFAULT,
+                            ),
+                        )
+                }
+
+                Then("the purchase fails instead of buying a second subscription") {
+                    assertTrue(result is PurchaseResult.Failed)
+                    val controller = storeManager.purchaseController
+                    coVerify(exactly = 0) {
+                        controller.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun purchase_withReplacement_ofOneTimeProduct_purchasesNormally() {
+        Given("a one-time product that grants the entitlement of the user's subscription") {
+            entitlementsMap["lifetime"] = setOf(Entitlement("pro"))
+            entitlementsMap["monthly"] = setOf(Entitlement("pro"))
+            val rawProduct =
+                mockk<RawStoreProduct>(relaxed = true) {
+                    every { fullIdentifier } returns "lifetime"
+                    every { underlyingProductDetails } returns mockProductDetails("lifetime")
+                }
+            val product = mockStoreProduct("lifetime", rawProduct)
+            every { product.subscriptionPeriod } returns null
+            every { storeManager.getProductFromCache("lifetime") } returns product
+            val replacement = slot<ProductReplacement?>()
+            coEvery {
+                storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), captureNullable(replacement))
+            } returns PurchaseResult.Cancelled()
+
+            When("the paywall purchases it with a replacement") {
+                runTest {
+                    transactionManager.purchase(
+                        TransactionManager.PurchaseSource.Internal(
+                            "lifetime",
+                            mockk(relaxed = true),
+                            ProductReplacement.Mode.DEFAULT,
+                        ),
+                    )
+                }
+
+                Then("it is a normal purchase and Play isn't asked for subscriptions") {
+                    assertNull(replacement.captured)
+                    val billing = storeManager.billing
+                    coVerify(exactly = 0) { billing.querySubscriptionPurchases() }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun purchase_withoutReplacementMode_doesNotQuerySubscriptions() {
+        Given("a user with a subscription sharing the new product's entitlement") {
+            entitlementsMap["annual"] = setOf(Entitlement("pro"))
+            entitlementsMap["monthly"] = setOf(Entitlement("pro"))
+            val purchases = listOf(mockSubscriptionPurchase("monthly", "monthly_token", purchaseTime = 1))
+
+            When("the paywall purchases the annual product without a replacement") {
+                val replacement = purchaseWithReplacement(mode = null, existingPurchases = purchases)
+
+                Then("it is a normal purchase") {
+                    assertNull(replacement)
+                    val billing = storeManager.billing
+                    coVerify(exactly = 0) { billing.querySubscriptionPurchases() }
+                }
+            }
+        }
+    }
+
+    // endregion
+
     // region trial reminder regression (2.7.13: reminder scheduled without a trial)
 
     @Test
@@ -563,7 +772,7 @@ class TransactionManagerTest {
                     }
                 every { storeManager.getProductFromCache(productId) } returns product
                 coEvery {
-                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any())
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
                 } returns PurchaseResult.Purchased()
 
                 When("the purchase completes") {
@@ -613,7 +822,7 @@ class TransactionManagerTest {
                     }
                 every { storeManager.getProductFromCache(productId) } returns product
                 coEvery {
-                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any())
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
                 } returns PurchaseResult.Purchased()
 
                 When("the purchase completes") {
@@ -632,6 +841,64 @@ class TransactionManagerTest {
                         And("a free trial start is tracked") {
                             assertTrue(trackedEvents.any { it is InternalSuperwallEvent.FreeTrialStart })
                             assertFalse(trackedEvents.any { it is InternalSuperwallEvent.SubscriptionStart })
+                        }
+                    }
+                }
+            }
+        }
+
+    // endregion
+
+    // region one-time product post-purchase actions
+
+    @Test
+    fun purchase_internalOneTimeProduct_notifiesPaywallOfTransactionComplete() =
+        runTest {
+            Given("a paywall purchase of a one-time product with post-purchase actions") {
+                // The paywall sends should_dismiss = false and waits for transaction_complete to
+                // run its onPurchase actions, so the paywall must be notified for one-time
+                // products too, not only for subscriptions.
+                val productId = "lifetime_product"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                        every { selectedOffer } returns null
+                    }
+                val product =
+                    mockk<StoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { hasFreeTrial } returns false
+                        every { rawStoreProduct } returns rawProduct
+                        every { subscriptionPeriod } returns null
+                        every { trialPeriodEndDate } returns null
+                    }
+                every { storeManager.getProductFromCache(productId) } returns product
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                } returns PurchaseResult.Purchased()
+
+                When("the purchase completes without dismissing the paywall") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(
+                                productId,
+                                mockk(relaxed = true),
+                            ),
+                            shouldDismiss = false,
+                        )
+
+                    Then("the paywall is notified that the transaction completed") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        assertEquals(listOf(productId), transactionCompleteProductIds)
+                        assertNull(transactionCompleteCalls.single().second)
+                        assertEquals(listOf(false), transactionCompleteTrialFlags)
+                        And("a non-recurring purchase is tracked and the paywall is not dismissed") {
+                            assertTrue(trackedEvents.any { it is InternalSuperwallEvent.NonRecurringProductPurchase })
+                            assertFalse(trackedEvents.any { it is InternalSuperwallEvent.SubscriptionStart })
+                            assertFalse(trackedEvents.any { it is InternalSuperwallEvent.FreeTrialStart })
+                            assertTrue(dismissCalls.isEmpty())
                         }
                     }
                 }

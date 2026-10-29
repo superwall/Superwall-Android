@@ -17,6 +17,8 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.config.options.AdConsent
+import com.superwall.sdk.config.options.AdConsentPublisher
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.customercenter.CustomerCenterConfiguration
@@ -73,6 +75,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDe
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.RequestPermission
+import com.superwall.sdk.storage.DidTrackAppInstall
 import com.superwall.sdk.storage.LatestCustomerInfo
 import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.ReviewData
@@ -167,24 +170,65 @@ class Superwall(
     var eventTrackingBehavior: EventTrackingBehavior
         get() = options.eventTrackingBehavior
         set(newValue) {
+            val previous = options.eventTrackingBehavior
             options.eventTrackingBehavior = newValue
-
-            dependencyContainer.eventsQueue.setTrackingBehavior(newValue)
 
             mainScope.launch {
                 paywallView?.webView?.messageHandler?.passEventTrackingBehaviorToWebView(newValue)
             }
 
-            // When opting out entirely, don't emit the config-attributes event —
-            // it would otherwise transmit attributes right after the opt-out.
-            if (newValue == EventTrackingBehavior.NONE) {
+            if (newValue != EventTrackingBehavior.NONE) {
+                dependencyContainer.mmpAttributionManager.startMatchIfEnabled()
+            }
+
+            adConsentPublisher.trackingBehaviorChanged(previous, newValue)
+        }
+
+    /**
+     * The user's consent for how their data is used for advertising, which Superwall
+     * passes on with the conversions it uploads to Google Ads and Meta.
+     *
+     * While `adConsent` is [AdConsent.Unspecified], the default, the SDK uses the consent
+     * stored by an IAB TCF consent banner when GDPR applies, and otherwise defaults to
+     * granted; apps with users in the EEA, UK or Switzerland that don't use a TCF banner
+     * should set an [AdConsent.Custom] from their consent flow. Where the values came from
+     * is reported in the `adConsentSource` device attribute (`developer`, `tcf` or `default`).
+     *
+     * Both are reported as denied while [eventTrackingBehavior] is [EventTrackingBehavior.NONE].
+     *
+     * You can also set the initial value via [SuperwallOptions.adConsent] before calling
+     * [configure].
+     */
+    var adConsent: AdConsent
+        get() = options.adConsent
+        set(newValue) {
+            options.adConsent = newValue
+
+            if (options.eventTrackingBehavior == EventTrackingBehavior.NONE) {
                 return
             }
 
-            ioScope.launch {
-                track(dependencyContainer.makeConfigAttributes())
-            }
+            adConsentPublisher.publish()
         }
+
+    /**
+     * Re-sends device attributes when the ad consent [sent] carried differs from the current
+     * consent. Called after every device attributes send.
+     */
+    internal fun reconcileAdConsentAfterPublish(sent: Map<String, Any>) {
+        adConsentPublisher.reconcileAfterSend(sent)
+    }
+
+    /**
+     * Re-sends device attributes when the current ad consent differs from the last one sent.
+     * Called when the app comes to the foreground, like iOS.
+     */
+    internal fun republishAdConsentIfChanged() {
+        adConsentPublisher.republishIfChanged()
+    }
+
+    private val adConsentPublisher: AdConsentPublisher
+        get() = dependencyContainer.adConsentPublisher
 
     /**
      * The presented paywall view.
@@ -422,8 +466,7 @@ class Superwall(
     /**
      * Properties stored about the device session, set internally by Superwall
      * */
-    suspend fun deviceAttributes(): Map<String, Any?> =
-        dependencyContainer.makeSessionDeviceAttributes()
+    suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
 
     /**
      * Gets the current integration identifiers as a map.
@@ -680,7 +723,6 @@ class Superwall(
     internal val dependencyContainer: DependencyContainer
         get() = _dependencyContainer
 
-
     // / Used to serially execute register calls.
     internal val serialTaskManager = SerialTaskManager()
 
@@ -715,8 +757,33 @@ class Superwall(
 
                 addListeners()
 
+                // Off the main thread: the first read loads the app's default preferences.
+                ioScope.launch {
+                    dependencyContainer.tcfConsentReader.observeReportedChanges(
+                        options = { options },
+                        onChange = { adConsentPublisher.publish() },
+                    )
+                }
+
                 ioScope.launch {
                     withErrorTracking {
+                        val hadTrackedAppInstallBeforeConfigure =
+                            dependencyContainer.storage.read(DidTrackAppInstall) ?: false
+
+                        // The eligibility check runs before anything else can stall, whatever
+                        // the config or tracking setting says: it records that this install may
+                        // be matched, which a later launch relies on if this one is killed before
+                        // config arrives. Only the request waits for config to enable the MMP.
+                        val shouldMatchInstall =
+                            dependencyContainer.storage.shouldAttemptInitialMMPInstallAttributionMatch(
+                                hadTrackedAppInstallBeforeConfigure = hadTrackedAppInstallBeforeConfigure,
+                                appInstalledAtMillis = dependencyContainer.deviceHelper.appInstalledAtMillis,
+                            )
+                        if (shouldMatchInstall) {
+                            // Marked before config is fetched so a paywall can't get ahead of it.
+                            dependencyContainer.mmpAttributionManager.markMatchPending()
+                        }
+
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }
@@ -733,6 +800,10 @@ class Superwall(
                                     )
                                 },
                             ).awaitAll()
+                        }
+
+                        if (shouldMatchInstall) {
+                            dependencyContainer.mmpAttributionManager.matchInstallOnceEnabled()
                         }
                     }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {
@@ -942,6 +1013,7 @@ class Superwall(
                 // Called from identity actor's completeReset during identify
                 // or full reset — just do cleanup without touching identity.
                 dependencyContainer.storage.reset()
+
                 dependencyContainer.paywallManager.resetCache()
                 presentationItems.reset()
                 dependencyContainer.configManager.reset()
@@ -1309,7 +1381,7 @@ class Superwall(
                     scope = LogScope.superwallCore,
                     message =
                         "You are trying to observe purchases but the SuperwallOption shouldObservePurchases is " +
-                                "false. Please set it to true to be able to observe purchases.",
+                            "false. Please set it to true to be able to observe purchases.",
                 )
                 return@launchWithTracking
             }
@@ -1475,6 +1547,7 @@ class Superwall(
                                     Internal(
                                         paywallEvent.productId,
                                         paywallView.controller.state,
+                                        replacementMode = paywallEvent.replacementMode,
                                     ),
                                     shouldDismiss = paywallEvent.shouldDismiss,
                                 )
@@ -1557,11 +1630,11 @@ class Superwall(
                                     val url =
                                         "https://play.google.com/store/apps/details?id=$packageName"
                                     (
-                                            activityProvider?.getCurrentActivity()
-                                                ?: paywallView.encapsulatingActivity?.get()
-                                            )?.startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse(url)),
-                                        )
+                                        activityProvider?.getCurrentActivity()
+                                            ?: paywallView.encapsulatingActivity?.get()
+                                    )?.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                                    )
                                 }
                             }
                         } catch (e: Exception) {

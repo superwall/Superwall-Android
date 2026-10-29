@@ -244,6 +244,28 @@ class AutomaticPurchaseController(
         productDetails: ProductDetails,
         basePlanId: String?,
         offerId: String?,
+    ): PurchaseResult = launchPurchase(activity, productDetails, basePlanId, offerId, replacement = null)
+
+    override suspend fun purchase(
+        activity: Activity,
+        product: StoreProduct,
+        basePlanId: String?,
+        offerId: String?,
+        replacement: ProductReplacement?,
+    ): PurchaseResult {
+        // Custom products can't go through Play, so let the default fail them
+        val rawStoreProduct =
+            product.rawStoreProduct
+                ?: return purchase(activity, product, basePlanId, offerId)
+        return launchPurchase(activity, rawStoreProduct.underlyingProductDetails, basePlanId, offerId, replacement)
+    }
+
+    private suspend fun launchPurchase(
+        activity: Activity,
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?,
+        replacement: ProductReplacement?,
     ): PurchaseResult {
         Logger.debug(
             logLevel = LogLevel.info,
@@ -341,7 +363,9 @@ class AutomaticPurchaseController(
                 .apply {
                     setObfuscatedAccountId(Superwall.instance.externalAccountId)
                 }.setProductDetailsParamsList(listOf(productDetailsParams))
-                .build()
+                .apply {
+                    replacement?.toSubscriptionUpdateParams()?.let { setSubscriptionUpdateParams(it) }
+                }.build()
 
         billingClient.launchBillingFlow(activity, flowParams)
 
@@ -399,6 +423,27 @@ class AutomaticPurchaseController(
 //endregion
 
 //region Private
+
+    private fun ProductReplacement.toSubscriptionUpdateParams(): BillingFlowParams.SubscriptionUpdateParams? {
+        val oldPurchaseToken = oldPurchaseToken ?: return null
+        return BillingFlowParams.SubscriptionUpdateParams
+            .newBuilder()
+            .setOldPurchaseToken(oldPurchaseToken)
+            .apply {
+                // Without a mode, Play uses the one configured for the base plan in Play Console
+                when (mode) {
+                    ProductReplacement.Mode.DEFAULT -> Unit
+                    ProductReplacement.Mode.CHARGE_PRORATED ->
+                        setSubscriptionReplacementMode(
+                            BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE,
+                        )
+                    ProductReplacement.Mode.CHARGE_FULL_PRICE ->
+                        setSubscriptionReplacementMode(
+                            BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE,
+                        )
+                }
+            }.build()
+    }
 
     private suspend fun syncSubscriptionStatusAndWait(count: Int = 0) {
         // Queries fail instantly while the billing client is still connecting,

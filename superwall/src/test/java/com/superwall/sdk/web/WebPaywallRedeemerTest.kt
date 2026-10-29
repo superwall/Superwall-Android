@@ -57,6 +57,8 @@ class WebPaywallRedeemerTest {
             every { read(LatestWebCustomerInfo) } returns null
             every { write(LatestWebCustomerInfo, any()) } just Runs
             every { write(LastWebEntitlementsFetchDate, any()) } just Runs
+            every { read(RedeemedInstallReferrerCode) } returns null
+            every { write(RedeemedInstallReferrerCode, any()) } just Runs
         }
 
     private var maxAge: () -> Long = { 1L }
@@ -277,6 +279,92 @@ class WebPaywallRedeemerTest {
         }
 
     @Test
+    fun `an install referrer code is marked redeemed only once the server has answered`() =
+        runTest(testDispatcher) {
+            Given("a referrer code the server redeems") {
+                val code = "referrer_code"
+                val response =
+                    WebRedemptionResponse(
+                        codes =
+                            listOf(
+                                RedemptionResult.Success(
+                                    code = code,
+                                    redemptionInfo =
+                                        RedemptionInfo(
+                                            ownership = RedemptionOwnership.AppUser(appUserId = getUserId().value),
+                                            purchaserInfo =
+                                                PurchaserInfo(
+                                                    getUserId().value,
+                                                    "email",
+                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                ),
+                                            entitlements = listOf(webEntitlement),
+                                        ),
+                                ),
+                            ),
+                        customerInfo = null,
+                    )
+                var storedResponse: WebRedemptionResponse? = null
+                every { storage.write(LatestRedemptionResponse, any()) } answers { storedResponse = secondArg() }
+                every { storage.read(LatestRedemptionResponse) } answers { storedResponse }
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } returns Either.Success(response)
+
+                When("the redeemer reads it on launch") {
+                    redeemer =
+                        WebPaywallRedeemer(
+                            context,
+                            IOScope(testDispatcher),
+                            deepLinkReferrer,
+                            network,
+                            storage,
+                            customerInfoManager = mockk(relaxed = true),
+                            factory = TestFactory(),
+                        )
+                    // Bounded: once a response is stored, entitlement polling reschedules forever.
+                    testScheduler.advanceTimeBy(1_000)
+                    testScheduler.runCurrent()
+
+                    Then("the code is marked as redeemed for this install") {
+                        verify(exactly = 1) { storage.write(RedeemedInstallReferrerCode, code) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `an install referrer code already redeemed on this install is not redeemed again`() =
+        runTest(testDispatcher) {
+            Given("a referrer code that an earlier launch already redeemed") {
+                val code = "already_redeemed"
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
+                every { storage.read(RedeemedInstallReferrerCode) } returns code
+
+                When("a later launch creates the redeemer") {
+                    redeemer =
+                        WebPaywallRedeemer(
+                            context,
+                            IOScope(testDispatcher),
+                            deepLinkReferrer,
+                            network,
+                            storage,
+                            customerInfoManager = mockk(relaxed = true),
+                            factory = TestFactory(),
+                        )
+                    testScheduler.advanceUntilIdle()
+
+                    Then("it does not redeem the code again") {
+                        coVerify(exactly = 0) {
+                            network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `test failed referral check`() =
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with failing referral check") {
@@ -348,6 +436,9 @@ class WebPaywallRedeemerTest {
 
                     Then("it should not set entitlement status") {
                         assert(mutableEntitlements == setOf(normalEntitlement))
+                        verify(exactly = 0) {
+                            storage.write(RedeemedInstallReferrerCode, any())
+                        }
                         verify(exactly = 1) {
                             onRedemptionResult(any<RedemptionResult.Error>())
                         }

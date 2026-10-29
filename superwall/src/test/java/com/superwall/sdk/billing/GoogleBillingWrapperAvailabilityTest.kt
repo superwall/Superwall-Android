@@ -5,6 +5,8 @@ package com.superwall.sdk.billing
 import androidx.lifecycle.LifecycleOwner
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.PurchasesResponseListener
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -243,6 +245,42 @@ class GoogleBillingWrapperAvailabilityTest {
                     Then("the request goes to billing instead of failing from cache") {
                         assertTrue(!retry.isCompleted)
                         verify(atLeast = 2) { client.startConnection(any()) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `subscription query reconnects even once billing is unavailable`() =
+        runTest {
+            Given("a device where billing setup reported BILLING_UNAVAILABLE") {
+                var ready = false
+                val purchase = mockk<Purchase>()
+                val client =
+                    mockk<BillingClient>(relaxed = true) {
+                        every { isReady } answers { ready }
+                        every { queryPurchasesAsync(any<com.android.billingclient.api.QueryPurchasesParams>(), any()) } answers {
+                            secondArg<PurchasesResponseListener>().onQueryPurchasesResponse(
+                                billingResult(BillingClient.BillingResponseCode.OK),
+                                listOf(purchase),
+                            )
+                        }
+                    }
+                val wrapper = makeUnavailableWrapper(client)
+
+                When("subscriptions are queried and the reconnect succeeds") {
+                    val job = backgroundScope.async { wrapper.querySubscriptionPurchases() }
+                    runCurrent()
+                    ready = true
+                    wrapper.onBillingSetupFinished(billingResult(BillingClient.BillingResponseCode.OK))
+                    runCurrent()
+
+                    Then("the billing client was asked to connect again") {
+                        verify(exactly = 2) { client.startConnection(any()) }
+                    }
+
+                    And("the query returns the subscriptions") {
+                        assertEquals(listOf(purchase), job.await().getOrThrow())
                     }
                 }
             }
