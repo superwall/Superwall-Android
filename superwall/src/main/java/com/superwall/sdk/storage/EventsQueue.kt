@@ -33,8 +33,15 @@ class EventsQueue(
     private var job: Job? = null
 
     // Capture the configured behavior up front; updated at runtime via [setTrackingBehavior].
-    private var trackingBehavior: EventTrackingBehavior =
-        configManager.options?.eventTrackingBehavior ?: EventTrackingBehavior.ALL
+    private val _trackingBehavior =
+        MutableStateFlow(configManager.options?.eventTrackingBehavior ?: EventTrackingBehavior.ALL)
+
+    /**
+     * The behavior [enqueue] applies. It changes after [SuperwallOptions.eventTrackingBehavior]
+     * does, once [setTrackingBehavior] has run, so anything that must know whether an event
+     * it tracks will be kept reads this rather than the options.
+     */
+    internal val trackingBehavior: StateFlow<EventTrackingBehavior> = _trackingBehavior.asStateFlow()
     override val coroutineContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
 
     init {
@@ -80,7 +87,7 @@ class EventsQueue(
 
     suspend fun setTrackingBehavior(behavior: EventTrackingBehavior) {
         withContext(this@EventsQueue.coroutineContext) {
-            trackingBehavior = behavior
+            _trackingBehavior.value = behavior
             if (behavior != EventTrackingBehavior.ALL) {
                 elements.clear()
             }
@@ -88,7 +95,7 @@ class EventsQueue(
     }
 
     private fun trackingAllowed(event: Trackable): Boolean =
-        when (trackingBehavior) {
+        when (trackingBehavior.value) {
             EventTrackingBehavior.ALL -> true
             EventTrackingBehavior.SUPERWALL_ONLY ->
                 when (event) {
@@ -103,7 +110,7 @@ class EventsQueue(
 
     suspend fun flushInternal(depth: Int = 10) {
         launch {
-            if (trackingBehavior == EventTrackingBehavior.NONE) {
+            if (trackingBehavior.value == EventTrackingBehavior.NONE) {
                 elements.clear()
                 return@launch
             }

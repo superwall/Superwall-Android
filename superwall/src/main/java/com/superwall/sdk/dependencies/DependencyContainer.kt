@@ -856,7 +856,7 @@ class DependencyContainer(
                 permissionStatus = {
                     NotificationPermissionStatus.from(userPermissions.hasPermission(PermissionType.NOTIFICATION))
                 },
-                eventTrackingBehavior = { makeSuperwallOptions().eventTrackingBehavior },
+                trackingBehavior = eventsQueue.trackingBehavior,
                 configState = configManager.configState,
                 identity = { notificationIdentity() },
                 appVersion = { deviceHelper.appVersion },

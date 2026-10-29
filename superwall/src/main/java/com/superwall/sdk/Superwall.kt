@@ -180,7 +180,6 @@ class Superwall(
 
             if (newValue != EventTrackingBehavior.NONE) {
                 dependencyContainer.mmpAttributionManager.startMatchIfEnabled()
-                dependencyContainer.notificationTokenManager.refresh()
             }
 
             adConsentPublisher.trackingBehaviorChanged(previous, newValue)
@@ -1092,7 +1091,12 @@ class Superwall(
      *
      * Call this from your `FirebaseMessagingService.onNewToken`, and with
      * `FirebaseMessaging.getInstance().token` when your app starts. It's safe to call on
-     * every launch: an unchanged token isn't sent again.
+     * every launch: an unchanged token is only sent again once a day, to tell Superwall the
+     * device is still registered.
+     *
+     * Call [configure] first: [Superwall.instance] throws until it has been called. If
+     * `onNewToken` can run before your app configures Superwall, for example when the
+     * service starts in the background, keep the token and pass it in once you've configured.
      *
      * ```kotlin
      * override fun onNewToken(token: String) {
@@ -1100,10 +1104,10 @@ class Superwall(
      * }
      * ```
      *
-     * The token is only sent to Superwall, and never appears in
-     * [SuperwallDelegate.handleSuperwallEvent], user attributes or audience filters. Along
-     * with it, Superwall receives whether the app can post notifications, which is checked
-     * again each time the app comes to the foreground.
+     * The token only travels to Superwall's servers. It never appears in
+     * [SuperwallDelegate.handleSuperwallEvent], [SuperwallDelegate.handleLog], user
+     * attributes or audience filters. Along with it, Superwall receives whether the app can
+     * post notifications, which is checked again each time the app comes to the foreground.
      *
      * The SDK has no Firebase dependency and doesn't request notification permission itself.
      *
@@ -1147,6 +1151,16 @@ class Superwall(
      * example from `onCreate` and `onNewIntent`. Notifications that Superwall didn't send are
      * ignored, so you can pass every intent in.
      *
+     * This works as is for notifications FCM displays itself, whose tap intent carries the
+     * notification's data keys as extras. If your app builds the notification itself in
+     * `onMessageReceived`, copy the `sw` data value into the extras of the tap
+     * `PendingIntent`'s intent:
+     *
+     * ```kotlin
+     * val intent = Intent(this, MainActivity::class.java)
+     *     .putExtra("sw", message.data["sw"])
+     * ```
+     *
      * @param intent The intent whose extras carry the notification's data.
      */
     fun handleNotificationOpen(intent: Intent) {
@@ -1161,8 +1175,10 @@ class Superwall(
      * Tells Superwall the user opened a notification, so it can measure the notifications it
      * sends.
      *
-     * Use this when you have the notification's data map, such as `RemoteMessage.data`.
-     * Notifications that Superwall didn't send are ignored, so you can pass every one in.
+     * Use this when you have the data map of a notification the user tapped. Call it only
+     * for a tap: never from `onMessageReceived` when a message is delivered, which would
+     * count every delivery as an open. Notifications that Superwall didn't send are ignored,
+     * so you can pass every tapped one in.
      *
      * @param data The notification's FCM data.
      */

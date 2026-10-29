@@ -62,7 +62,18 @@ open class Network(
                     )
                 }
                 Unit
-            }.logError("/events", mapOf("payload" to events))
+            }.logError("/events", eventsLogInfo(events))
+
+    /**
+     * What a failed `/events` request logs. Logs reach [com.superwall.sdk.delegate.SuperwallDelegate.handleLog]
+     * at every level, and event parameters can hold data that must only go to Superwall, such as
+     * a push token, so only the event names are logged, never their parameters.
+     */
+    private fun eventsLogInfo(events: EventsRequest): Map<String, Any> =
+        mapOf(
+            "event_count" to events.events.size,
+            "event_names" to events.events.map { it.name },
+        )
 
     override suspend fun getConfig(isRetryingCallback: suspend () -> Unit): Either<Config, NetworkError> {
         awaitUntilAppInForeground()
