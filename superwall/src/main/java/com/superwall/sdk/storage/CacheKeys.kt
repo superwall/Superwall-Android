@@ -10,6 +10,8 @@ import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
+import com.superwall.sdk.notifications.NotificationTokenLastSent
+import com.superwall.sdk.notifications.NotificationTokenState
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.testmode.FreeTrialOverride
 import com.superwall.sdk.store.testmode.ui.EntitlementSelection
@@ -185,6 +187,37 @@ object IsEligibleForMMPInstallAttributionMatch : Storable<Boolean> {
 
     override val serializer: KSerializer<Boolean>
         get() = Boolean.serializer()
+}
+
+/**
+ * The device's latest push token, its notification permission and whether the app has
+ * opted it out of Superwall notifications.
+ *
+ * Device-scoped, so it survives [com.superwall.sdk.Superwall.reset]: the token belongs to
+ * the install, and the opt-out is the app's choice for the device. It's only ever sent in a
+ * `notification_token` event, never as a user or device attribute.
+ */
+internal object StoredNotificationTokenState : Storable<NotificationTokenState> {
+    override val key: String
+        get() = "store.notificationTokenState"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<NotificationTokenState>
+        get() = NotificationTokenState.serializer()
+}
+
+/** The last `notification_token` sent, so an unchanged state is only re-sent once a day. */
+internal object StoredNotificationTokenLastSent : Storable<NotificationTokenLastSent> {
+    override val key: String
+        get() = "store.notificationTokenLastSent"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<NotificationTokenLastSent>
+        get() = NotificationTokenLastSent.serializer()
 }
 
 object DidTrackFirstSeen : Storable<Boolean> {

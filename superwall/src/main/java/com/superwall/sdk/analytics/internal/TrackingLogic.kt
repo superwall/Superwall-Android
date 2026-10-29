@@ -1,6 +1,7 @@
 package com.superwall.sdk.analytics.internal
 
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.PrivateSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
@@ -50,7 +51,8 @@ sealed class TrackingLogic {
                 val delegateParams: MutableMap<String, Any> = mutableMapOf("is_superwall" to true)
 
                 // Add a special property if it's a superwall event
-                val isStandardEvent = trackableEvent is TrackableSuperwallEvent
+                val isStandardEvent =
+                    trackableEvent is TrackableSuperwallEvent || trackableEvent is PrivateSuperwallEvent
 
                 val audienceFilterParams: MutableMap<String, Any> =
                     mutableMapOf(

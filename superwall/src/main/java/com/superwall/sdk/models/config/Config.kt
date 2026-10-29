@@ -75,6 +75,9 @@ data class Config(
                 web2App =
                     rawFeatureFlags.find { it.key == "web_2_app" }?.enabled
                         ?: false,
+                userNotifications =
+                    rawFeatureFlags.find { it.key == "user_notifications" }?.enabled
+                        ?: false,
             )
 
     companion object {
