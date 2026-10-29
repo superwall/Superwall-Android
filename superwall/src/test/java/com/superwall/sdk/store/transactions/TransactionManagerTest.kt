@@ -82,6 +82,7 @@ class TransactionManagerTest {
     private val stateUpdates = mutableListOf<Pair<String, PaywallViewState.Updates>>()
     private val transactionCompleteCalls = mutableListOf<Pair<String, Long?>>()
     private val transactionCompleteTrialFlags = mutableListOf<Boolean>()
+    private val transactionCompleteProductIds = mutableListOf<String>()
     private var subscriptionStatusValue: SubscriptionStatus = SubscriptionStatus.Active(setOf(Entitlement("test")))
     private var webEntitlementsValue: Set<Entitlement> = emptySet()
     private val entitlementsMap = mutableMapOf<String, Set<Entitlement>>()
@@ -98,6 +99,7 @@ class TransactionManagerTest {
         stateUpdates.clear()
         transactionCompleteCalls.clear()
         transactionCompleteTrialFlags.clear()
+        transactionCompleteProductIds.clear()
         refreshReceiptCalled = false
         showRestoreDialogCalled = false
         webEntitlementsValue = emptySet()
@@ -141,6 +143,7 @@ class TransactionManagerTest {
                 notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
                     transactionCompleteCalls.add(cacheKey to trialEndDate)
                     transactionCompleteTrialFlags.add(didStartFreeTrial)
+                    transactionCompleteProductIds.add(id)
                 },
             )
     }
@@ -632,6 +635,64 @@ class TransactionManagerTest {
                         And("a free trial start is tracked") {
                             assertTrue(trackedEvents.any { it is InternalSuperwallEvent.FreeTrialStart })
                             assertFalse(trackedEvents.any { it is InternalSuperwallEvent.SubscriptionStart })
+                        }
+                    }
+                }
+            }
+        }
+
+    // endregion
+
+    // region one-time product post-purchase actions
+
+    @Test
+    fun purchase_internalOneTimeProduct_notifiesPaywallOfTransactionComplete() =
+        runTest {
+            Given("a paywall purchase of a one-time product with post-purchase actions") {
+                // The paywall sends should_dismiss = false and waits for transaction_complete to
+                // run its onPurchase actions, so the paywall must be notified for one-time
+                // products too, not only for subscriptions.
+                val productId = "lifetime_product"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                        every { selectedOffer } returns null
+                    }
+                val product =
+                    mockk<StoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { hasFreeTrial } returns false
+                        every { rawStoreProduct } returns rawProduct
+                        every { subscriptionPeriod } returns null
+                        every { trialPeriodEndDate } returns null
+                    }
+                every { storeManager.getProductFromCache(productId) } returns product
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any())
+                } returns PurchaseResult.Purchased()
+
+                When("the purchase completes without dismissing the paywall") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(
+                                productId,
+                                mockk(relaxed = true),
+                            ),
+                            shouldDismiss = false,
+                        )
+
+                    Then("the paywall is notified that the transaction completed") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        assertEquals(listOf(productId), transactionCompleteProductIds)
+                        assertNull(transactionCompleteCalls.single().second)
+                        assertEquals(listOf(false), transactionCompleteTrialFlags)
+                        And("a non-recurring purchase is tracked and the paywall is not dismissed") {
+                            assertTrue(trackedEvents.any { it is InternalSuperwallEvent.NonRecurringProductPurchase })
+                            assertFalse(trackedEvents.any { it is InternalSuperwallEvent.SubscriptionStart })
+                            assertFalse(trackedEvents.any { it is InternalSuperwallEvent.FreeTrialStart })
+                            assertTrue(dismissCalls.isEmpty())
                         }
                     }
                 }
