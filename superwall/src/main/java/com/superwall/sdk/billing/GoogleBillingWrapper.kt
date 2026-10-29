@@ -84,6 +84,7 @@ class GoogleBillingWrapper(
         private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
         private const val QUERY_PURCHASES_TIMEOUT_MS = 10_000L
         private const val QUERY_PURCHASES_MAX_RETRIES = 3
+        private const val CONNECT_TIMEOUT_MS = 5_000L
 
         @androidx.annotation.VisibleForTesting
         internal fun clearProductsCache() {
@@ -198,13 +199,34 @@ class GoogleBillingWrapper(
         }
     }
 
+    // Unlike the other queries, this one reconnects even when billing was marked unavailable:
+    // a failure here blocks a purchase, so it's worth asking Play again.
     override suspend fun querySubscriptionPurchases(): Result<List<Purchase>> {
-        if (availability.value is BillingAvailability.Unavailable) {
-            return Result.failure(BillingError.BillingNotAvailable("Play Billing is unavailable"))
-        }
-        val purchases = retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() }
+        val purchases =
+            retryOrNull(QUERY_PURCHASES_MAX_RETRIES) {
+                awaitConnection().getOrThrow()
+                queryType(ProductType.SUBS).getOrThrow()
+            }
         return purchases?.let { Result.success(it) }
             ?: Result.failure(BillingError.UnknownError)
+    }
+
+    private suspend fun awaitConnection(): Result<Unit> {
+        if (billingClient?.isReady == true) return Result.success(Unit)
+        val connected = CompletableDeferred<BillingError?>()
+        synchronized(this) {
+            serviceRequests.add(
+                { error: BillingError? ->
+                    connected.complete(error)
+                    Unit
+                } to null,
+            )
+        }
+        startConnectionOnMainThread()
+        val error =
+            withTimeoutOrNull(CONNECT_TIMEOUT_MS) { connected.await() }
+                ?: return Result.failure(Throwable("Billing connection timed out"))
+        return error?.let { Result.failure(it) } ?: Result.success(Unit)
     }
 
     override suspend fun consume(purchaseToken: String): Result<String> =
