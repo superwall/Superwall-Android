@@ -61,6 +61,20 @@ class InternalPurchaseController(
         )
     }
 
+    override suspend fun purchase(
+        activity: Activity,
+        product: StoreProduct,
+        basePlanId: String?,
+        offerId: String?,
+        replacement: ProductReplacement?,
+    ): PurchaseResult {
+        if (kotlinPurchaseController != null) {
+            return kotlinPurchaseController.purchase(activity, product, basePlanId, offerId, replacement)
+        }
+        // PurchaseControllerJava has no way to receive a replacement, so it makes a normal purchase.
+        return purchase(activity, product, basePlanId, offerId)
+    }
+
     private suspend fun purchaseWithJavaController(
         productDetails: ProductDetails,
         basePlanId: String?,

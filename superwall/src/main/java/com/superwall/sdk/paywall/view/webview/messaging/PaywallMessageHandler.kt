@@ -29,6 +29,7 @@ import com.superwall.sdk.permissions.PermissionStatus
 import com.superwall.sdk.permissions.UserPermissions
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.storage.core_data.convertToJsonElement
+import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -286,6 +287,7 @@ class PaywallMessageHandler(
                 purchaseProduct(
                     withId = message.productId,
                     shouldDismiss = message.shouldDismiss,
+                    replacementMode = message.replacementMode,
                 )
 
             is PaywallMessage.PaywallOpen,
@@ -638,10 +640,11 @@ class PaywallMessageHandler(
     private fun purchaseProduct(
         withId: String,
         shouldDismiss: Boolean,
+        replacementMode: ProductReplacement.Mode?,
     ) {
         detectHiddenPaywallEvent("purchase")
         hapticFeedback()
-        messageHandler?.eventDidOccur(PaywallWebEvent.InitiatePurchase(withId, shouldDismiss))
+        messageHandler?.eventDidOccur(PaywallWebEvent.InitiatePurchase(withId, shouldDismiss, replacementMode))
     }
 
     private fun handleCustomEvent(customEvent: String) {

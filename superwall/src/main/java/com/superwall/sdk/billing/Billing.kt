@@ -16,6 +16,9 @@ interface Billing {
 
     suspend fun queryAllPurchases(): List<Purchase>
 
+    /** Fails when Play can't be asked, so a failure is never mistaken for "no subscriptions". */
+    suspend fun querySubscriptionPurchases(): Result<List<Purchase>>
+
     suspend fun consume(purchaseToken: String): Result<String>
 
     suspend fun getStorefrontCountryCode(): String?

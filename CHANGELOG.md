@@ -14,6 +14,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.8.9
 
+## Enhancements
+- Adds subscription replacement. When a paywall's Purchase action is set to replace an existing subscription, the purchase upgrades, downgrades or switches the user's active Google Play subscription that shares an entitlement with the new product, instead of buying a second one. The replacement mode (store default, charge the prorated difference now, or charge the full price now) maps to Google Play's `SubscriptionUpdateParams`. Users without such a subscription make a normal purchase.
+- Adds `PurchaseController.purchase(activity, product, basePlanId, offerId, replacement)`. Its `ProductReplacement` carries the mode and the old product's ID and purchase token, so a custom `PurchaseController` can perform the replacement. The default implementation ignores it and calls the existing `purchase` method.
+
 ## Fixes
 - Fixes paywalls not running post-purchase actions (e.g. navigating to a thank-you page) after a one-time product purchase, because `transaction_complete` was only sent to the paywall for subscriptions.
 - Fixes a band of the host window showing beside the display cutout around a Fullscreen, Push or no-animation paywall shown with `PresentationHost.IN_WINDOW`. The in-window host padded the paywall for the cutout as well as the system bars; it now pads for the system bars only, as `SuperwallPaywallActivity` does, and the paywall clears the cutout with its CSS safe-area insets.

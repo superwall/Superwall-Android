@@ -36,14 +36,15 @@ import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.paywall.request.PaywallLogic
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.paywall.request.PaywallLogic
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.PurchasingProductdIds
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -90,7 +91,12 @@ class TransactionManager(
     private val notifyBackendOfReceipts: suspend () -> Unit = {},
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
-    private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String, didStartFreeTrial: Boolean) -> Unit,
+    private val notifyOfTransactionComplete: suspend (
+        paywallCacheKey: String,
+        trialEndDate: Long?,
+        productId: String,
+        didStartFreeTrial: Boolean,
+    ) -> Unit,
     private val notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit = {},
     private val testMode: TestMode? = null,
     private val testModeTransactionHandler: TestModeTransactionHandler? = null,
@@ -100,6 +106,8 @@ class TransactionManager(
         data class Internal(
             val productId: String,
             val state: PaywallViewState,
+            // Set when the paywall asks to replace the user's existing subscription
+            val replacementMode: ProductReplacement.Mode? = null,
         ) : PurchaseSource() {
             val paywallInfo: PaywallInfo
                 get() = state.info
@@ -134,8 +142,7 @@ class TransactionManager(
         get() = factory.makeSuperwallOptions().shouldObservePurchases
 
     init {
-        if (shouldObserveTransactionFinishingAutomatically
-        ) {
+        if (shouldObserveTransactionFinishingAutomatically) {
             ioScope.launch {
                 storeManager.billing.purchaseResults
                     .asSharedFlow()
@@ -295,7 +302,7 @@ class TransactionManager(
     ): PurchaseResult {
         val product =
             when (purchaseSource) {
-                is PurchaseSource.Internal ->
+                is PurchaseSource.Internal -> {
                     storeManager.getProductFromCache(purchaseSource.productId) ?: run {
                         log(
                             LogLevel.error,
@@ -303,12 +310,15 @@ class TransactionManager(
                         )
                         return PurchaseResult.Failed("Product not found")
                     }
+                }
 
                 is PurchaseSource.ExternalPurchase -> {
                     purchaseSource.product
                 }
 
-                is PurchaseSource.ObserverMode -> purchaseSource.product
+                is PurchaseSource.ObserverMode -> {
+                    purchaseSource.product
+                }
             }
 
         // Test mode intercept: simulate purchase without real billing
@@ -330,6 +340,7 @@ class TransactionManager(
                         }
                     }
                 }
+
                 is PurchaseResult.Failed -> {
                     trackFailure(result.errorMessage, product, purchaseSource)
                     if (purchaseSource is PurchaseSource.Internal) {
@@ -351,9 +362,11 @@ class TransactionManager(
                         }
                     }
                 }
+
                 is PurchaseResult.Cancelled -> {
                     trackCancelled(product, purchaseSource)
                 }
+
                 is PurchaseResult.Pending -> {
                     handlePendingTransaction(purchaseSource)
                 }
@@ -380,11 +393,17 @@ class TransactionManager(
 
         prepareToPurchase(product, purchaseSource)
         val result =
-            storeManager.purchaseController.purchase(
-                activity = activity,
-                product = product,
-                offerId = rawStoreProduct.offerId,
-                basePlanId = rawStoreProduct.basePlanId,
+            resolveReplacement(product, purchaseSource).fold(
+                onSuccess = { replacement ->
+                    storeManager.purchaseController.purchase(
+                        activity = activity,
+                        product = product,
+                        offerId = rawStoreProduct.offerId,
+                        basePlanId = rawStoreProduct.basePlanId,
+                        replacement = replacement,
+                    )
+                },
+                onFailure = { replacementLookupFailed(product) },
             )
 
         if (purchaseSource is PurchaseSource.ExternalPurchase &&
@@ -446,6 +465,88 @@ class TransactionManager(
         }
         return result
     }
+
+    /**
+     * Finds the subscription a purchase should replace when the paywall asked for a
+     * replacement. Only an active subscription that shares an entitlement with [product]
+     * is replaced; without one, the purchase is a normal purchase. Fails when Play can't
+     * say which subscriptions the user has, since buying anyway could add a second one.
+     */
+    private suspend fun resolveReplacement(
+        product: StoreProduct,
+        purchaseSource: PurchaseSource,
+    ): Result<ProductReplacement?> {
+        val mode =
+            (purchaseSource as? PurchaseSource.Internal)?.replacementMode
+                ?: return Result.success(null)
+        // Only a subscription can replace a subscription
+        if (product.subscriptionPeriod == null) {
+            log(message = "Not replacing a subscription: ${product.fullIdentifier} isn't a subscription.")
+            return Result.success(null)
+        }
+        val entitlementIds = entitlementsById(product.fullIdentifier).map { it.id }.toSet()
+        if (entitlementIds.isEmpty()) {
+            log(message = "Not replacing a subscription: ${product.fullIdentifier} has no entitlements.")
+            return Result.success(null)
+        }
+
+        val replacement =
+            if (product.isCustomProduct) {
+                // Custom store subscriptions aren't visible to Play, so go by the active
+                // entitlements the PurchaseController reported.
+                val shared =
+                    (subscriptionStatus() as? SubscriptionStatus.Active)
+                        ?.entitlements
+                        ?.filter { it.id in entitlementIds }
+                        .orEmpty()
+                if (shared.isEmpty()) {
+                    null
+                } else {
+                    ProductReplacement(
+                        mode = mode,
+                        oldProductId = shared.firstNotNullOfOrNull { it.latestProductId },
+                        oldPurchaseToken = null,
+                    )
+                }
+            } else {
+                val purchases =
+                    storeManager.billing.querySubscriptionPurchases().getOrElse {
+                        log(
+                            logLevel = LogLevel.warn,
+                            message = "Couldn't read the user's subscriptions to replace one with ${product.fullIdentifier}.",
+                            error = it,
+                        )
+                        return Result.failure(it)
+                    }
+                purchases
+                    .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                    .filter { purchase ->
+                        purchase.products.any { productId ->
+                            entitlementsById(productId).any { it.id in entitlementIds }
+                        }
+                    }.maxByOrNull { it.purchaseTime }
+                    ?.let {
+                        ProductReplacement(
+                            mode = mode,
+                            oldProductId = it.products.firstOrNull(),
+                            oldPurchaseToken = it.purchaseToken,
+                        )
+                    }
+            }
+
+        log(
+            message =
+                replacement?.let { "Replacing ${it.oldProductId} with ${product.fullIdentifier} (${mode.rawName})." }
+                    ?: "Not replacing a subscription: none shares an entitlement with ${product.fullIdentifier}.",
+        )
+        return Result.success(replacement)
+    }
+
+    private fun replacementLookupFailed(product: StoreProduct): PurchaseResult =
+        PurchaseResult.Failed(
+            "Couldn't check your current subscription, so ${product.productIdentifier} wasn't purchased. " +
+                "Please try again.",
+        )
 
     /**
      * Handles purchase of a custom (store == CUSTOM) product. Requires an external
@@ -527,11 +628,17 @@ class TransactionManager(
             activityProvider.getCurrentActivity()
                 ?: return PurchaseResult.Failed("Activity not found - required for starting the purchase flow")
         val result =
-            storeManager.purchaseController.purchase(
-                activity = activity,
-                product = product,
-                basePlanId = null,
-                offerId = null,
+            resolveReplacement(product, purchaseSource).fold(
+                onSuccess = { replacement ->
+                    storeManager.purchaseController.purchase(
+                        activity = activity,
+                        product = product,
+                        basePlanId = null,
+                        offerId = null,
+                        replacement = replacement,
+                    )
+                },
+                onFailure = { replacementLookupFailed(product) },
             )
 
         // For an external-only controller the dev's flow owns the rest of the lifecycle; still
