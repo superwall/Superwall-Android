@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.9.0
+
+## Enhancements
+- Adds install attribution matching. If the app has performance marketing integrations set up on the Superwall dashboard, the SDK matches the install to the ad click that led to it and tracks an `attribution_match` event. The resulting `acquisition_*` attributes are added to user attributes, so they can be used as breakdowns and filters in charts and audiences, and they carry over to new users after `identify` or `reset`. The match runs once per install, within 7 days of install, only when the dashboard has turned it on for the app, and never blocks startup. It uses the Play install referrer's click id when present. It is skipped while `eventTrackingBehavior` is `NONE` and runs if tracking is turned back on. On the first launch, a paywall whose audiences use `acquisition_*` attributes waits up to 2 seconds for a match that's still running.
+- Adds best-effort public IPv4 and IPv6 device attributes for apps using the Superwall MMP, and the IPv4 attribute for apps that set an AppsFlyer ID. Apps that use the MMP or set an AppsFlyer ID should declare IP address collection in their Play Console data safety form.
+- Adds `SuperwallOptions.adConsent` and `Superwall.instance.adConsent` for reporting the user's ad measurement consent (`AdConsent.Custom(adUserData, adPersonalization)`, each an `AdConsentStatus` of `Granted` or `Denied`). It is sent as the `adUserDataConsent` and `adPersonalizationConsent` device attributes and forwarded with the conversions Superwall uploads to Google Ads and Meta. While `adConsent` is `AdConsent.Unspecified`, the default, the SDK uses the consent stored by an IAB TCF consent banner when GDPR applies, and otherwise defaults to granted; apps with users in the EEA, UK or Switzerland that don't use a TCF banner should set it from their consent flow. Where the values came from is reported in the new `adConsentSource` device attribute (`developer`, `tcf` or `default`). Both are reported as denied when `eventTrackingBehavior` is `NONE`.
+
+## Fixes
+- Fix web checkout codes passed through the Play install referrer never being redeemed. A code is now redeemed once, on the first launch after install.
+
 ## 2.8.9
 
 ## Enhancements
@@ -10,6 +20,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fixes paywalls not running post-purchase actions (e.g. navigating to a thank-you page) after a one-time product purchase, because `transaction_complete` was only sent to the paywall for subscriptions.
+- Fixes a band of the host window showing beside the display cutout around a Fullscreen, Push or no-animation paywall shown with `PresentationHost.IN_WINDOW`. The in-window host padded the paywall for the cutout as well as the system bars; it now pads for the system bars only, as `SuperwallPaywallActivity` does, and the paywall clears the cutout with its CSS safe-area insets.
+- Fixes `getProducts()` (and other network-backed suspend APIs) not being main-safe: network requests now always run on `Dispatchers.IO`, so the `/products` fallback no longer fails with `NetworkOnMainThreadException` when called from the main thread.
 
 ## 2.8.8
 

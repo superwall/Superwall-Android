@@ -191,4 +191,10 @@ internal suspend fun waitForEntitlementsAndConfig(
                     "Proceeding with current identity state.",
         )
     }
+
+    val trigger =
+        request.presentationInfo.eventName?.let {
+            dependencyContainer.configManager.triggersByEventName[it]
+        }
+    dependencyContainer.mmpAttributionManager.waitForPendingMatch(trigger)
 }

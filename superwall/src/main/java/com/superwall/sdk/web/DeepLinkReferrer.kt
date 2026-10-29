@@ -10,10 +10,12 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import java.net.URLDecoder
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -27,10 +29,13 @@ class DeepLinkReferrer(
     context: () -> Context,
     private val scope: IOScope,
 ) : CheckForReferral {
-    private var referrerClient: InstallReferrerClient?
+    private var referrerClient: InstallReferrerClient? = null
+    private val referrerMutex = Mutex()
+    private var cachedReferrerParams: Map<String, List<String>>? = null
+    private val readyReferrerClient: InstallReferrerClient?
         get() {
-            if (field?.isReady == true) {
-                return field
+            if (referrerClient?.isReady == true) {
+                return referrerClient
             } else {
                 return null
             }
@@ -62,7 +67,7 @@ class DeepLinkReferrer(
                         finished = {
                             when (it) {
                                 InstallReferrerClient.InstallReferrerResponse.OK -> {
-                                    referrerClient?.installReferrer?.installReferrer
+                                    readyReferrerClient?.installReferrer?.installReferrer
                                 }
 
                                 else -> {
@@ -96,21 +101,25 @@ class DeepLinkReferrer(
 
     override suspend fun checkForReferral(): Result<String> =
         try {
-            withTimeoutOrNull(30.seconds) {
-                while (referrerClient?.isReady != true) {
-                    // no-op
-                }
-                referrerClient?.installReferrer?.installReferrer?.toString()
-            }.let {
-                val query = it?.getUrlParams() ?: emptyMap()
-                val code = query["code"]?.firstOrNull()
-                referrerClient?.endConnection()
-                referrerClient = null
-                if (code == null) {
-                    Result.failure(IllegalStateException("Play store cannot connect"))
-                } else {
-                    Result.success(code)
-                }
+            val query = getInstallReferrerParams(30.seconds)
+            val code = query["code"]?.firstOrNull()
+            if (code == null) {
+                Result.failure(IllegalStateException("Play store cannot connect"))
+            } else {
+                Result.success(code)
+            }
+        } catch (e: Throwable) {
+            Result.failure(e)
+        }
+
+    suspend fun checkForMmpClickId(): Result<Long> =
+        try {
+            val query = getInstallReferrerParams(5.seconds)
+            val clickId = query["sw_mmp_click_id"]?.firstOrNull()?.toLongOrNull()
+            if (clickId == null) {
+                Result.failure(IllegalStateException("Play store MMP click id not found"))
+            } else {
+                Result.success(clickId)
             }
         } catch (e: Throwable) {
             Result.failure(e)
@@ -137,17 +146,44 @@ class DeepLinkReferrer(
                 )
             }
 
+    /**
+     * Resolves the Play install referrer's query params.
+     *
+     * This instance is shared between web-checkout redemption and MMP install attribution, so
+     * the result is memoized: the referrer is immutable for the lifetime of an install, and
+     * the first reader would otherwise tear the connection down before the second one runs.
+     * A timeout is *not* memoized — Play can simply be slow at cold start — and leaves the
+     * client connected so a later call can still succeed.
+     */
+    private suspend fun getInstallReferrerParams(timeout: kotlin.time.Duration): Map<String, List<String>> =
+        referrerMutex.withLock {
+            cachedReferrerParams?.let { return@withLock it }
+
+            val rawReferrer =
+                withTimeoutOrNull(timeout) {
+                    while (readyReferrerClient == null) {
+                        // The connection failed for good, so waiting won't help.
+                        if (referrerClient == null) return@withTimeoutOrNull null
+                        delay(50)
+                    }
+                    readyReferrerClient?.installReferrer?.installReferrer?.toString()
+                } ?: return@withLock emptyMap()
+
+            referrerClient?.endConnection()
+            referrerClient = null
+
+            rawReferrer.getUrlParams().also { cachedReferrerParams = it }
+        }
+
     private fun String.getUrlParams(): Map<String, List<String>> {
-        val urlParts = split("\\?".toRegex()).filter(String::isNotEmpty)
-        if (urlParts.size < 2) {
+        val query = trim().removePrefix("?")
+        if (query.isEmpty()) {
             return emptyMap()
         }
-        val query = urlParts[1]
-        return listOf("item").associateWith { key ->
-            query
-                .split("&?$key=".toRegex())
-                .filter(String::isNotEmpty)
-                .map { URLDecoder.decode(it, "UTF-8") }
+
+        val uri = Uri.parse("https://superwall.invalid/?$query")
+        return uri.queryParameterNames.associateWith { key ->
+            uri.getQueryParameters(key)
         }
     }
 }
