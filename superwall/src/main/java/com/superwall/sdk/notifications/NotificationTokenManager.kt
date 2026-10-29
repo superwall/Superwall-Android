@@ -35,7 +35,8 @@ internal class NotificationTokenManager(
     private val storage: Storage,
     private val tracker: suspend (Trackable) -> Unit,
     private val permissionStatus: () -> NotificationPermissionStatus,
-    private val eventTrackingBehavior: () -> EventTrackingBehavior,
+    /** The events queue's own tracking behavior, which decides whether a tracked event is kept. */
+    private val trackingBehavior: StateFlow<EventTrackingBehavior>,
     private val configState: StateFlow<ConfigState>,
     private val identity: () -> Identity,
     private val appVersion: () -> String,
@@ -54,8 +55,12 @@ internal class NotificationTokenManager(
 
     /**
      * Re-checks the state whenever config arrives with the feature flag on, the identity
-     * changes (configure, identify and reset), and the app comes to the foreground, which is
-     * when a permission change made in Settings shows.
+     * changes (configure, identify and reset), tracking is turned back on, and the app comes
+     * to the foreground, which is when a permission change made in Settings shows.
+     *
+     * Tracking being turned back on is read from the events queue rather than the options:
+     * the queue applies a new behavior after the options change, and an event tracked in
+     * between is dropped, so a state sent then would be marked as sent without being sent.
      */
     fun listen(
         identityChanges: Flow<Identity>,
@@ -71,6 +76,13 @@ internal class NotificationTokenManager(
         }
         scope.launch {
             identityChanges.distinctUntilChanged().collect { refresh() }
+        }
+        scope.launch {
+            trackingBehavior
+                .map { it != EventTrackingBehavior.NONE }
+                .distinctUntilChanged()
+                .filter { it }
+                .collect { refresh() }
         }
         scope.launch {
             appForegrounded.collect { refresh() }
@@ -122,8 +134,9 @@ internal class NotificationTokenManager(
 
         // Kept until the feature flag is on, which `listen` re-checks for.
         if (!isFeatureEnabled) return
-        // Not sent, so not marked as sent: it goes once tracking is allowed again.
-        if (eventTrackingBehavior() == EventTrackingBehavior.NONE) return
+        // The queue would drop it, so it isn't marked as sent: it goes once the queue allows
+        // tracking again, which `listen` re-checks for.
+        if (trackingBehavior.value == EventTrackingBehavior.NONE) return
 
         val fingerprint = NotificationTokenLogic.fingerprint(payload, identity())
         val lastSent = storage.read(StoredNotificationTokenLastSent)

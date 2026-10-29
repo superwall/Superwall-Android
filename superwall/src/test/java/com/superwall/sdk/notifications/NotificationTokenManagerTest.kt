@@ -50,7 +50,7 @@ class NotificationTokenManagerTest {
     private val tracked = mutableListOf<Trackable>()
     private var permission = NotificationPermissionStatus.AUTHORIZED
     private var permissionChecks = 0
-    private var trackingBehavior = EventTrackingBehavior.ALL
+    private val trackingBehavior = MutableStateFlow(EventTrackingBehavior.ALL)
     private var identity = Identity(aliasId = "\$SuperwallAlias:alias-1", appUserId = null)
     private var nowMs = 1_000_000L
     private val configState = MutableStateFlow<ConfigState>(configWithFlag(true))
@@ -71,7 +71,7 @@ class NotificationTokenManagerTest {
                 permissionChecks += 1
                 permission
             },
-            eventTrackingBehavior = { trackingBehavior },
+            trackingBehavior = trackingBehavior,
             configState = configState,
             identity = { identity },
             appVersion = { "2.3.4" },
@@ -264,18 +264,46 @@ class NotificationTokenManagerTest {
     @Test
     fun `nothing is sent or marked sent while tracking is off, and it goes once tracking is back`() =
         runTest {
-            trackingBehavior = EventTrackingBehavior.NONE
-            val manager = managerWithToken()
+            trackingBehavior.value = EventTrackingBehavior.NONE
+            val manager = manager(backgroundScope)
+            manager.listen(identityChanges = emptyFlow(), appForegrounded = emptyFlow())
+            manager.setPushToken(TOKEN)
+            runCurrent()
 
             assertTrue(tracked.isEmpty())
             assertNull(storage.read(StoredNotificationTokenLastSent))
 
-            trackingBehavior = EventTrackingBehavior.ALL
-            manager.refresh()
+            // The queue turning tracking back on is what sends it: no refresh call is needed.
+            trackingBehavior.value = EventTrackingBehavior.SUPERWALL_ONLY
+            runCurrent()
+            assertEquals(1, sentTokens.size)
+
+            trackingBehavior.value = EventTrackingBehavior.ALL
             manager.refresh()
             runCurrent()
 
             assertEquals(1, sentTokens.size)
+        }
+
+    @Test
+    fun `turning the flag off after it was on stops sending`() =
+        runTest {
+            val manager = managerWithToken()
+            assertEquals(1, sentTokens.size)
+
+            configState.value = configWithFlag(false)
+            manager.setPushToken("other-token")
+            manager.optOut()
+            nowMs += NotificationTokenLogic.HEARTBEAT_INTERVAL_MS
+            manager.refresh()
+            runCurrent()
+
+            assertEquals(1, sentTokens.size)
+            // Still kept, so it goes if the flag comes back on.
+            assertEquals(
+                NotificationTokenState("other-token", false, NotificationPermissionStatus.AUTHORIZED),
+                storage.read(StoredNotificationTokenState),
+            )
         }
 
     @Test

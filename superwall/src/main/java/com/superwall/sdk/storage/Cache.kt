@@ -52,19 +52,20 @@ class Cache(
         if (data == null) {
             val file = storable.file(context = context)
             if (file.exists()) {
-                var jsonString = ""
                 try {
-                    jsonString = file.readText(Charsets.UTF_8)
+                    val jsonString = file.readText(Charsets.UTF_8)
                     data = json.decodeFromString(storable.serializer, jsonString)
                     data?.let {
                         memCache[storable.key] = it
                     }
                 } catch (e: Throwable) {
+                    // Neither the stored value nor the exception is logged: logs reach the
+                    // delegate, and a decoding exception's message quotes the JSON it read,
+                    // which can hold a push token or other private state.
                     Logger.debug(
                         logLevel = LogLevel.error,
                         LogScope.cache,
-                        message = "Unable to read key: ${storable.key}, got $jsonString",
-                        error = e,
+                        message = "Unable to read key: ${storable.key} (${e::class.simpleName})",
                     )
                 }
             }
