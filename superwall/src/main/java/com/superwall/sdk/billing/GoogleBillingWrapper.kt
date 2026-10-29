@@ -198,9 +198,13 @@ class GoogleBillingWrapper(
         }
     }
 
-    override suspend fun querySubscriptionPurchases(): List<Purchase> {
-        if (availability.value is BillingAvailability.Unavailable) return emptyList()
-        return retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() } ?: emptyList()
+    override suspend fun querySubscriptionPurchases(): Result<List<Purchase>> {
+        if (availability.value is BillingAvailability.Unavailable) {
+            return Result.failure(BillingError.BillingNotAvailable("Play Billing is unavailable"))
+        }
+        val purchases = retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() }
+        return purchases?.let { Result.success(it) }
+            ?: Result.failure(BillingError.UnknownError)
     }
 
     override suspend fun consume(purchaseToken: String): Result<String> =
