@@ -110,6 +110,12 @@ This is the Superwall Android SDK - an open-source framework for remotely config
 - Event queuing for batch network transmission
 - Delegate notification system for custom event handling
 
+**Push notification tokens**: `superwall/src/main/java/com/superwall/sdk/notifications/`
+- `NotificationTokenManager` reports the FCM token and notification permission in a `notification_token` event, and opens in `notification_open`. The app passes the token in (`setPushToken`); the SDK has no Firebase dependency.
+- Both are `PrivateSuperwallEvent`s, not `SuperwallEvent`s: they go through the normal events queue but never reach the delegate, implicit triggers or the on-device event store, because customers forward delegate events to their own analytics. Anything sensitive the SDK sends must be a private event.
+- Their params are sent unprefixed and the events encoder leaves map keys alone, so the camelCase keys are the wire keys the server reads; don't rename them.
+- Nothing is sent until the `user_notifications` flag is on, but the state is kept in app-specific storage (surviving `reset()`) and flushed when the flag turns on. The state is re-sent when it or the identity changes, otherwise once a day.
+
 ## Key Extension Points
 
 ### Delegate System
