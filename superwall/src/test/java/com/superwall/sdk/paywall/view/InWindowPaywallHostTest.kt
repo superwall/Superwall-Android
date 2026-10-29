@@ -11,6 +11,9 @@ import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
@@ -251,6 +254,31 @@ class InWindowPaywallHostTest {
                         assertFalse(paywallView.isPaymentSheetPresented)
                         assertFalse(paywallView.state.isBrowserViewPresented)
                     }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun fullscreen_isPaddedForTheSystemBarsButNotTheDisplayCutout() {
+        Given("a full-screen paywall shown in-window") {
+            show(PaywallPresentationStyle.Fullscreen)
+            val container = paywallView.parent as View
+
+            When("the window reports a navigation bar and a display cutout on the left") {
+                val insets =
+                    WindowInsetsCompat
+                        .Builder()
+                        .setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, 48))
+                        .setInsets(WindowInsetsCompat.Type.displayCutout(), Insets.of(80, 0, 0, 0))
+                        .build()
+                ViewCompat.dispatchApplyWindowInsets(container, insets)
+
+                Then("only the system bar pads it; the web view reaches the cutout edge") {
+                    assertEquals(0, container.paddingLeft)
+                    assertEquals(0, container.paddingTop)
+                    assertEquals(0, container.paddingRight)
+                    assertEquals(48, container.paddingBottom)
                 }
             }
         }

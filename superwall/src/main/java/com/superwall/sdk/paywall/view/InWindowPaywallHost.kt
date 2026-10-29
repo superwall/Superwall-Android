@@ -314,15 +314,20 @@ internal class InWindowPaywallHost private constructor(
 
     private enum class Transition { NONE, RISE, PUSH }
 
-    /** Fullscreen, Push and no-animation styles: the paywall fills the window, inset from the system bars. */
+    /**
+     * Fullscreen, Push and no-animation styles: the paywall fills the window, inset from the system bars only.
+     *
+     * The display cutout is deliberately not padded, which matches [SuperwallPaywallActivity]'s fullscreen styles:
+     * the web view draws under the cutout and the paywall keeps its content clear with the CSS safe-area insets
+     * (the document is `viewport-fit=cover`). Padding for it left a band of the host window visible along the
+     * cutout edge, most visibly in landscape on a host that already draws into the cutout (a game in immersive
+     * mode), where no system bar is shown on that edge.
+     */
     private fun attachFullscreen(transition: Transition): (onEnd: () -> Unit) -> Unit {
         container.setBackgroundColor(view.backgroundColor)
         container.addView(view, matchParent())
         ViewCompat.setOnApplyWindowInsetsListener(container) { v, windowInsets ->
-            val insets =
-                windowInsets.getInsets(
-                    WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
-                )
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(insets.left, insets.top, insets.right, insets.bottom)
             WindowInsetsCompat.CONSUMED
         }
