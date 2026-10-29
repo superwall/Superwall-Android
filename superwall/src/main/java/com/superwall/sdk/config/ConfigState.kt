@@ -294,6 +294,7 @@ sealed class ConfigState {
                 storage.write(LatestConfig, config)
             }
             setTriggers(ConfigLogic.getTriggersByEventName(config.triggers))
+            deviceHelper.startIpCollectionIfEnabled(config)
             assignments.choosePaywallVariants(config.triggers)
 
             ConfigLogic.extractEntitlementsByProductId(config.products).let {
