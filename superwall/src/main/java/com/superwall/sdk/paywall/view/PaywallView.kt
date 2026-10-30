@@ -182,6 +182,18 @@ class PaywallView(
     // Set while this view is presented in-window (see [PaywallOptions.PresentationHost.IN_WINDOW]).
     @Volatile
     internal var inWindowHost: InWindowPaywallHost? = null
+
+    // Set once this view, embedded in the app's own Activity (e.g. by PaywallComposable), schedules
+    // notifications. It outlives cleanup() so a permission granted after the paywall is gone still
+    // schedules its reminders.
+    private var embeddedNotifications: PaywallNotifications? = null
+
+    /** The notifications of this view while it is embedded in [activity]. */
+    @Synchronized
+    internal fun embeddedNotifications(activity: Activity): PaywallNotifications =
+        embeddedNotifications?.takeIf { it.activity === activity }
+            ?: PaywallNotifications.forEmbeddingActivity(activity).also { embeddedNotifications = it }
+
     private var shimmerView: PaywallShimmerView? = null
 
     private var loadingView: PaywallPurchaseLoadingView? = null
