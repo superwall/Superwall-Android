@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.9.1
+
+## Fixes
+- Fixes trial reminders and other paywall notifications never being scheduled for a paywall embedded in the app's own Activity, such as one shown with `PaywallComposable`. Notifications were only scheduled when the paywall was shown in a `SuperwallPaywallActivity` or in-window; the SDK now asks the embedding Activity for the notification permission and schedules them there.
+
 ## 2.9.0
 
 ## Enhancements
