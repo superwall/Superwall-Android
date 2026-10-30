@@ -292,7 +292,11 @@ class ReceiptManager internal constructor(
         allPurchases: List<StorePurchase>,
         productsById: Map<String, StoreProduct>,
     ) {
-        val mostRecentPurchase = allPurchases.maxByOrNull { it.purchaseTime } ?: return
+        val mostRecentPurchase = allPurchases.maxByOrNull { it.purchaseTime }
+        if (mostRecentPurchase == null) {
+            latestSubscriptionState.value = stateWithoutCurrentPurchase()
+            return
+        }
         val product = productsById[mostRecentPurchase.productIds.firstOrNull()] ?: return
 
         latestSubscriptionWillAutoRenew = subscriptionStatus.willAutoRenew(mostRecentPurchase)
@@ -318,13 +322,25 @@ class ReceiptManager internal constructor(
     suspend fun lastSubscriptionProperties(): LatestSubscriptionState {
         val purchase =
             store.ownedPurchases().maxByOrNull { it.purchaseTime }
-                ?: return LatestSubscriptionState.UNKNOWN
+                ?: return stateWithoutCurrentPurchase()
 
-        val product =
-            store.products(purchase.productIds.toSet()).found.firstOrNull()
-                ?: return LatestSubscriptionState.UNKNOWN
-
+        // The state comes from the purchase alone; the product lookup is best-effort so a
+        // lookup failure can't turn a paying subscriber into UNKNOWN.
+        val product = runCatching { store.products(purchase.productIds.toSet()).found.firstOrNull() }.getOrNull()
         return subscriptionStatus.subscriptionState(purchase, product)
+    }
+
+    /**
+     * Play no longer returns any purchase. If this user had a subscription before (it's in the
+     * stored history), it has ended; otherwise we have nothing to go on.
+     */
+    private fun stateWithoutCurrentPurchase(): LatestSubscriptionState {
+        val hadSubscription =
+            storage.read(StoredTransactionHistory)?.transactions?.values?.any {
+                it.productType == EntitlementTransactionType.AUTO_RENEWABLE ||
+                    it.productType == EntitlementTransactionType.NON_RENEWABLE
+            } == true
+        return if (hadSubscription) LatestSubscriptionState.EXPIRED else LatestSubscriptionState.UNKNOWN
     }
 
     fun hasPurchasedProduct(productId: String): Boolean = _purchases.firstOrNull { it.productIdentifier == productId } != null

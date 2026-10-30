@@ -60,14 +60,14 @@ internal class PurchaseQueries(
 
     /**
      * Returns the products for [fullProductIds], from the cache where it can. Products Play
-     * didn't return fail fast once known missing. Throws [BillingError.Timeout] when Play
+     * didn't return are left out, never failed; recently missing ones aren't asked for again.
+     * Throws [BillingError.Timeout] when Play
      * doesn't answer within [PRODUCTS_QUERY_TIMEOUT_MS].
      */
     suspend fun products(fullProductIds: Set<String>): Set<StoreProduct> {
         val (cached, missingIds) =
             when (val lookup = productDetails.lookup(fullProductIds)) {
                 is ProductLookup.AllCached -> return lookup.products
-                is ProductLookup.KnownMissing -> throw lookup.error
                 is ProductLookup.Partial -> lookup.cached to lookup.missingIds
             }
 

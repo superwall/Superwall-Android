@@ -49,6 +49,12 @@ interface SubscriptionStatusProvider {
 class PlayBillingSubscriptionStatusProvider(
     @Suppress("UNUSED_PARAMETER") billing: Billing,
 ) : SubscriptionStatusProvider {
+    /**
+     * A purchase returned by `queryPurchases` is entitled now, so PURCHASED means SUBSCRIBED.
+     * Play Billing has no client-side expiry, grace or hold signal, so we don't try to derive one
+     * from `purchaseTime` (which stays at the original purchase across renewals).
+     * When there's no current purchase at all, see [ReceiptManager.lastSubscriptionProperties].
+     */
     override suspend fun getSubscriptionState(
         purchase: Purchase,
         product: StoreProduct?,

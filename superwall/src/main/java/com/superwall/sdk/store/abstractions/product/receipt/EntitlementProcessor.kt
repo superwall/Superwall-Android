@@ -162,7 +162,8 @@ class EntitlementProcessor {
         val lifetimePurchase =
             transactions.find { transaction ->
                 transaction.productType == EntitlementTransactionType.NON_CONSUMABLE &&
-                    !transaction.isRevoked
+                    !transaction.isRevoked &&
+                    !transaction.isPending
             }
 
         if (lifetimePurchase != null) {
@@ -173,8 +174,8 @@ class EntitlementProcessor {
 
         // Process all transactions
         for (transaction in transactions) {
-            // Skip revoked transactions for active/expiration calculations
-            if (transaction.isRevoked) continue
+            // Skip revoked and not-yet-paid transactions for active/expiration calculations
+            if (transaction.isRevoked || transaction.isPending) continue
 
             // Check for active status - trust the transaction's isActive status
             when (transaction.productType) {

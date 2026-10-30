@@ -17,12 +17,14 @@ internal class SdkResetter(
     private val clearPresentationItems: () -> Unit,
     private val resetConfig: () -> Unit,
     private val clearAppUserRedemptions: () -> Unit,
+    private val clearProductsCache: () -> Unit = {},
     private val track: suspend (Trackable) -> Unit,
 ) {
-    /** Clears storage, the paywall cache, presentation items, config and redemptions, then tracks `Reset`. */
+    /** Clears storage, cached store products, the paywall cache, presentation items, config and redemptions, then tracks `Reset`. */
     fun completeReset() {
         withErrorTracking {
             clearStorage()
+            clearProductsCache()
             clearPaywallCache()
             clearPresentationItems()
             resetConfig()

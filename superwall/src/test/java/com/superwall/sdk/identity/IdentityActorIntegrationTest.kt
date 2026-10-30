@@ -674,4 +674,42 @@ class IdentityActorIntegrationTest {
             }
         }
     }
+
+    @Test
+    fun `full reset wipes storage before persisting the new identity`() = runTest {
+        Given("a configured manager whose completeReset wipes user-scoped storage") {
+            val log = mutableListOf<String>()
+            every { storage.write(AliasId, any()) } answers { log.add("write:alias") }
+            every { storage.write(Seed, any()) } answers { log.add("write:seed") }
+            val manager = createSequentialManager(scope = backgroundScope)
+            val resettingManager =
+                IdentityManager(
+                    storage = storage,
+                    options = { SuperwallOptions() },
+                    ioScope = IOScope(backgroundScope.coroutineContext),
+                    notifyUserChange = {},
+                    completeReset = { log.add("completeReset") },
+                    tracker = { trackedEvents.add(it) },
+                    webPaywallRedeemer = { mockk(relaxed = true) },
+                    actor = manager.actor,
+                    sdkContext = sdkContext,
+                )
+            every { storage.read(DidTrackFirstSeen) } returns true
+            resettingManager.configure(neverCalledStaticConfig = false)
+            resettingManager.hasIdentity.first()
+            log.clear()
+
+            When("FullReset is dispatched") {
+                resettingManager.reset()
+                resettingManager.awaitLatestIdentity()
+            }
+
+            Then("completeReset runs before the fresh alias and seed are written") {
+                val resetIndex = log.indexOf("completeReset")
+                assertTrue("completeReset should run, log=$log", resetIndex >= 0)
+                assertTrue("alias written after reset, log=$log", log.indexOf("write:alias") > resetIndex)
+                assertTrue("seed written after reset, log=$log", log.indexOf("write:seed") > resetIndex)
+            }
+        }
+    }
 }

@@ -60,20 +60,30 @@ class ProductDetailsRepositoryTest {
     }
 
     @Test
-    fun `an id Play didn't return fails without another query`() {
+    fun `an id Play didn't return is skipped, not failed, until it is due again`() {
         Given("a repository that queried a and b but got only a") {
-            val repository = ProductDetailsRepository()
-            repository.store(setOf("a", "b"), setOf(product("a")))
+            var now = 0L
+            val repository = ProductDetailsRepository(now = { now })
+            val a = product("a")
+            repository.store(setOf("a", "b"), setOf(a))
 
-            When("b is looked up") {
+            When("b is looked up within the missing-product ttl") {
+                now = MISSING_PRODUCT_TTL_MS - 1
                 val lookup = repository.lookup(setOf("a", "b"))
 
-                Then("it is known to be missing") {
-                    assertTrue(lookup is ProductLookup.KnownMissing)
-                    assertEquals(
-                        "Failed to query product details for b",
-                        (lookup as ProductLookup.KnownMissing).error.message,
-                    )
+                Then("a is served from the cache and b is left out without a query") {
+                    assertEquals(ProductLookup.AllCached(setOf(a)), lookup)
+                    assertEquals(setOf("b"), repository.knownMissing(setOf("a", "b")))
+                }
+            }
+
+            When("b is looked up after the ttl") {
+                now = MISSING_PRODUCT_TTL_MS
+                val lookup = repository.lookup(setOf("a", "b"))
+
+                Then("b is asked for again") {
+                    assertEquals(ProductLookup.Partial(setOf(a), setOf("b")), lookup)
+                    assertTrue(repository.knownMissing(setOf("b")).isEmpty())
                 }
             }
         }

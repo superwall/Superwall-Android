@@ -40,6 +40,8 @@ data class StoredEntitlementTransaction(
     override val isInBillingRetryPeriod: Boolean,
     @SerialName("is_active")
     override val isActive: Boolean,
+    @SerialName("is_pending")
+    override val isPending: Boolean = false,
 ) : EntitlementTransaction {
     companion object {
         /**
@@ -59,6 +61,7 @@ data class StoredEntitlementTransaction(
                 isInGracePeriod = transaction.isInGracePeriod,
                 isInBillingRetryPeriod = transaction.isInBillingRetryPeriod,
                 isActive = transaction.isActive,
+                isPending = transaction.isPending,
             )
 
         /**

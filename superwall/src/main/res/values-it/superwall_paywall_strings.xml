@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Nessun abbonamento trovato</string>
+    <string name="superwall_restore_failed_message">Non abbiamo trovato un abbonamento attivo per il tuo account.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Nessuna schermata di pagamento da mostrare</string>
+</resources>

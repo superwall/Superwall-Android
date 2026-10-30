@@ -1,8 +1,11 @@
 package com.superwall.sdk.billing
 
+import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
+import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.Purchase
@@ -96,8 +99,7 @@ class GoogleBillingWrapper internal constructor(
     // Kept for binary compatibility; the query constants now live in [PurchaseQueries].
     companion object
 
-    /** Forgets every product this wrapper fetched, so the next request asks Play again. */
-    @androidx.annotation.VisibleForTesting
+    /** Forgets every product this wrapper fetched (and every miss), so the next request asks Play again. */
     internal fun clearProductsCache() {
         productDetails.clear()
     }
@@ -190,7 +192,8 @@ class GoogleBillingWrapper internal constructor(
      *
      * @param [fullProductIds] List of productIds
      *
-     * @throws [BillingError] if there's an error retrieving the products.
+     * @throws [BillingError] if Play Billing can't be queried. A product that Play doesn't know
+     * about is never an error: it is left out of the result.
      * @return A list of [StoreProduct] with the products that have been able to be fetched from the store successfully.
      * Not found products will be ignored.
      */

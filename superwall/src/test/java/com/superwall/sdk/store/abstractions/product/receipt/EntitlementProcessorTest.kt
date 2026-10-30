@@ -28,6 +28,7 @@ class EntitlementProcessorTest {
         override val isInGracePeriod: Boolean,
         override val isInBillingRetryPeriod: Boolean,
         override val isActive: Boolean,
+        override val isPending: Boolean = false,
     ) : EntitlementTransaction
 
     // MARK: - Helper Methods
@@ -2125,6 +2126,60 @@ class EntitlementProcessorTest {
                         false,
                         processedEntitlement?.isActive,
                     )
+                }
+            }
+        }
+    }
+
+    // MARK: - Pending purchases
+
+    @Test
+    fun `pending one-time purchase does not grant a lifetime entitlement`() {
+        Given("a pending non-consumable purchase") {
+            val processor = EntitlementProcessor()
+            val entitlement = createEntitlement(productIds = setOf("lifetime"))
+            val pending =
+                createMockTransaction(
+                    productId = "lifetime",
+                    productType = EntitlementTransactionType.NON_CONSUMABLE,
+                    isActive = false,
+                ).copy(isPending = true)
+
+            When("building entitlements") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = mapOf(entitlement.id to listOf(pending)),
+                        rawEntitlementsByProductId = mapOf("lifetime" to setOf(entitlement)),
+                        productIdsByEntitlementId = mapOf(entitlement.id to setOf("lifetime")),
+                    )
+
+                Then("the entitlement is neither active nor lifetime") {
+                    val built = result["lifetime"]!!.first()
+                    assertFalse(built.isActive)
+                    assertNotEquals(true, built.isLifetime)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `pending subscription is not reported as revoked`() {
+        Given("a pending subscription purchase") {
+            val processor = EntitlementProcessor()
+            val pending =
+                createMockTransaction(
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                    isActive = false,
+                    willRenew = true,
+                ).copy(isPending = true)
+
+            When("processing transactions") {
+                val subscription = processor.processTransactions(listOf(pending)).subscriptions.single()
+
+                Then("it is inactive but not revoked, and not in a grace period") {
+                    assertFalse(subscription.isActive)
+                    assertFalse(subscription.isRevoked)
+                    assertFalse(subscription.isInGracePeriod)
                 }
             }
         }

@@ -552,6 +552,66 @@ class TransactionManagerTest {
             }
         }
 
+    @Test
+    fun purchase_internalWithAutomaticController_usesThePurchaseFromTheResult() =
+        runTest {
+            Given("the automatic purchase controller returns the store purchase with its result") {
+                val productId = "product1"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                    }
+                val product = mockStoreProduct(productId, rawProduct)
+                val playPurchase =
+                    mockk<Purchase>(relaxed = true) {
+                        every { products } returns listOf(productId)
+                        every { purchaseToken } returns "token"
+                    }
+                // The wrapper recorded the Play purchase behind the neutral one its flow returned.
+                val playPurchases = com.superwall.sdk.billing.google.PlayPurchases()
+                val storePurchase = playPurchases.record(listOf(playPurchase)).single()
+                val wrapper =
+                    mockk<com.superwall.sdk.billing.GoogleBillingWrapper>(relaxed = true) {
+                        every { this@mockk.playPurchases } returns playPurchases
+                    }
+                every { storeManager.billing } returns wrapper
+                val transaction = mockk<com.superwall.sdk.store.abstractions.transactions.StoreTransaction>(relaxed = true)
+                every { storeManager.getProductFromCache(productId) } returns product
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                } returns PurchaseResult.Purchased(listOf(storePurchase))
+                every { factory.makeHasExternalPurchaseController() } returns false
+                coEvery { factory.makeStoreTransaction(playPurchase) } returns transaction
+                // The side channel never answers; the purchase must not wait on it.
+                val verifier =
+                    mockk<com.superwall.sdk.billing.GoogleBillingWrapper> {
+                        coEvery { getLatestTransaction(any()) } coAnswers { awaitCancellation() }
+                    }
+                every { factory.makeTransactionVerifier() } returns verifier
+
+                When("the purchase is made from a paywall") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(productId, mockk(relaxed = true)),
+                        )
+
+                    Then("it completes with the transaction built from the returned purchase") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        val completed =
+                            trackedEvents
+                                .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                .map { it.state }
+                                .filterIsInstance<InternalSuperwallEvent.Transaction.State.Complete>()
+                        assertEquals(1, completed.size)
+                        coVerify(exactly = 0) { verifier.getLatestTransaction(any()) }
+                        coVerify { factory.makeStoreTransaction(playPurchase) }
+                    }
+                }
+            }
+        }
+
     // endregion
 
     // region product replacement
@@ -932,6 +992,7 @@ class TransactionManagerTest {
                 }
         return mockk(relaxed = true) {
             every { fullIdentifier } returns productId
+            every { productIdentifier } returns productId
             every { hasFreeTrial } returns false
             every { rawStoreProduct } returns underlyingRaw
         }

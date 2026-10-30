@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Fann ikkje noko abonnement</string>
+    <string name="superwall_restore_failed_message">Vi fann ikkje noko aktivt abonnement for kontoen din.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Ingen betalingsskjerm å vise</string>
+</resources>

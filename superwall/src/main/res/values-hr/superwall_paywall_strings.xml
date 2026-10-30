@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Pretplata nije pronađena</string>
+    <string name="superwall_restore_failed_message">Nismo pronašli aktivnu pretplatu za vaš račun.</string>
+    <string name="superwall_restore_failed_close">U redu</string>
+    <string name="superwall_paywall_unavailable">Nema zaslona za plaćanje za prikaz</string>
+</resources>
