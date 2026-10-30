@@ -55,7 +55,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.Date
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 
 class TransactionManagerTest {
     @MockK(relaxed = true)
@@ -231,7 +231,7 @@ class TransactionManagerTest {
                     )
 
                 When("handle is invoked") {
-                    transactionManager.handle(result, state)
+                    transactionManager.handle(result)
 
                     Then("the receipt is refreshed and a transaction event is tracked") {
                         assertTrue(refreshReceiptCalled)
@@ -266,7 +266,7 @@ class TransactionManagerTest {
                         )
 
                     When("handle processes the cancellation") {
-                        transactionManager.handle(result, state)
+                        transactionManager.handle(result)
 
                         Then("an abandon event is recorded and the transaction is cleared") {
                             val abandonEvents =
@@ -302,7 +302,7 @@ class TransactionManagerTest {
                     val state = PurchasingObserverState.PurchaseError(productDetails, error)
 
                     When("handle processes the failure") {
-                        transactionManager.handle(result, state)
+                        transactionManager.handle(result)
 
                         Then("a failure event is recorded") {
                             val failEvents =
@@ -345,7 +345,7 @@ class TransactionManagerTest {
                     )
 
                 When("handle processes the pending state") {
-                    transactionManager.handle(result, state)
+                    transactionManager.handle(result)
 
                     Then("a pending failure event is tracked") {
                         val failEvents =
@@ -385,7 +385,7 @@ class TransactionManagerTest {
                     )
 
                 When("handle processes the restore result") {
-                    transactionManager.handle(result, state)
+                    transactionManager.handle(result)
 
                     Then("a restore event is recorded") {
                         val restoreEvents =
@@ -410,7 +410,7 @@ class TransactionManagerTest {
                     )
 
                 When("handle is invoked") {
-                    transactionManager.handle(result, state)
+                    transactionManager.handle(result)
 
                     Then("the receipt is not refreshed") {
                         assertFalse(refreshReceiptCalled)
@@ -537,6 +537,51 @@ class TransactionManagerTest {
                                 .filterIsInstance<InternalSuperwallEvent.Transaction.State.Complete>()
                         assertTrue(completed.isNotEmpty())
                         assertTrue(completed.all { it.transaction == null })
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_internalWithAutomaticController_usesThePurchaseFromTheResult() =
+        runTest {
+            Given("the automatic purchase controller returns the Play purchase with its result") {
+                val productId = "product1"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                    }
+                val product = mockStoreProduct(productId, rawProduct)
+                val playPurchase = purchaseOf(productId)
+                val transaction = mockk<com.superwall.sdk.store.abstractions.transactions.StoreTransaction>(relaxed = true)
+                every { storeManager.getProductFromCache(productId) } returns product
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                } returns PurchaseResult.Purchased(listOf(playPurchase))
+                every { factory.makeHasExternalPurchaseController() } returns false
+                coEvery { factory.makeStoreTransaction(playPurchase) } returns transaction
+                // The side channel never answers; the purchase must not wait on it.
+                val verifier =
+                    mockk<com.superwall.sdk.billing.GoogleBillingWrapper> {
+                        coEvery { getLatestTransaction(any()) } coAnswers { awaitCancellation() }
+                    }
+                every { factory.makeTransactionVerifier() } returns verifier
+
+                When("the purchase is made from a paywall") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(productId, mockk(relaxed = true)),
+                        )
+
+                    Then("it completes with the transaction built from the returned purchase") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        val completed =
+                            transactionStates().filterIsInstance<InternalSuperwallEvent.Transaction.State.Complete>()
+                        assertEquals(1, completed.size)
+                        coVerify(exactly = 0) { verifier.getLatestTransaction(any()) }
+                        coVerify { factory.makeStoreTransaction(playPurchase) }
                     }
                 }
             }
@@ -919,27 +964,165 @@ class TransactionManagerTest {
                 }
         return mockk(relaxed = true) {
             every { fullIdentifier } returns productId
+            every { productIdentifier } returns productId
             every { hasFreeTrial } returns false
             every { rawStoreProduct } returns underlyingRaw
         }
     }
 
-    private fun addTransactionInProgress(
-        productId: String,
-        productDetails: ProductDetails,
-    ) {
-        val field = TransactionManager::class.java.getDeclaredField("transactionsInProgress")
+    private fun inFlightSlot(manager: TransactionManager = transactionManager): AtomicReference<StoreProduct?> {
+        val field = TransactionManager::class.java.getDeclaredField("observedPurchaseInFlight")
         field.isAccessible = true
         @Suppress("UNCHECKED_CAST")
-        val map = field.get(transactionManager) as ConcurrentHashMap<String, ProductDetails>
-        map[productId] = productDetails
+        return field.get(manager) as AtomicReference<StoreProduct?>
     }
 
-    private fun hasTransactionInProgress(productId: String): Boolean {
-        val field = TransactionManager::class.java.getDeclaredField("transactionsInProgress")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val map = field.get(transactionManager) as ConcurrentHashMap<String, ProductDetails>
-        return map.containsKey(productId)
+    private fun addTransactionInProgress(
+        productId: String,
+        @Suppress("UNUSED_PARAMETER") productDetails: ProductDetails,
+    ) {
+        inFlightSlot().set(productsByFullId.getValue(productId))
     }
+
+    private fun hasTransactionInProgress(productId: String): Boolean = inFlightSlot().get()?.productIdentifier == productId
+
+    private fun observerModeManager(results: MutableStateFlow<InternalPurchaseResult?>): TransactionManager {
+        val billing =
+            mockk<com.superwall.sdk.billing.Billing> {
+                every { purchaseResults } returns results
+            }
+        every { storeManager.billing } returns billing
+        every { factory.makeSuperwallOptions() } returns
+            mockk(relaxed = true) {
+                every { shouldObservePurchases } returns true
+            }
+        return TransactionManager(
+            storeManager = storeManager,
+            purchaseController = purchaseController,
+            eventsQueue = eventsQueue,
+            storage = storage,
+            activityProvider = activityProvider,
+            factory = factory,
+            ioScope = ioScope,
+            track = { trackedEvents.add(it) },
+            dismiss = { id, result -> dismissCalls.add(id to result) },
+            showAlert = { alertCalls.add(it) },
+            subscriptionStatus = { subscriptionStatusValue },
+            entitlementsById = { entitlementsMap[it] ?: emptySet() },
+            allEntitlementsByProductId = { entitlementsMap },
+            webEntitlements = { webEntitlementsValue },
+            showRestoreDialogForWeb = { showRestoreDialogCalled = true },
+            refreshReceipt = { refreshReceiptCalled = true },
+            updateState = { key, update -> stateUpdates.add(key to update) },
+            notifyOfTransactionComplete = { _, _, _, _ -> },
+        )
+    }
+
+    private fun transactionStates() = trackedEvents.filterIsInstance<InternalSuperwallEvent.Transaction>().map { it.state }
+
+    private fun purchaseOf(productId: String): Purchase =
+        mockk(relaxed = true) {
+            every { products } returns listOf(productId)
+        }
+
+    @Test
+    fun observer_purchaseReportedByPlay_isHandledOnceEvenIfAlsoReportedManually() =
+        runTest {
+            Given("an observed purchase in flight") {
+                val results = MutableStateFlow<InternalPurchaseResult?>(null)
+                val manager = observerModeManager(results)
+                val product = mockStoreProduct("observed.product")
+                manager.prepareToPurchase(product, TransactionManager.PurchaseSource.ObserverMode(product))
+
+                When("Play reports the purchase and the app also calls observePurchaseResult") {
+                    val purchase = purchaseOf("observed.product")
+                    results.value = InternalPurchaseResult.Purchased(purchase)
+                    manager.handle(InternalPurchaseResult.Purchased(purchase))
+
+                    Then("the purchase completes exactly once") {
+                        assertTrue(refreshReceiptCalled)
+                        assertEquals(1, transactionStates().count { it is InternalSuperwallEvent.Transaction.State.Complete })
+                    }
+                    And("the slot is free for the next purchase") {
+                        assertNull(inFlightSlot(manager).get())
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun observer_outcomeWithNothingInFlight_doesNotKillTheCollector() =
+        runTest {
+            Given("observer mode with no purchase in flight") {
+                val results = MutableStateFlow<InternalPurchaseResult?>(null)
+                val manager = observerModeManager(results)
+
+                When("Play reports a failure and a cancellation nobody started") {
+                    results.value = InternalPurchaseResult.Failed(Exception("6"))
+                    results.value = InternalPurchaseResult.Cancelled
+                    manager.handle(InternalPurchaseResult.Cancelled)
+
+                    Then("nothing is tracked") {
+                        assertTrue(transactionStates().isEmpty())
+                    }
+                }
+
+                When("an observed purchase then completes") {
+                    val product = mockStoreProduct("later.product")
+                    manager.prepareToPurchase(product, TransactionManager.PurchaseSource.ObserverMode(product))
+                    results.value = InternalPurchaseResult.Purchased(purchaseOf("later.product"))
+
+                    Then("the collector is still alive and handles it") {
+                        assertTrue(refreshReceiptCalled)
+                        assertEquals(1, transactionStates().count { it is InternalSuperwallEvent.Transaction.State.Complete })
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun observer_secondPurchaseOfAnotherProduct_isRejectedAndOutcomeGoesToTheFirst() =
+        runTest {
+            Given("an observed purchase of product A in flight") {
+                val results = MutableStateFlow<InternalPurchaseResult?>(null)
+                val manager = observerModeManager(results)
+                val productA = mockStoreProduct("product.a")
+                val productB = mockStoreProduct("product.b")
+                manager.prepareToPurchase(productA, TransactionManager.PurchaseSource.ObserverMode(productA))
+
+                When("a purchase of product B starts and the flow is then cancelled") {
+                    manager.prepareToPurchase(productB, TransactionManager.PurchaseSource.ObserverMode(productB))
+                    results.value = InternalPurchaseResult.Cancelled
+
+                    Then("B's start is not tracked") {
+                        val starts = transactionStates().filterIsInstance<InternalSuperwallEvent.Transaction.State.Start>()
+                        assertEquals(listOf(productA), starts.map { it.product })
+                    }
+                    And("the abandon is attributed to A") {
+                        val abandons = transactionStates().filterIsInstance<InternalSuperwallEvent.Transaction.State.Abandon>()
+                        assertEquals(listOf(productA), abandons.map { it.product })
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun observer_purchaseOfAnotherProduct_doesNotCompleteTheObservedOne() =
+        runTest {
+            Given("an observed purchase of product A in flight") {
+                val results = MutableStateFlow<InternalPurchaseResult?>(null)
+                val manager = observerModeManager(results)
+                val productA = mockStoreProduct("product.a")
+                manager.prepareToPurchase(productA, TransactionManager.PurchaseSource.ObserverMode(productA))
+
+                When("Play reports a purchase of an unrelated product") {
+                    results.value = InternalPurchaseResult.Purchased(purchaseOf("unrelated"))
+
+                    Then("A is still in flight and nothing completed") {
+                        assertEquals(productA, inFlightSlot(manager).get())
+                        assertFalse(refreshReceiptCalled)
+                    }
+                }
+            }
+        }
 }

@@ -9,6 +9,14 @@ import java.util.Date
 /**
  * Adapts a Google Play Purchase to the EntitlementTransaction interface.
  *
+ * Play Billing only tells the client that a purchase exists and whether it's paid for. It has
+ * no client-side signal for expiry, grace period or account hold (only the Play Developer API
+ * and RTDN see those), so we report what we know and leave the rest unknown:
+ * - a purchase returned by `queryPurchases` in the PURCHASED state is active now;
+ * - PENDING means payment hasn't completed yet (not revoked, not active);
+ * - [expirationDate] is unknown (null): renewals keep the original purchase token and
+ *   `purchaseTime`, and trials/intro phases change the first period's length, so
+ *   `purchaseTime + period` is wrong for anything past the first plain period.
  */
 class PlayStorePurchaseAdapter(
     private val purchase: Purchase,
@@ -25,12 +33,13 @@ class PlayStorePurchaseAdapter(
         get() = Date(purchase.purchaseTime) // Google Play doesn't distinguish original vs renewal
 
     override val expirationDate: Date?
-        get() = calculateExpirationDate()
+        get() = null
 
     override val isRevoked: Boolean
-        get() =
-            purchase.purchaseState == PurchaseState.PENDING ||
-                purchase.purchaseState == PurchaseState.UNSPECIFIED_STATE
+        get() = purchase.purchaseState == PurchaseState.UNSPECIFIED_STATE
+
+    override val isPending: Boolean
+        get() = purchase.purchaseState == PurchaseState.PENDING
 
     override val productType: EntitlementTransactionType
         get() =
@@ -51,32 +60,16 @@ class PlayStorePurchaseAdapter(
     override val renewedAt: Date?
         get() = null // Google Play doesn't provide this directly
 
+    // During a real Play grace period, queryPurchases still reports PURCHASED. Grace and
+    // account hold are only visible server-side, so the client never claims either.
     override val isInGracePeriod: Boolean
-        get() = purchase.purchaseState == PurchaseState.PENDING && purchase.isAutoRenewing
+        get() = false
 
     override val isInBillingRetryPeriod: Boolean
-        get() = false // Google Play doesn't expose this directly
+        get() = false
 
     override val isActive: Boolean
         get() = calculateIsActive()
-
-    private fun calculateExpirationDate(): Date? {
-        if (product == null) return null
-
-        return when (product.rawStoreProduct?.underlyingProductDetails?.productType) {
-            ProductType.SUBS -> {
-                val subscriptionPeriod = product.rawStoreProduct?.subscriptionPeriod
-                if (subscriptionPeriod != null) {
-                    val periodMillis = subscriptionPeriod.toMillis
-                    Date(purchase.purchaseTime + periodMillis)
-                } else {
-                    null
-                }
-            }
-            ProductType.INAPP -> null // Non-consumable don't expire
-            else -> null
-        }
-    }
 
     private fun calculateIsActive(): Boolean =
         when (purchase.purchaseState) {

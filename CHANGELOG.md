@@ -16,6 +16,23 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Fixes a band of the host window showing beside the display cutout around a Fullscreen, Push or no-animation paywall shown with `PresentationHost.IN_WINDOW`. The in-window host padded the paywall for the cutout as well as the system bars; it now pads for the system bars only, as `SuperwallPaywallActivity` does, and the paywall clears the cutout with its CSS safe-area insets.
 - Fixes paywalls not running post-purchase actions (e.g. navigating to a thank-you page) after a one-time product purchase, because `transaction_complete` was only sent to the paywall for subscriptions.
 - Fixes `getProducts()` (and other network-backed suspend APIs) not being main-safe: network requests now always run on `Dispatchers.IO`, so the `/products` fallback no longer fails with `NetworkOnMainThreadException` when called from the main thread.
+- Fixes `reset()` and switching users deleting every top-level file in the host app's cache directory. Reset now only clears Superwall's own user-scoped storage.
+- Fixes the previous user's experiment assignments, paywall view counts, customer info, transaction history and survey assignment carrying over to the next user after `reset()` or `identify()` with a different user. The cached config and enrichment are kept.
+- Fixes storage writes not being atomic: a process kill mid-write could empty a stored value (e.g. the user's alias or seed). Writes now go through `AtomicFile`, and the in-memory cache is thread-safe.
+- Fixes config retries waiting forever on devices connected over Ethernet, a VPN or any network other than Wi-Fi or cellular. Any network with internet access now counts, and the wait is capped at 30 seconds.
+- Fixes one product ID that Google Play doesn't return (e.g. not live yet) making every later product load fail until the app was restarted. Missing products are left out of the result and asked for again after 5 minutes.
+- Fixes renewing subscribers being reported with an `EXPIRED` `latestSubscriptionState` and a wrong expiry date (the first period's end) after their first renewal. Google Play doesn't give the client an expiry date, grace period or account hold, so the device no longer guesses them: a purchased subscription is `SUBSCRIBED`, and a pending purchase is no longer reported as revoked or in a grace period.
+- Fixes observer mode dropping successful purchases and, after a cancelled or failed purchase it wasn't tracking, ignoring every later purchase. Only one observed purchase can be in progress at a time; each one is handled once whether it's reported by Google Play or through `Superwall.instance.observe`.
+- Fixes the SDK connecting two Google Play billing clients when no `PurchaseController` is set, which processed every purchase twice. `AutomaticPurchaseController` now uses the SDK's single billing connection.
+- Fixes a blank screen when the app's process is recreated with a paywall on top and Superwall is configured after `Application.onCreate`. The paywall activity now closes.
+- Fixes `PaywallComposable` not loading a new paywall when its `placement` changes, and crashing when it isn't hosted in an `Activity`.
+- The restore-failed alert and `PaywallComposable`'s default error are now localized. Text you set on `PaywallOptions.restoreFailed` is shown as is.
+
+## Deprecations
+- Deprecates `PaywallOptions.useCachedTemplates`. It has no effect: on-device caching is configured per paywall in the Superwall dashboard. It will be removed in the next major version.
+
+## Breaking changes
+- `AutomaticPurchaseController`'s constructor now takes the SDK's `Billing` instead of a `Context` and a billing client factory. Apps that don't construct it themselves are unaffected.
 
 
 ## 2.8.8

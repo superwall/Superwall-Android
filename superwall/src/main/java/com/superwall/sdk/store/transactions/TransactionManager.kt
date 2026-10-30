@@ -2,8 +2,8 @@ package com.superwall.sdk.store.transactions
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.config.options.localized
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -47,21 +47,17 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.StoreManager
-import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeTransactionHandler
 import com.superwall.sdk.web.openRestoreOnWeb
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Date
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 
 class TransactionManager(
     private val storeManager: StoreManager,
@@ -135,8 +131,12 @@ class TransactionManager(
         AttributesFactory,
         EnrichmentFactory
 
-    private var transactionsInProgress: ConcurrentHashMap<String, ProductDetails> =
-        ConcurrentHashMap()
+    // The single purchase being observed in observer mode. Play only runs one billing flow at
+    // a time, so concurrent observed purchases aren't a real use case: a second one for a
+    // different product is rejected. Whichever path reports the outcome first (the Play
+    // listener collector below, or a manual [Superwall.observe] call) claims the slot, so
+    // each observed purchase is handled exactly once.
+    private val observedPurchaseInFlight = AtomicReference<StoreProduct?>(null)
 
     private val shouldObserveTransactionFinishingAutomatically: Boolean
         get() = factory.makeSuperwallOptions().shouldObservePurchases
@@ -145,105 +145,66 @@ class TransactionManager(
         if (shouldObserveTransactionFinishingAutomatically) {
             ioScope.launch {
                 storeManager.billing.purchaseResults
-                    .asSharedFlow()
-                    .dropWhile {
-                        transactionsInProgress.isEmpty()
-                    }.filterNotNull()
-                    .collectLatest { it: InternalPurchaseResult ->
-                        val state =
-                            when (it) {
-                                is InternalPurchaseResult.Purchased -> {
-                                    it.purchase.products.forEach {
-                                        transactionsInProgress.remove(it)
-                                    }
-                                    PurchasingObserverState.PurchaseResult(
-                                        BillingResult
-                                            .newBuilder()
-                                            .setResponseCode(BillingClient.BillingResponseCode.OK)
-                                            .build(),
-                                        listOf(it.purchase),
-                                    )
-                                }
-
-                                is InternalPurchaseResult.Cancelled -> {
-                                    val last = transactionsInProgress.entries.last()
-                                    transactionsInProgress.remove(last.key)
-                                    PurchasingObserverState.PurchaseResult(
-                                        BillingResult
-                                            .newBuilder()
-                                            .setResponseCode(BillingClient.BillingResponseCode.USER_CANCELED)
-                                            .build(),
-                                        emptyList(),
-                                    )
-                                }
-
-                                else -> {
-                                    val last = transactionsInProgress.entries.last()
-                                    transactionsInProgress.remove(last.key)
-                                    PurchasingObserverState.PurchaseError(
-                                        error =
-                                            (it as? InternalPurchaseResult.Failed)?.error
-                                                ?: Throwable("Unknown error"),
-                                        product = last.value,
-                                    )
-                                }
-                            }
-                        handle(it, state)
+                    .filterNotNull()
+                    .collect { result ->
+                        // Only act on outcomes of a purchase we were told about; everything
+                        // else (e.g. paywall purchases) is handled by its own flow.
+                        if (observedPurchaseInFlight.get() == null) return@collect
+                        handle(result)
                     }
             }
         }
     }
 
-    internal suspend fun handle(
-        result: InternalPurchaseResult,
-        state: PurchasingObserverState,
-    ) {
-        if (transactionsInProgress.isEmpty()) {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.paywallTransactions,
-                "Transactions in progress is empty but a transaction was attempted to be handled." +
-                    " This is likely a bug. Have you tracked the purchase start?",
-            )
-            return
+    /** Claims the observer slot for [product]. Returns false if another product's purchase is in flight. */
+    private fun claimObservedPurchase(product: StoreProduct): Boolean {
+        while (true) {
+            val current = observedPurchaseInFlight.get()
+            // A new start for the same product means the previous flow ended without telling us.
+            val canTake = current == null || current.productIdentifier == product.productIdentifier
+            if (!canTake) return false
+            if (observedPurchaseInFlight.compareAndSet(current, product)) return true
         }
+    }
 
-        val lastProduct = transactionsInProgress.entries.last()
+    /** Releases the observer slot if it holds one of [productIds]. Returns the released product. */
+    private fun releaseObservedPurchase(productIds: Collection<String>): StoreProduct? {
+        val current = observedPurchaseInFlight.get() ?: return null
+        if (current.productIdentifier !in productIds) return null
+        return current.takeIf { observedPurchaseInFlight.compareAndSet(it, null) }
+    }
+
+    /** Releases the observer slot whatever it holds. Used for outcomes that don't name a product. */
+    private fun releaseObservedPurchase(): StoreProduct? = observedPurchaseInFlight.getAndSet(null)
+
+    internal suspend fun handle(result: InternalPurchaseResult) {
         when (result) {
             is InternalPurchaseResult.Purchased -> {
+                val product =
+                    releaseObservedPurchase(result.purchase.products)
+                        ?: return logUnobservedOutcome(result)
                 refreshReceipt()
-                transactionsInProgress.remove(lastProduct.key)
-                val state = state as PurchasingObserverState.PurchaseResult
-                state.purchases?.forEach { purchase ->
-                    purchase.products.map {
-                        storeManager.getProductFromCache(it)?.let { product ->
-                            didPurchase(
-                                product,
-                                PurchaseSource.ObserverMode(product),
-                                product.hasFreeTrial,
-                                purchase,
-                                shouldDismiss = true, // gets ignored later on,
-                            )
-                        }
-                    }
-                }
+                didPurchase(
+                    product,
+                    PurchaseSource.ObserverMode(product),
+                    product.hasFreeTrial,
+                    result.purchase,
+                    shouldDismiss = true, // gets ignored later on,
+                )
             }
 
             is InternalPurchaseResult.Cancelled -> {
-                val product = StoreProduct(RawStoreProduct.from(lastProduct.value))
+                val product = releaseObservedPurchase() ?: return logUnobservedOutcome(result)
                 trackCancelled(
                     product = product,
                     purchaseSource = PurchaseSource.ObserverMode(product),
                 )
-                transactionsInProgress.remove(lastProduct.key)
             }
 
             is InternalPurchaseResult.Failed -> {
-                transactionsInProgress.remove(lastProduct.key)
-                val state = state as PurchasingObserverState.PurchaseError
-                val product = StoreProduct(RawStoreProduct.from(state.product))
+                val product = releaseObservedPurchase() ?: return logUnobservedOutcome(result)
                 trackFailure(
-                    state.error.localizedMessage
+                    result.error.localizedMessage
                         ?.let {
                             try {
                                 PlayBillingErrors.fromCode(it)
@@ -262,29 +223,24 @@ class TransactionManager(
             }
 
             InternalPurchaseResult.Pending -> {
-                val result = state as PurchasingObserverState.PurchaseResult
-                transactionsInProgress.remove(lastProduct.key)
-                result.purchases?.forEach { purchase ->
-                    purchase.products.map {
-                        storeManager.getProductFromCache(it)?.let { product ->
-                            handlePendingTransaction(PurchaseSource.ObserverMode(product))
-                        }
-                    }
-                }
+                val product = releaseObservedPurchase() ?: return logUnobservedOutcome(result)
+                handlePendingTransaction(PurchaseSource.ObserverMode(product))
             }
 
             InternalPurchaseResult.Restored -> {
-                val state = state as PurchasingObserverState.PurchaseResult
-                transactionsInProgress.remove(lastProduct.key)
-                state.purchases?.forEach { purchase ->
-                    purchase.products.map {
-                        storeManager.getProductFromCache(it)?.let { product ->
-                            didRestore(product, PurchaseSource.ObserverMode(product))
-                        }
-                    }
-                }
+                val product = releaseObservedPurchase() ?: return logUnobservedOutcome(result)
+                didRestore(product, PurchaseSource.ObserverMode(product))
             }
         }
+    }
+
+    private fun logUnobservedOutcome(result: InternalPurchaseResult) {
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.paywallTransactions,
+            "Ignoring observed purchase outcome $result: no matching purchase is in flight " +
+                "(it was already handled, or observePurchaseStart wasn't called).",
+        )
     }
 
     fun updatePaymentQueue(removedTransactions: List<String>) {
@@ -417,7 +373,17 @@ class TransactionManager(
 
         when (result) {
             is PurchaseResult.Purchased -> {
-                didPurchase(product, purchaseSource, isEligibleForTrial && product.hasFreeTrial, shouldDismiss = shouldDismiss)
+                // The automatic controller hands back the Play purchase; a custom controller doesn't.
+                val purchase =
+                    result.purchases.firstOrNull { product.productIdentifier in it.products }
+                        ?: result.purchases.firstOrNull()
+                didPurchase(
+                    product,
+                    purchaseSource,
+                    isEligibleForTrial && product.hasFreeTrial,
+                    purchase = purchase,
+                    shouldDismiss = shouldDismiss,
+                )
             }
 
             is PurchaseResult.Failed -> {
@@ -862,11 +828,13 @@ class TransactionManager(
             }
 
             is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
-                if (isObserved && product.rawStoreProduct != null) {
-                    transactionsInProgress.put(
-                        product.fullIdentifier,
-                        product.rawStoreProduct!!.underlyingProductDetails,
+                if (isObserved && !claimObservedPurchase(product)) {
+                    log(
+                        LogLevel.error,
+                        "Ignoring the start of an observed purchase of ${product.fullIdentifier}: " +
+                            "a purchase of ${observedPurchaseInFlight.get()?.fullIdentifier} is already in progress.",
                     )
+                    return
                 }
                 if (!storeManager.hasCached(product.fullIdentifier)) {
                     storeManager.cacheProduct(product.fullIdentifier, product)
@@ -926,7 +894,7 @@ class TransactionManager(
                     )
                 }
 
-                val transaction = awaitLatestTransaction()
+                val transaction = if (purchase != null) transactionFor(purchase) else awaitLatestTransaction()
 
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
@@ -1200,20 +1168,18 @@ class TransactionManager(
                 if (webToAppEnabled) {
                     askToRestoreFromWeb()
                 } else {
-                    paywallView?.showAlert(
-                        title =
+                    paywallView?.let { view ->
+                        val alert =
                             factory
                                 .makeSuperwallOptions()
-                                .paywalls.restoreFailed.title,
-                        message =
-                            factory
-                                .makeSuperwallOptions()
-                                .paywalls.restoreFailed.message,
-                        closeActionTitle =
-                            factory
-                                .makeSuperwallOptions()
-                                .paywalls.restoreFailed.closeButtonTitle,
-                    )
+                                .paywalls.restoreFailed
+                                .localized(view.context)
+                        view.showAlert(
+                            title = alert.title,
+                            message = alert.message,
+                            closeActionTitle = alert.closeButtonTitle,
+                        )
+                    }
                 }
             }
         }
@@ -1273,6 +1239,14 @@ class TransactionManager(
     // at all (e.g. Galaxy Store), in which case the billing client never emits a result
     // and an unbounded wait would hang the purchase flow forever. The transaction only
     // enriches tracking events, so bound the wait and fall back to null.
+    // Mirrors [Billing.getLatestTransaction]: in observer mode the app finishes transactions itself.
+    private suspend fun transactionFor(purchase: Purchase): StoreTransaction? =
+        if (factory.makeSuperwallOptions().shouldObservePurchases) {
+            null
+        } else {
+            factory.makeStoreTransaction(purchase)
+        }
+
     private suspend fun awaitLatestTransaction(): StoreTransaction? {
         val transactionVerifier = factory.makeTransactionVerifier()
         return if (factory.makeHasExternalPurchaseController()) {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Naročnine ni bilo mogoče najti</string>
+    <string name="superwall_restore_failed_message">Za vaš račun nismo našli aktivne naročnine.</string>
+    <string name="superwall_restore_failed_close">V redu</string>
+    <string name="superwall_paywall_unavailable">Ni plačilnega zaslona za prikaz</string>
+</resources>

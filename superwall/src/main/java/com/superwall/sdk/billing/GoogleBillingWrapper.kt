@@ -1,9 +1,12 @@
 package com.superwall.sdk.billing
 
+import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.BillingClientStateListener
+import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.GetBillingConfigParams
 import com.android.billingclient.api.PendingPurchasesParams
@@ -19,7 +22,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AppLifecycleObserver
-import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -46,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -64,6 +67,11 @@ internal const val MAX_TRANSIENT_SETUP_FAILURES = 3
 // never arrives can't leave paywalls waiting on their products for the life of the process.
 internal const val PRODUCTS_QUERY_TIMEOUT_MS = 15_000L
 
+// How long a product id that Play didn't return is skipped before we ask for it again.
+// Short enough that a product going live is picked up quickly, long enough that a
+// paywall referencing a stale id doesn't re-query it on every load.
+internal const val MISSING_PRODUCT_TTL_MS = 5L * 60L * 1000L
+
 class GoogleBillingWrapper(
     val context: Context,
     val ioScope: IOScope,
@@ -77,19 +85,26 @@ class GoogleBillingWrapper(
                 PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
             ).build()
     },
+    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
 ) : PurchasesUpdatedListener,
     BillingClientStateListener,
     Billing {
     companion object {
-        private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
         private const val QUERY_PURCHASES_TIMEOUT_MS = 10_000L
         private const val QUERY_PURCHASES_MAX_RETRIES = 3
         private const val CONNECT_TIMEOUT_MS = 5_000L
+    }
 
-        @androidx.annotation.VisibleForTesting
-        internal fun clearProductsCache() {
-            productsCache.clear()
-        }
+    // Products Play returned, by full identifier.
+    private val productsCache = ConcurrentHashMap<String, StoreProduct>()
+
+    // Ids Play didn't return, with the time we found out. Skipped (not failed) until
+    // [MISSING_PRODUCT_TTL_MS] has passed so a missing id never breaks the other ids' load.
+    private val recentlyMissing = ConcurrentHashMap<String, Long>()
+
+    override fun clearProductsCache() {
+        productsCache.clear()
+        recentlyMissing.clear()
     }
 
     interface Factory :
@@ -129,6 +144,9 @@ class GoogleBillingWrapper(
 
     // Setup mutable state flow for purchase results
     override val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
+
+    // The billing flow launched through [launchBillingFlow] that is waiting for Play's answer.
+    private val inFlightPurchaseFlow = AtomicReference<CompletableDeferred<PurchaseFlowResult>?>(null)
 
     internal val IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE =
         "Google Play In-app Billing API version is less than 3"
@@ -210,6 +228,78 @@ class GoogleBillingWrapper(
         return purchases?.let { Result.success(it) }
             ?: Result.failure(BillingError.UnknownError)
     }
+
+    override suspend fun queryPurchasesOfType(productType: String): Result<List<Purchase>> {
+        awaitConnection().onFailure { return Result.failure(it) }
+        return queryType(productType)
+    }
+
+    override suspend fun launchBillingFlow(
+        activity: Activity,
+        params: BillingFlowParams,
+    ): PurchaseFlowResult {
+        awaitConnection().onFailure {
+            return PurchaseFlowResult(
+                billingResult(
+                    BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
+                    "Billing isn't connected: ${it.message}",
+                ),
+            )
+        }
+
+        val flow = CompletableDeferred<PurchaseFlowResult>()
+        if (!inFlightPurchaseFlow.compareAndSet(null, flow)) {
+            return PurchaseFlowResult(
+                billingResult(BillingClient.BillingResponseCode.DEVELOPER_ERROR, "A purchase is already in progress"),
+            )
+        }
+        try {
+            val launched =
+                billingClient?.takeIf { it.isReady }?.launchBillingFlow(activity, params)
+                    ?: billingResult(BillingClient.BillingResponseCode.SERVICE_DISCONNECTED, "Billing client not ready")
+            // A flow that didn't start won't get a purchase update, so answer with the launch result.
+            if (launched.responseCode != BillingClient.BillingResponseCode.OK) {
+                return PurchaseFlowResult(launched)
+            }
+            return flow.await()
+        } finally {
+            inFlightPurchaseFlow.compareAndSet(flow, null)
+        }
+    }
+
+    override suspend fun acknowledge(purchaseToken: String): Result<Unit> {
+        awaitConnection().onFailure { return Result.failure(it) }
+        val deferred = CompletableDeferred<Result<Unit>>()
+        val params =
+            AcknowledgePurchaseParams
+                .newBuilder()
+                .setPurchaseToken(purchaseToken)
+                .build()
+        withConnectedClient {
+            acknowledgePurchase(params) { result ->
+                deferred.complete(
+                    if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                        Result.success(Unit)
+                    } else {
+                        Result.failure(Throwable("Acknowledge failed with code ${result.responseCode}"))
+                    },
+                )
+            }
+        } ?: return Result.failure(Throwable("Billing client not ready"))
+
+        return withTimeoutOrNull(QUERY_PURCHASES_TIMEOUT_MS) { deferred.await() }
+            ?: Result.failure(Throwable("Acknowledge purchase timed out"))
+    }
+
+    private fun billingResult(
+        code: Int,
+        message: String,
+    ): BillingResult =
+        BillingResult
+            .newBuilder()
+            .setResponseCode(code)
+            .setDebugMessage(message)
+            .build()
 
     private suspend fun awaitConnection(): Result<Unit> {
         if (billingClient?.isReady == true) return Result.success(Unit)
@@ -309,33 +399,29 @@ class GoogleBillingWrapper(
      *
      * @param [productIds] List of productIds
      *
-     * @throws [BillingError] if there's an error retrieving the products.
+     * @throws [BillingError] if Play Billing can't be queried. A product that Play doesn't know
+     * about is never an error: it is left out of the result.
      * @return A list of [StoreProduct] with the products that have been able to be fetched from the store successfully.
      * Not found products will be ignored.
      */
     @JvmSynthetic
     @Throws(Throwable::class)
     override suspend fun awaitGetProducts(fullProductIds: Set<String>): Set<StoreProduct> {
-        // Get the cached products. If any are a failure, we throw an error.
-        val cachedProducts =
-            fullProductIds
-                .mapNotNull { fullProductId ->
-                    productsCache[fullProductId]?.let { result ->
-                        when (result) {
-                            is Either.Success -> result.value
-                            is Either.Failure -> throw result.error
-                        }
-                    }
-                }.toSet()
+        val now = currentTimeMillis()
+        val cachedProducts = fullProductIds.mapNotNull { productsCache[it] }.toSet()
+        val cachedIds = cachedProducts.map { it.fullIdentifier }.toSet()
+        val skippedIds =
+            fullProductIds.filter { id ->
+                val missingSince = recentlyMissing[id] ?: return@filter false
+                val stillFresh = now - missingSince < MISSING_PRODUCT_TTL_MS
+                if (!stillFresh) recentlyMissing.remove(id, missingSince)
+                stillFresh
+            }
 
-        // If all products are found in cache, return them directly
-        if (cachedProducts.size == fullProductIds.size) {
+        val missingFullProductIds = fullProductIds - cachedIds - skippedIds.toSet()
+        if (missingFullProductIds.isEmpty()) {
             return cachedProducts
         }
-
-        // Determine which product IDs are not in cache
-        val missingFullProductIds =
-            fullProductIds - cachedProducts.map { it.fullIdentifier }.toSet()
 
         return try {
             withTimeout(PRODUCTS_QUERY_TIMEOUT_MS) {
@@ -344,26 +430,19 @@ class GoogleBillingWrapper(
                         missingFullProductIds,
                         object : GetStoreProductsCallback {
                             override fun onReceived(storeProducts: Set<StoreProduct>) {
-                                // Update cache with fetched products and collect their identifiers
-                                val foundProductIds =
-                                    storeProducts.map { product ->
-                                        productsCache[product.fullIdentifier] = Either.Success(product)
-                                        product.fullIdentifier
-                                    }
+                                storeProducts.forEach { product ->
+                                    productsCache[product.fullIdentifier] = product
+                                    recentlyMissing.remove(product.fullIdentifier)
+                                }
+                                val foundProductIds = storeProducts.map { it.fullIdentifier }.toSet()
+                                val missedAt = currentTimeMillis()
+                                (missingFullProductIds - foundProductIds).forEach { fullProductId ->
+                                    recentlyMissing[fullProductId] = missedAt
+                                }
 
-                                // Identify and handle missing products
-                                missingFullProductIds
-                                    .filterNot { it in foundProductIds }
-                                    .forEach { fullProductId ->
-                                        productsCache[fullProductId] =
-                                            Either.Failure(Exception("Failed to query product details for $fullProductId"))
-                                    }
-
-                                // Combine cached products (now including the newly fetched ones) with the fetched products
-                                val allProducts = cachedProducts + storeProducts
                                 // A late answer to a request that already timed out is ignored here,
                                 // but the products it carried are now cached for the next request.
-                                if (continuation.isActive) continuation.resume(allProducts)
+                                if (continuation.isActive) continuation.resume(cachedProducts + storeProducts)
                             }
 
                             override fun onError(error: BillingError) {
@@ -741,6 +820,9 @@ class GoogleBillingWrapper(
             LogScope.storeKitManager,
             "onPurchasesUpdated: $result",
         )
+        // Answer the flow we launched, if any. Play also reports purchases from flows we didn't
+        // launch (observer mode, pending purchases settling), which only go to [purchaseResults].
+        inFlightPurchaseFlow.getAndSet(null)?.complete(PurchaseFlowResult(result, purchases.orEmpty()))
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (purchase in purchases) {
                 Logger.debug(
@@ -839,32 +921,6 @@ class GoogleBillingWrapper(
             )
         }
     }
-
-    internal suspend fun latestPurchase() =
-        queryAllPurchases()
-            .sortedByDescending {
-                it.purchaseTime
-            }.map {
-                val product = awaitGetProducts(it.products.toSet()).first()
-                val millisSincePurchase = (System.currentTimeMillis() - it.purchaseTime)
-                val subPeriod = product.subscriptionPeriod?.toMillis() ?: 0
-                val isGracePeriod =
-                    it.purchaseState == Purchase.PurchaseState.PENDING &&
-                        it.isAutoRenewing
-                val isExpired =
-                    it.purchaseState == Purchase.PurchaseState.PURCHASED &&
-                        !it.isAutoRenewing &&
-                        millisSincePurchase > subPeriod
-                val isSubscribed =
-                    it.purchaseState == Purchase.PurchaseState.PURCHASED &&
-                        millisSincePurchase < subPeriod
-
-                mapOf(
-                    "latestSubscriptionPeriodType" to product.subscriptionPeriod?.unit,
-                    "latestSubscriptionState" to it.purchaseState,
-                    "latestSubscriptionWillAutoRenew" to it.isAutoRenewing,
-                )
-            }
 
     suspend fun queryType(type: String): Result<List<Purchase>> {
         val deferred = CompletableDeferred<Result<List<Purchase>>>()

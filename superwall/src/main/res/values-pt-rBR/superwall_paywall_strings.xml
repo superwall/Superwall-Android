@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Nenhuma assinatura encontrada</string>
+    <string name="superwall_restore_failed_message">Não encontramos uma assinatura ativa na sua conta.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Nenhuma tela de pagamento para exibir</string>
+</resources>

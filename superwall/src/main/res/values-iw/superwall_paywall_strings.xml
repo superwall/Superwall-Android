@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">לא נמצא מינוי</string>
+    <string name="superwall_restore_failed_message">לא מצאנו מינוי פעיל עבור החשבון שלך.</string>
+    <string name="superwall_restore_failed_close">אישור</string>
+    <string name="superwall_paywall_unavailable">אין מסך תשלום להצגה</string>
+</resources>

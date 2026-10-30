@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Tilausta ei löytynyt</string>
+    <string name="superwall_restore_failed_message">Tilillesi ei löytynyt aktiivista tilausta.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Ei näytettävää maksunäkymää</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Không tìm thấy gói đăng ký</string>
+    <string name="superwall_restore_failed_message">Chúng tôi không tìm thấy gói đăng ký đang hoạt động nào cho tài khoản của bạn.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Không có màn hình thanh toán để hiển thị</string>
+</resources>

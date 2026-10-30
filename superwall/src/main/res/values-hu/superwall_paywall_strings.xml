@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Nem található előfizetés</string>
+    <string name="superwall_restore_failed_message">Nem találtunk aktív előfizetést a fiókjához.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Nincs megjeleníthető fizetési képernyő</string>
+</resources>

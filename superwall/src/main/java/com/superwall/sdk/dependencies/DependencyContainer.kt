@@ -35,6 +35,7 @@ import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.AdConsentPublisher
 import com.superwall.sdk.config.options.AdConsentState
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.config.options.localized
 import com.superwall.sdk.config.options.TcfConsentReader
 import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.customercenter.CustomerCenterManager
@@ -357,7 +358,7 @@ class DependencyContainer(
             InternalPurchaseController(
                 kotlinPurchaseController =
                     purchaseController
-                        ?: AutomaticPurchaseController(context, ioScope, { entitlements }),
+                        ?: AutomaticPurchaseController(ioScope, googleBillingWrapper, { entitlements }),
                 javaPurchaseController = null,
                 context,
             )
@@ -1278,10 +1279,11 @@ class DependencyContainer(
                 Superwall.instance.track(trackedEvent)
             }
             paywallView.handle(PaywallMessage.RestoreFailed(message))
+            val alert = options.paywalls.restoreFailed.localized(paywallView.context)
             paywallView.showAlert(
-                title = options.paywalls.restoreFailed.title,
-                message = options.paywalls.restoreFailed.message,
-                closeActionTitle = options.paywalls.restoreFailed.closeButtonTitle,
+                title = alert.title,
+                message = alert.message,
+                closeActionTitle = alert.closeButtonTitle,
             )
         }
     }

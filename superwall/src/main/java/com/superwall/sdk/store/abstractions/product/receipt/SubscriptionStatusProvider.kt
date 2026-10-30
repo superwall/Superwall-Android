@@ -49,43 +49,21 @@ interface SubscriptionStatusProvider {
 class PlayBillingSubscriptionStatusProvider(
     private val billing: Billing,
 ) : SubscriptionStatusProvider {
+    /**
+     * A purchase returned by `queryPurchases` is entitled now, so PURCHASED means SUBSCRIBED.
+     * Play Billing has no client-side expiry, grace or hold signal, so we don't try to derive one
+     * from `purchaseTime` (which stays at the original purchase across renewals).
+     * When there's no current purchase at all, see [ReceiptManager.lastSubscriptionProperties].
+     */
     override suspend fun getSubscriptionState(
         purchase: Purchase,
         product: StoreProduct?,
-    ): LatestSubscriptionState {
-        val now = System.currentTimeMillis()
-        val timeSincePurchase = now - purchase.purchaseTime
-        val duration = product?.rawStoreProduct?.subscriptionPeriod?.toMillis ?: 0
-
-        return when {
-            // Revoked/refunded
-            purchase.purchaseState == PurchaseState.UNSPECIFIED_STATE ->
-                LatestSubscriptionState.REVOKED
-
-            // Grace period - pending but still auto-renewing
-            purchase.purchaseState == PurchaseState.PENDING &&
-                purchase.isAutoRenewing ->
-                LatestSubscriptionState.GRACE_PERIOD
-
-            // Expired - purchased but past duration
-            purchase.purchaseState == PurchaseState.PURCHASED &&
-                duration > 0 &&
-                timeSincePurchase > duration ->
-                LatestSubscriptionState.EXPIRED
-
-            // Active subscription
-            purchase.purchaseState == PurchaseState.PURCHASED &&
-                purchase.isAutoRenewing &&
-                (duration == 0L || timeSincePurchase < duration) ->
-                LatestSubscriptionState.SUBSCRIBED
-
-            // Expired (non-renewing or past duration)
-            purchase.purchaseState == PurchaseState.PURCHASED ->
-                LatestSubscriptionState.EXPIRED
-
+    ): LatestSubscriptionState =
+        when (purchase.purchaseState) {
+            PurchaseState.PURCHASED -> LatestSubscriptionState.SUBSCRIBED
+            PurchaseState.UNSPECIFIED_STATE -> LatestSubscriptionState.REVOKED
             else -> LatestSubscriptionState.UNKNOWN
         }
-    }
 
     override fun getWillAutoRenew(purchase: Purchase): Boolean = purchase.isAutoRenewing
 
@@ -128,35 +106,5 @@ class PlayBillingSubscriptionStatusProvider(
     override suspend fun isActive(
         purchase: Purchase,
         product: StoreProduct?,
-    ): Boolean {
-        val now = System.currentTimeMillis()
-
-        return when (purchase.purchaseState) {
-            PurchaseState.PENDING -> false
-            PurchaseState.PURCHASED -> {
-                if (product == null) return false
-
-                when (product.rawStoreProduct?.underlyingProductDetails?.productType) {
-                    com.android.billingclient.api.BillingClient.ProductType.INAPP -> {
-                        // Non-consumable is always active if purchased
-                        true
-                    }
-                    com.android.billingclient.api.BillingClient.ProductType.SUBS -> {
-                        val subscriptionPeriod = product.rawStoreProduct?.subscriptionPeriod
-                        if (subscriptionPeriod != null) {
-                            val periodMillis = subscriptionPeriod.toMillis
-                            val expirationTime = purchase.purchaseTime + periodMillis
-                            expirationTime > now
-                        } else {
-                            // If we can't determine expiration, assume active
-                            true
-                        }
-                    }
-                    else -> false
-                }
-            }
-            PurchaseState.UNSPECIFIED_STATE -> false
-            else -> false
-        }
-    }
+    ): Boolean = purchase.purchaseState == PurchaseState.PURCHASED && product != null
 }

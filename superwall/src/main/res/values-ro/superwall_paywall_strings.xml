@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Niciun abonament găsit</string>
+    <string name="superwall_restore_failed_message">Nu am găsit niciun abonament activ pentru contul dvs.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Niciun ecran de plată de afișat</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Aucun abonnement trouvé</string>
+    <string name="superwall_restore_failed_message">Nous n\'avons trouvé aucun abonnement actif pour votre compte.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Aucune page de paiement à afficher</string>
+</resources>

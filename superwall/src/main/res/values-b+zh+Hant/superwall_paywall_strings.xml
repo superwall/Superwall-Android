@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">找不到訂閱</string>
+    <string name="superwall_restore_failed_message">我們找不到您帳戶的有效訂閱。</string>
+    <string name="superwall_restore_failed_close">好</string>
+    <string name="superwall_paywall_unavailable">沒有可顯示的付費頁面</string>
+</resources>

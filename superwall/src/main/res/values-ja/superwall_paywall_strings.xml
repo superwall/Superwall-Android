@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">サブスクリプションが見つかりません</string>
+    <string name="superwall_restore_failed_message">お客様のアカウントで有効なサブスクリプションが見つかりませんでした。</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">表示する購入画面がありません</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Intet abonnement fundet</string>
+    <string name="superwall_restore_failed_message">Vi kunne ikke finde et aktivt abonnement til din konto.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Ingen betalingsskærm at vise</string>
+</resources>

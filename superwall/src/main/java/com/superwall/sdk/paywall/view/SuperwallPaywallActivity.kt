@@ -206,6 +206,18 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private fun paywallView(): PaywallView? = contentView?.findViewWithTag(ACTIVE_PAYWALL_TAG)
 
+    /**
+     * Finishes an activity that can't show its paywall. When it was recreated by the system
+     * (the user never asked for it in this process), skip the exit animation so it doesn't flash.
+     */
+    private fun finishWithoutAnimation(restored: Boolean) {
+        finish()
+        if (restored) {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
         val presentationStyle =
@@ -241,11 +253,16 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             try {
                 Superwall.instance.dependencyContainer.makeViewRegistry()
             } catch (e: Exception) {
+                // Typically the process died with this paywall on top and the app configures
+                // Superwall later than Application.onCreate. The paywall's handler, feature block
+                // and delegate died with the old process, so there's nothing to rebuild: close
+                // instead of leaving a blank activity on screen.
                 Logger.debug(
                     LogLevel.error,
                     LogScope.paywallView,
-                    "Cannot access viewStore or create view - has Superwall been initialised?",
+                    "Cannot access viewStore or create view - has Superwall been initialised? Finishing activity.",
                 )
+                finishWithoutAnimation(restored = savedInstanceState != null)
                 return
             }
 
@@ -256,45 +273,23 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                     LogScope.paywallView,
                     "PaywallView not found for key: $key. Activity may have been recreated after cleanup.",
                 )
-                finish() // Close the activity if the view associated with the key is not found
+                // Close the activity if the view associated with the key is not found, e.g. it was
+                // recreated in a new process. Don't rebuild the paywall from the saved placement:
+                // its handler and feature block are gone, so it would gate nothing.
+                finishWithoutAnimation(restored = savedInstanceState != null)
                 return
             }
-        val isRestoredButCleared = savedInstanceState != null && paywallView() == null
-        if (isRestoredButCleared) {
+
+        // On a same-process recreation (e.g. a configuration change) the registry still holds
+        // this activity's view. Use it rather than whichever paywall is current, and put its
+        // children back if they were cleaned up when the old activity went away.
+        if (savedInstanceState != null && view.childCount == 0) {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallView,
-                "Activity restored but PaywallView cleared - recreating with available view",
+                "PaywallView was cleaned up, restoring child views",
             )
-            // The view was cleared during cleanup but activity is being recreated
-            // Get the current paywall view from Superwall instance and recreate the activity
-            val currentPaywallView = Superwall.instance.paywallView
-            if (currentPaywallView != null) {
-                // Check if the view has been cleaned up (no child views)
-                if (currentPaywallView.childCount == 0) {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.paywallView,
-                        "PaywallView was cleaned up, restoring child views",
-                    )
-                    // Restore the WebView and other child views
-                    restorePaywallViewAfterCleanup(currentPaywallView, key)
-                }
-
-                // Store the view again with the same key for this activity
-                viewRegistry.storeView(key, currentPaywallView)
-                // Continue with normal activity setup using the restored view
-                setupActivityWithView(currentPaywallView, presentationStyle)
-                return
-            } else {
-                Logger.debug(
-                    LogLevel.error,
-                    LogScope.paywallView,
-                    "No PaywallView available in Superwall instance for recreation",
-                )
-                finish()
-                return
-            }
+            restorePaywallViewAfterCleanup(view, key)
         }
 
         setupActivityWithView(view, presentationStyle)

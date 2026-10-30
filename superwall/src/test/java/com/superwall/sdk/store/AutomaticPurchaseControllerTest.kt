@@ -3,32 +3,34 @@
 package com.superwall.sdk.store
 
 import android.app.Activity
-import com.android.billingclient.api.AcknowledgePurchaseParams
-import com.android.billingclient.api.AcknowledgePurchaseResponseListener
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClientStateListener
+import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.PurchasesResponseListener
-import com.android.billingclient.api.QueryPurchasesParams
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
+import com.superwall.sdk.billing.Billing
+import com.superwall.sdk.billing.PurchaseFlowResult
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
+import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
-import io.mockk.slot
 import io.mockk.unmockkObject
-import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -38,13 +40,26 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+private fun result(code: Int): BillingResult =
+    BillingResult
+        .newBuilder()
+        .setResponseCode(code)
+        .setDebugMessage("")
+        .build()
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33], manifest = Config.NONE)
 class AutomaticPurchaseControllerTest {
     @Before
     fun setUp() {
         // Lets a sync run to completion without a configured SDK
         mockkObject(Superwall.Companion)
+        every { Superwall.hasInitialized } returns flowOf(true)
         every { Superwall.instance } returns
             mockk(relaxed = true) {
                 every { configurationStateListener } returns MutableStateFlow(ConfigurationStatus.Configured)
@@ -62,21 +77,71 @@ class AutomaticPurchaseControllerTest {
             every { web } returns emptySet()
         }
 
-    private fun TestScope.makeController(getBilling: () -> BillingClient): AutomaticPurchaseController =
+    /**
+     * A [Billing] whose purchase queries return [purchases], whose acknowledgements answer with
+     * [acknowledgeCodes] in order (repeating the last one), and whose billing flow answers with
+     * [flowResult]. Acknowledged tokens are recorded in [acknowledged].
+     */
+    private class FakeBilling(
+        var purchases: List<Purchase> = emptyList(),
+        val acknowledgeCodes: List<Int> = listOf(BillingClient.BillingResponseCode.OK),
+        var flowResult: PurchaseFlowResult? = null,
+        var connected: Boolean = true,
+    ) : Billing {
+        val acknowledged = mutableListOf<String>()
+        var acknowledgeCalls = 0
+        var flowLaunches = 0
+        var purchaseQueries = 0
+        var pendingAcknowledgement: CompletableDeferred<Result<Unit>>? = null
+
+        override val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
+
+        override suspend fun queryPurchasesOfType(productType: String): Result<List<Purchase>> {
+            purchaseQueries++
+            if (!connected) return Result.failure(IllegalStateException("not connected"))
+            val type = productType
+            return Result.success(purchases.filter { (it.products.first().startsWith("sub_")) == (type == BillingClient.ProductType.SUBS) })
+        }
+
+        override suspend fun launchBillingFlow(
+            activity: Activity,
+            params: BillingFlowParams,
+        ): PurchaseFlowResult {
+            flowLaunches++
+            return flowResult ?: PurchaseFlowResult(result(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE))
+        }
+
+        override suspend fun acknowledge(purchaseToken: String): Result<Unit> {
+            pendingAcknowledgement?.let { return it.await() }
+            val code = acknowledgeCodes[minOf(acknowledgeCalls++, acknowledgeCodes.lastIndex)]
+            return if (code == BillingClient.BillingResponseCode.OK) {
+                acknowledged += purchaseToken
+                Result.success(Unit)
+            } else {
+                Result.failure(Throwable("ack failed $code"))
+            }
+        }
+
+        override suspend fun awaitGetProducts(identifiers: Set<String>): Set<StoreProduct> = emptySet()
+
+        override suspend fun getLatestTransaction(factory: StoreTransactionFactory): StoreTransaction? = null
+
+        override suspend fun queryAllPurchases(): List<Purchase> = purchases
+
+        override suspend fun querySubscriptionPurchases(): Result<List<Purchase>> = Result.success(purchases)
+
+        override suspend fun consume(purchaseToken: String): Result<String> = Result.success(purchaseToken)
+
+        override suspend fun getStorefrontCountryCode(): String? = null
+    }
+
+    private fun TestScope.makeController(billing: Billing): AutomaticPurchaseController =
         AutomaticPurchaseController(
-            context = mockk(relaxed = true),
             scope = IOScope(UnconfinedTestDispatcher(testScheduler)),
+            billing = billing,
             entitlementsInfo = { entitlements },
             deviceEntitlementRecords = { emptySet() },
-            getBilling = { _, _ -> getBilling() },
         )
-
-    private fun billingResult(code: Int): BillingResult =
-        BillingResult
-            .newBuilder()
-            .setResponseCode(code)
-            .setDebugMessage("")
-            .build()
 
     private fun purchase(
         token: String,
@@ -90,89 +155,77 @@ class AutomaticPurchaseControllerTest {
             every { products } returns listOf("product_$token")
         }
 
-    /**
-     * A connected client whose purchase queries return [purchases]
-     * and whose acknowledgements answer with the codes in [acknowledgeCodes] in order,
-     * repeating the last one. Acknowledged tokens are recorded in [acknowledged].
-     */
-    private fun connectedClient(
-        purchases: List<Purchase>,
-        acknowledgeCodes: List<Int> = listOf(BillingClient.BillingResponseCode.OK),
-        acknowledged: MutableList<String> = mutableListOf(),
-    ): BillingClient {
-        var acknowledgeCalls = 0
-        return mockk(relaxed = true) {
-            every { isReady } returns true
-            every { startConnection(any()) } answers {
-                firstArg<BillingClientStateListener>().onBillingSetupFinished(billingResult(BillingClient.BillingResponseCode.OK))
-            }
-            every { queryPurchasesAsync(any<QueryPurchasesParams>(), any<PurchasesResponseListener>()) } answers {
-                secondArg<PurchasesResponseListener>().onQueryPurchasesResponse(
-                    billingResult(BillingClient.BillingResponseCode.OK),
-                    purchases,
-                )
-            }
-            val ackParams = slot<AcknowledgePurchaseParams>()
-            every { acknowledgePurchase(capture(ackParams), any()) } answers {
-                val code = acknowledgeCodes[minOf(acknowledgeCalls++, acknowledgeCodes.lastIndex)]
-                if (code == BillingClient.BillingResponseCode.OK) acknowledged += ackParams.captured.purchaseToken
-                secondArg<AcknowledgePurchaseResponseListener>().onAcknowledgePurchaseResponse(billingResult(code))
-            }
-        }
-    }
-
-    private fun clientFinishingSetupWith(code: Int): BillingClient =
+    private fun productDetails(): ProductDetails =
         mockk(relaxed = true) {
-            every { isReady } returns false
-            every { startConnection(any()) } answers {
-                firstArg<BillingClientStateListener>().onBillingSetupFinished(
-                    BillingResult
-                        .newBuilder()
-                        .setResponseCode(code)
-                        .setDebugMessage("")
-                        .build(),
-                )
-            }
+            every { productId } returns "product"
+            every { productType } returns BillingClient.ProductType.INAPP
+            every { oneTimePurchaseOfferDetails } returns null
+            every { oneTimePurchaseOfferDetailsList } returns null
+            every { subscriptionOfferDetails } returns null
         }
 
     @Test
-    fun `purchase fails instead of throwing or hanging when the billing client can't be created`() =
+    fun `purchase fails instead of hanging when billing is unavailable`() =
         runTest {
-            Given("a device where creating the billing client throws") {
-                val controller = makeController { throw IllegalStateException("No Play Store") }
+            Given("billing that can't connect") {
+                val billing = FakeBilling(connected = false)
+                val controller = makeController(billing)
                 advanceUntilIdle()
 
                 When("a purchase is attempted") {
                     @Suppress("DEPRECATION")
-                    val result = controller.purchase(mockk<Activity>(relaxed = true), mockk<ProductDetails>(relaxed = true), null, null)
+                    val result = controller.purchase(mockk<Activity>(relaxed = true), productDetails(), null, null)
 
-                    Then("it fails") {
+                    Then("it fails with the billing unavailable message") {
                         assertTrue(result is PurchaseResult.Failed)
+                        assertEquals(
+                            "Google Play Billing is not available on this device.",
+                            (result as PurchaseResult.Failed).errorMessage,
+                        )
                     }
                 }
             }
         }
 
     @Test
-    fun `purchase fails after one more connection attempt when billing is unavailable`() =
+    fun `purchase returns the result of its own billing flow, with the purchase`() =
         runTest {
-            Given("a device where billing setup reports BILLING_UNAVAILABLE") {
-                val client = clientFinishingSetupWith(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE)
-                val controller = makeController { client }
+            Given("billing whose flow completes with a purchase") {
+                val bought = purchase("bought")
+                val billing =
+                    FakeBilling(
+                        flowResult = PurchaseFlowResult(result(BillingClient.BillingResponseCode.OK), listOf(bought)),
+                    )
+                val controller = makeController(billing)
                 advanceUntilIdle()
 
-                When("a purchase is attempted") {
+                When("a purchase is made") {
                     @Suppress("DEPRECATION")
-                    val result = controller.purchase(mockk<Activity>(relaxed = true), mockk<ProductDetails>(relaxed = true), null, null)
+                    val result = controller.purchase(mockk<Activity>(relaxed = true), productDetails(), null, null)
 
-                    Then("it fails") {
-                        assertTrue(result is PurchaseResult.Failed)
+                    Then("it is purchased and carries the Play purchase") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        assertEquals(listOf(bought), (result as PurchaseResult.Purchased).purchases)
                     }
+                    And("the flow went through the shared billing connection") {
+                        assertEquals(1, billing.flowLaunches)
+                    }
+                }
+            }
+        }
 
-                    And("the connection was retried once for the purchase") {
-                        verify(exactly = 2) { client.startConnection(any()) }
-                        assertEquals(0L, testScheduler.currentTime)
-                    }
+    @Test
+    fun `purchase maps a cancelled flow to Cancelled`() =
+        runTest {
+            Given("billing whose flow is cancelled") {
+                val billing =
+                    FakeBilling(flowResult = PurchaseFlowResult(result(BillingClient.BillingResponseCode.USER_CANCELED)))
+                val controller = makeController(billing)
+
+                Then("the purchase is cancelled") {
+                    @Suppress("DEPRECATION")
+                    val outcome = controller.purchase(mockk<Activity>(relaxed = true), productDetails(), null, null)
+                    assertTrue(outcome is PurchaseResult.Cancelled)
                 }
             }
         }
@@ -181,26 +234,25 @@ class AutomaticPurchaseControllerTest {
     fun `sync acknowledges purchases that were never acknowledged`() =
         runTest {
             Given("a purchase that completed outside the billing flow callback") {
-                val acknowledged = mutableListOf<String>()
-                val client =
-                    connectedClient(
+                val billing =
+                    FakeBilling(
                         purchases =
                             listOf(
                                 purchase("unacknowledged"),
                                 purchase("already", acknowledged = true),
                                 purchase("pending", state = Purchase.PurchaseState.PENDING),
                             ),
-                        acknowledged = acknowledged,
                     )
-                val controller = makeController { client }
+                val controller = makeController(billing)
                 advanceUntilIdle()
+                billing.acknowledged.clear()
 
                 When("the subscription status is synced") {
                     controller.restorePurchases()
                     advanceUntilIdle()
 
                     Then("only the purchased, unacknowledged purchase is acknowledged") {
-                        assertEquals(listOf("unacknowledged"), acknowledged)
+                        assertEquals(listOf("unacknowledged"), billing.acknowledged)
                     }
                 }
             }
@@ -210,54 +262,75 @@ class AutomaticPurchaseControllerTest {
     fun `failed acknowledgements are retried`() =
         runTest {
             Given("a purchase whose first acknowledgement fails") {
-                val acknowledged = mutableListOf<String>()
-                val client =
-                    connectedClient(
+                val billing =
+                    FakeBilling(
                         purchases = listOf(purchase("token")),
                         acknowledgeCodes =
                             listOf(
                                 BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
                                 BillingClient.BillingResponseCode.OK,
                             ),
-                        acknowledged = acknowledged,
                     )
-                val controller = makeController { client }
-                advanceUntilIdle()
-
-                When("the subscription status is synced") {
-                    controller.restorePurchases()
+                When("the startup sync runs") {
+                    makeController(billing)
                     advanceUntilIdle()
 
                     Then("the acknowledgement is retried until it succeeds") {
-                        verify(exactly = 2) { client.acknowledgePurchase(any(), any()) }
-                        assertEquals(listOf("token"), acknowledged)
+                        assertEquals(2, billing.acknowledgeCalls)
+                        assertEquals(listOf("token"), billing.acknowledged)
                     }
                 }
             }
         }
 
     @Test
-    fun `a purchase seen by the flow callback and the sync is acknowledged once`() =
+    fun `a purchase seen by the purchase update and the sync is acknowledged once`() =
         runTest {
             Given("an acknowledgement that has not answered yet") {
-                val pending = mutableListOf<AcknowledgePurchaseResponseListener>()
                 val purchase = purchase("token")
-                val client =
-                    connectedClient(purchases = listOf(purchase)).also {
-                        every { it.acknowledgePurchase(any(), any()) } answers { pending += secondArg<AcknowledgePurchaseResponseListener>() }
-                    }
-                val controller = makeController { client }
-                advanceUntilIdle()
+                val billing = FakeBilling(purchases = listOf(purchase))
+                billing.pendingAcknowledgement = CompletableDeferred()
+                val controller = makeController(billing)
 
-                When("the billing flow reports the purchase and the sync sees it too") {
-                    controller.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), mutableListOf(purchase))
+                When("Play reports the purchase and the sync sees it too") {
+                    billing.purchaseResults.value = InternalPurchaseResult.Purchased(purchase)
                     controller.restorePurchases()
 
-                    Then("it is acknowledged once") {
-                        verify(exactly = 1) { client.acknowledgePurchase(any(), any()) }
+                    Then("only one acknowledgement is in flight") {
+                        assertEquals(0, billing.acknowledgeCalls)
+                        assertEquals(1, billing.acknowledgingCount(controller))
                     }
                 }
-                pending.forEach { it.onAcknowledgePurchaseResponse(billingResult(BillingClient.BillingResponseCode.OK)) }
+                billing.pendingAcknowledgement!!.complete(Result.success(Unit))
             }
         }
+
+    @Test
+    fun `a purchase update from outside our flow re-syncs the subscription status`() =
+        runTest {
+            Given("a running controller") {
+                val billing = FakeBilling()
+                makeController(billing)
+                advanceUntilIdle()
+                val queriesBefore = billing.purchaseQueries
+
+                When("Play reports a purchase we didn't launch (e.g. a pending purchase settling)") {
+                    billing.purchases = listOf(purchase("settled"))
+                    billing.purchaseResults.value = InternalPurchaseResult.Purchased(billing.purchases.first())
+                    advanceUntilIdle()
+
+                    Then("purchases are queried again and the purchase acknowledged") {
+                        assertTrue(billing.purchaseQueries > queriesBefore)
+                        assertTrue("settled" in billing.acknowledged)
+                    }
+                }
+            }
+        }
+
+    private fun FakeBilling.acknowledgingCount(controller: AutomaticPurchaseController): Int {
+        val field = AutomaticPurchaseController::class.java.getDeclaredField("acknowledgingTokens")
+        field.isAccessible = true
+        return (field.get(controller) as Set<*>).size
+    }
+
 }

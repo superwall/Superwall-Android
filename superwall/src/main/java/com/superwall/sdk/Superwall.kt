@@ -1013,6 +1013,7 @@ class Superwall(
                 // Called from identity actor's completeReset during identify
                 // or full reset — just do cleanup without touching identity.
                 dependencyContainer.storage.reset()
+                dependencyContainer.googleBillingWrapper.clearProductsCache()
 
                 dependencyContainer.paywallManager.resetCache()
                 presentationItems.reset()
@@ -1397,17 +1398,13 @@ class Superwall(
                 is PurchasingObserverState.PurchaseResult -> {
                     val result = (state.result to state.purchases).toInternalResult()
                     for (internalPurchaseResult in result) {
-                        dependencyContainer.transactionManager.handle(
-                            internalPurchaseResult,
-                            state,
-                        )
+                        dependencyContainer.transactionManager.handle(internalPurchaseResult)
                     }
                 }
 
                 is PurchasingObserverState.PurchaseError -> {
                     dependencyContainer.transactionManager.handle(
                         InternalPurchaseResult.Failed(state.error),
-                        state,
                     )
                 }
             }

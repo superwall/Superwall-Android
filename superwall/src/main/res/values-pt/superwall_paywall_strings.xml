@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Nenhuma subscrição encontrada</string>
+    <string name="superwall_restore_failed_message">Não encontrámos uma subscrição ativa para a sua conta.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Nenhum ecrã de pagamento para mostrar</string>
+</resources>

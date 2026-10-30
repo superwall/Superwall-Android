@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Predplatné sa nenašlo</string>
+    <string name="superwall_restore_failed_message">Pre váš účet sme nenašli žiadne aktívne predplatné.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Žiadna platobná obrazovka na zobrazenie</string>
+</resources>

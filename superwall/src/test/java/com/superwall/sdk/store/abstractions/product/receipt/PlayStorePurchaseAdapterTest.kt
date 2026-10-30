@@ -526,4 +526,94 @@ class PlayStorePurchaseAdapterTest {
             }
         }
     }
+
+    // MARK: - Grace period, pending and expiry
+
+    @Test
+    fun `pending purchase is not revoked, not active and not in grace period`() {
+        Given("a subscription purchase waiting on a slow payment method") {
+            val purchase = createMockPurchase(purchaseState = PurchaseState.PENDING, isAutoRenewing = true)
+            val product = createMockStoreProduct()
+
+            When("creating adapter") {
+                val adapter =
+                    PlayStorePurchaseAdapter.fromPurchase(purchase, mapOf(product.productIdentifier to product)).first()
+
+                Then("it is pending, not revoked and not active") {
+                    assertTrue(adapter.isPending)
+                    assertFalse(adapter.isRevoked)
+                    assertFalse(adapter.isActive)
+                }
+                And("it doesn't claim a grace or billing retry period") {
+                    assertFalse(adapter.isInGracePeriod)
+                    assertFalse(adapter.isInBillingRetryPeriod)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `unspecified state is revoked`() {
+        Given("a purchase in an unspecified state") {
+            val purchase = createMockPurchase(purchaseState = PurchaseState.UNSPECIFIED_STATE)
+
+            When("creating adapter") {
+                val adapter = PlayStorePurchaseAdapter.fromPurchase(purchase, emptyMap()).first()
+
+                Then("it is revoked and not pending") {
+                    assertTrue(adapter.isRevoked)
+                    assertFalse(adapter.isPending)
+                    assertFalse(adapter.isActive)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `renewed subscription has no device expiry and no grace period`() {
+        Given("a monthly subscription whose purchase token was first bought 3 months ago") {
+            val threeMonthsAgo = System.currentTimeMillis() - 90L * 24 * 60 * 60 * 1000
+            val purchase = createMockPurchase(purchaseTime = threeMonthsAgo, isAutoRenewing = true)
+            val product = createMockStoreProduct()
+            every { product.rawStoreProduct!!.subscriptionPeriod } returns
+                com.superwall.sdk.store.abstractions.product.SubscriptionPeriod(
+                    1,
+                    com.superwall.sdk.store.abstractions.product.SubscriptionPeriod.Unit.month,
+                )
+
+            When("creating adapter") {
+                val adapter =
+                    PlayStorePurchaseAdapter.fromPurchase(purchase, mapOf(product.productIdentifier to product)).first()
+
+                Then("it is active") {
+                    assertTrue(adapter.isActive)
+                }
+                And("expiry is unknown rather than purchaseTime + one period (two months in the past)") {
+                    assertNull(adapter.expirationDate)
+                }
+                And("it is not in a grace period") {
+                    assertFalse(adapter.isInGracePeriod)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `pending flag survives being stored in transaction history`() {
+        Given("a pending purchase adapter") {
+            val adapter =
+                PlayStorePurchaseAdapter
+                    .fromPurchase(createMockPurchase(purchaseState = PurchaseState.PENDING), emptyMap())
+                    .first()
+
+            When("it is stored") {
+                val stored = StoredEntitlementTransaction.from(adapter)
+
+                Then("it is still pending and not revoked") {
+                    assertTrue(stored.isPending)
+                    assertFalse(stored.isRevoked)
+                }
+            }
+        }
+    }
 }

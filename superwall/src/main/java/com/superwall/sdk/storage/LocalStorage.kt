@@ -126,9 +126,11 @@ open class LocalStorage(
     }
 
     // / Clears data that is user specific.
+    // / App-scoped data (e.g. the cached config and enrichment) is kept.
     fun reset() {
         coreDataManager.deleteAllEntities()
-        cache.clean()
+        cache.clearUserScope()
+        cache.delete(Transactions)
 
         launch {
             _confirmedAssignments = null

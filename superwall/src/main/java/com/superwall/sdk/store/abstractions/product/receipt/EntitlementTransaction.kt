@@ -60,4 +60,11 @@ interface EntitlementTransaction {
 
     /** Whether the transaction is currently active. */
     val isActive: Boolean
+
+    /**
+     * Whether the purchase is waiting on payment (e.g. cash or a slow card). A pending purchase
+     * isn't active and doesn't count towards entitlements, but it isn't revoked either.
+     */
+    val isPending: Boolean
+        get() = false
 }

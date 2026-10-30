@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">구독을 찾을 수 없음</string>
+    <string name="superwall_restore_failed_message">계정에서 활성 구독을 찾을 수 없습니다.</string>
+    <string name="superwall_restore_failed_close">확인</string>
+    <string name="superwall_paywall_unavailable">표시할 결제 화면이 없습니다</string>
+</resources>

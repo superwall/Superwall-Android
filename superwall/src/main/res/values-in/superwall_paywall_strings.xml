@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Langganan Tidak Ditemukan</string>
+    <string name="superwall_restore_failed_message">Kami tidak dapat menemukan langganan aktif untuk akun Anda.</string>
+    <string name="superwall_restore_failed_close">Oke</string>
+    <string name="superwall_paywall_unavailable">Tidak ada layar pembayaran untuk ditampilkan</string>
+</resources>
