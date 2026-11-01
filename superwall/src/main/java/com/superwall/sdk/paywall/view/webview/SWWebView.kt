@@ -196,15 +196,46 @@ class SWWebView internal constructor(
         evaluateJavascript(MediaPlaybackScript.build(allowed), null)
     }
 
-    override fun onPause() {
-        hostPaused = true
-        updateMediaPlayback()
+    /**
+     * Whether the page is paused with [WebView.onPause]: it is off screen and finished loading, or
+     * its host is paused.
+     *
+     * A preloaded paywall's WebView loads off screen and then waits in the cache, and a WebView
+     * that isn't in a window still reports its page as visible. Every WebView in the app shares
+     * one renderer main thread, so a cached paywall kept running its requestAnimationFrame, CSS
+     * and Lottie animations unseen, slowing the paywall on screen and the host app. Pausing hides
+     * the page (`document.visibilityState` becomes `"hidden"`) and stops its animation frames AND
+     * its timers, so a preload is only paused once it is ready ([onPaywallReady]); before that it
+     * must run to load, render and accept its templates.
+     */
+    internal var renderingPaused = false
+        private set
+
+    private fun pauseRendering() {
+        if (viewDestroyed) return
+        renderingPaused = true
         super<WebView>.onPause()
     }
 
-    override fun onResume() {
+    private fun resumeRendering() {
+        if (viewDestroyed) return
+        renderingPaused = false
         super<WebView>.onResume()
+    }
+
+    override fun onPaywallReady() {
+        if (!isAttachedToWindow) pauseRendering()
+    }
+
+    override fun onPause() {
+        hostPaused = true
+        updateMediaPlayback()
+        pauseRendering()
+    }
+
+    override fun onResume() {
         hostPaused = false
+        resumeRendering()
         updateMediaPlayback()
     }
 
@@ -217,6 +248,7 @@ class SWWebView internal constructor(
     override fun onDetachedFromWindow() {
         if (!viewDestroyed) evaluateJavascript(MediaPlaybackScript.build(false), null)
         super.onDetachedFromWindow()
+        pauseRendering()
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
@@ -247,6 +279,8 @@ class SWWebView internal constructor(
     }
 
     internal fun prepareWebview() {
+        // A reload (a config refresh of a cached paywall) must render until it is ready again.
+        if (renderingPaused) resumeRendering()
         addJavascriptInterface(messageHandler, "SWAndroid")
 
         val webSettings = this.settings

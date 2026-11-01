@@ -513,6 +513,10 @@ class PaywallView internal constructor(
 
     override fun updateState(update: PaywallViewState.Updates) {
         controller.updateState(update)
+        // The paywall has its templates: a preload waiting off screen can stop rendering.
+        if (update is PaywallViewState.Updates.SetLoadingState && update.newState is PaywallLoadingState.Ready) {
+            mainScope.launch { webView.onPaywallReady() }
+        }
     }
 
     override val state: PaywallViewState
