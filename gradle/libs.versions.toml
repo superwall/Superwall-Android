@@ -1,4 +1,5 @@
 [versions]
+binary_compatibility_validator = "0.16.3"
 billing_version = "9.1.0"
 browser_version = "1.8.0"
 gradle_plugin_version = "8.6.1"
@@ -126,3 +127,4 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 publisher = { id = "com.vanniktech.maven.publish", version.ref = "publisher_version" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+binaryCompatibilityValidator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binary_compatibility_validator" }
