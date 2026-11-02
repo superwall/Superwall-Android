@@ -99,10 +99,7 @@ class Superwall(
     var localeIdentifier: String?
         get() = dependencyContainer.configManager.options.localeIdentifier
         set(value) {
-            dependencyContainer.configManager.options.localeIdentifier = value
-            ioScope.launch {
-                track(dependencyContainer.makeConfigAttributes())
-            }
+            dependencyContainer.setLocaleIdentifier(value)
         }
 
     /**

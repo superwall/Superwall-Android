@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.request
 
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.dependencies.ConfigManagerFactory
@@ -55,7 +54,11 @@ class PaywallRequestManager(
         SuperwallGraph.track(it)
     },
     private val getGlobalOverrides: () -> Map<String, String> = {
-        Superwall.instance.overrideProductsByName
+        SuperwallGraph.container
+            ?.makeSuperwallOptions()
+            ?.paywalls
+            ?.overrideProductsByName
+            ?: emptyMap()
     },
     // Single lane so paired lifecycle start/complete tracks reach the delegate
     // (and get Date()-stamped) in launch order; the multi-threaded IO dispatcher

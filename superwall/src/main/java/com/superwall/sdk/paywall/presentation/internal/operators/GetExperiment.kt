@@ -16,7 +16,7 @@ import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.flow.MutableSharedFlow
 
-private suspend fun Superwall.activateSession(
+internal suspend fun Superwall.activateSession(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
 ) {
@@ -47,9 +47,7 @@ internal suspend fun getExperiment(
     debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
     storage: LocalStorage,
-    activateSession: suspend (request: PresentationRequest, rulesOutcome: RuleEvaluationOutcome) -> Unit = { request, outcome ->
-        Superwall.instance.activateSession(request, outcome)
-    },
+    activateSession: suspend (request: PresentationRequest, rulesOutcome: RuleEvaluationOutcome) -> Unit,
 ): Experiment {
     val errorType: PresentationPipelineError
 

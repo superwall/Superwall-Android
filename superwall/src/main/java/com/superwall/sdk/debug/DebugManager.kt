@@ -3,20 +3,38 @@ package com.superwall.sdk.debug
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.MainThread
-import com.superwall.sdk.Superwall
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.dependencies.ViewFactory
-import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class DebugManager(
+class DebugManager internal constructor(
     private val context: Context,
     private val storage: LocalStorage,
     private val factory: ViewFactory,
+    private val isPaywallPresented: () -> Boolean,
+    private val dismissPaywall: suspend () -> Unit,
 ) {
+    /**
+     * Kept for binary compatibility. The SDK builds [DebugManager] with the internal constructor;
+     * this one reads the presented paywall from the configured SDK.
+     */
+    @Deprecated("Internal SDK class; construct it through Superwall.configure.")
+    constructor(
+        context: Context,
+        storage: LocalStorage,
+        factory: ViewFactory,
+    ) : this(
+        context = context,
+        storage = storage,
+        factory = factory,
+        isPaywallPresented = { SuperwallGraph.container?.presentationCoordinator?.isPaywallPresented ?: false },
+        dismissPaywall = { SuperwallGraph.container?.dismissPaywall() },
+    )
+
     var view: DebugView? = null
         @MainThread set
     var isDebuggerLaunched = false
@@ -63,8 +81,8 @@ class DebugManager(
 
     @MainThread
     suspend fun launchDebugger(paywallDatabaseId: String? = null) {
-        if (Superwall.instance.isPaywallPresented) {
-            Superwall.instance.dismiss()
+        if (isPaywallPresented()) {
+            dismissPaywall()
             launchDebugger(paywallDatabaseId)
         } else {
             if (view == null) {

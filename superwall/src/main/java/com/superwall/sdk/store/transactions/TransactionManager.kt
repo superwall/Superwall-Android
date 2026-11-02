@@ -4,7 +4,6 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Transaction.TransactionSource
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
@@ -62,7 +61,7 @@ import java.util.Date
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-class TransactionManager(
+class TransactionManager internal constructor(
     private val storeManager: StoreManager,
     private val purchaseController: PurchaseController,
     private val eventsQueue: EventsQueue,
@@ -70,24 +69,16 @@ class TransactionManager(
     private val activityProvider: ActivityProvider,
     private val factory: Factory,
     private val ioScope: IOScope,
-    private val track: suspend (TrackableSuperwallEvent) -> Unit = {
-        SuperwallGraph.track(it)
-    },
+    private val track: suspend (TrackableSuperwallEvent) -> Unit,
     private val dismiss: suspend (paywallId: String, result: PaywallResult) -> Unit,
     private val showAlert: (AlertProps) -> Unit,
-    private val subscriptionStatus: () -> SubscriptionStatus = {
-        Superwall.instance.entitlements.status.value
-    },
+    private val subscriptionStatus: () -> SubscriptionStatus,
     private val entitlementsById: (String) -> Set<Entitlement>,
     private val allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
-    private val webEntitlements: () -> Set<Entitlement> = {
-        Superwall.instance.entitlements.web
-    },
-    private val currentCustomerInfo: () -> CustomerInfo = {
-        Superwall.instance.getCustomerInfo()
-    },
+    private val webEntitlements: () -> Set<Entitlement>,
+    private val currentCustomerInfo: () -> CustomerInfo,
     private val showRestoreDialogForWeb: suspend () -> Unit,
-    private val notifyBackendOfReceipts: suspend () -> Unit = {},
+    private val notifyBackendOfReceipts: suspend () -> Unit,
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
     private val notifyOfTransactionComplete: suspend (
@@ -96,11 +87,85 @@ class TransactionManager(
         productId: String,
         didStartFreeTrial: Boolean,
     ) -> Unit,
-    private val notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit = {},
-    private val testMode: TestMode? = null,
-    private val testModeTransactionHandler: TestModeTransactionHandler? = null,
-    private val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
+    private val notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit,
+    private val testMode: TestMode?,
+    private val testModeTransactionHandler: TestModeTransactionHandler?,
+    private val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)?,
+    private val activeDeviceEntitlements: () -> Set<Entitlement>,
+    private val openRestoreOnWeb: () -> Unit,
 ) {
+    /**
+     * Kept for binary compatibility. The SDK builds [TransactionManager] with the internal
+     * constructor; this one reads the device entitlements and web restore from the configured SDK.
+     */
+    @Deprecated("Internal SDK class; construct it through Superwall.configure.")
+    constructor(
+        storeManager: StoreManager,
+        purchaseController: PurchaseController,
+        eventsQueue: EventsQueue,
+        storage: Storage,
+        activityProvider: ActivityProvider,
+        factory: Factory,
+        ioScope: IOScope,
+        track: suspend (TrackableSuperwallEvent) -> Unit = {
+            SuperwallGraph.track(it)
+        },
+        dismiss: suspend (paywallId: String, result: PaywallResult) -> Unit,
+        showAlert: (AlertProps) -> Unit,
+        subscriptionStatus: () -> SubscriptionStatus = {
+            SuperwallGraph.container?.entitlements?.status?.value ?: SubscriptionStatus.Unknown
+        },
+        entitlementsById: (String) -> Set<Entitlement>,
+        allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
+        webEntitlements: () -> Set<Entitlement> = {
+            SuperwallGraph.container?.entitlements?.web ?: emptySet()
+        },
+        currentCustomerInfo: () -> CustomerInfo = {
+            SuperwallGraph.container?.customerInfoManager?.customerInfo?.value ?: CustomerInfo.empty()
+        },
+        showRestoreDialogForWeb: suspend () -> Unit,
+        notifyBackendOfReceipts: suspend () -> Unit = {},
+        refreshReceipt: () -> Unit,
+        updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
+        notifyOfTransactionComplete: suspend (
+            paywallCacheKey: String,
+            trialEndDate: Long?,
+            productId: String,
+            didStartFreeTrial: Boolean,
+        ) -> Unit,
+        notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit = {},
+        testMode: TestMode? = null,
+        testModeTransactionHandler: TestModeTransactionHandler? = null,
+        setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
+    ) : this(
+        storeManager = storeManager,
+        purchaseController = purchaseController,
+        eventsQueue = eventsQueue,
+        storage = storage,
+        activityProvider = activityProvider,
+        factory = factory,
+        ioScope = ioScope,
+        track = track,
+        dismiss = dismiss,
+        showAlert = showAlert,
+        subscriptionStatus = subscriptionStatus,
+        entitlementsById = entitlementsById,
+        allEntitlementsByProductId = allEntitlementsByProductId,
+        webEntitlements = webEntitlements,
+        currentCustomerInfo = currentCustomerInfo,
+        showRestoreDialogForWeb = showRestoreDialogForWeb,
+        notifyBackendOfReceipts = notifyBackendOfReceipts,
+        refreshReceipt = refreshReceipt,
+        updateState = updateState,
+        notifyOfTransactionComplete = notifyOfTransactionComplete,
+        notifyOfTransactionAbandon = notifyOfTransactionAbandon,
+        testMode = testMode,
+        testModeTransactionHandler = testModeTransactionHandler,
+        setSubscriptionStatus = setSubscriptionStatus,
+        activeDeviceEntitlements = { SuperwallGraph.container?.entitlements?.activeDeviceEntitlements ?: emptySet() },
+        openRestoreOnWeb = { SuperwallGraph.container?.openRestoreOnWeb() },
+    )
+
     sealed class PurchaseSource {
         data class Internal(
             val productId: String,
@@ -1223,8 +1288,7 @@ class TransactionManager(
 
     private fun askToRestoreFromWeb() {
         val hasEntitlements =
-            Superwall.instance.entitlements.activeDeviceEntitlements
-                .isNotEmpty()
+            activeDeviceEntitlements().isNotEmpty()
         val hasSubsText =
             "Your Play Store subscriptions were restored. Would you like to check for more on the web?"
         val noSubsText = "No Play Store subscription found, would you like to check on the web?"
@@ -1239,7 +1303,7 @@ class TransactionManager(
                     "Close",
                 actionTitle = "Yes",
                 action = {
-                    Superwall.instance.openRestoreOnWeb()
+                    openRestoreOnWeb()
                 },
             ),
         )

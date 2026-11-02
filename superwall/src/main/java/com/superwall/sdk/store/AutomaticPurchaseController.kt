@@ -19,6 +19,7 @@ import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -29,6 +30,7 @@ import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.product.Store
 import com.superwall.sdk.storage.LatestDeviceCustomerInfo
+import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -40,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -56,52 +59,89 @@ private val BILLING_INSANTIATION_ERROR =
 
 private const val BILLING_UNAVAILABLE_ERROR = "Google Play Billing is not available on this device."
 
-class AutomaticPurchaseController(
+internal val defaultGetBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
+    try {
+        BillingClient
+            .newBuilder(ctx)
+            .setListener(listener)
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
+            ).build()
+    } catch (e: Throwable) {
+        Logger.debug(
+            logLevel = LogLevel.error,
+            scope = LogScope.nativePurchaseController,
+            message = BILLING_INSANTIATION_ERROR,
+            info = mapOf("error_message" to (e.message ?: "Unknown message")),
+            error = e,
+        )
+        throw e
+    }
+}
+
+/**
+ * Reads the entitlements of the last device CustomerInfo built from Play receipts, which keep
+ * their expiry dates across launches. Empty when there is none or the read fails.
+ */
+internal fun readDeviceEntitlementRecords(storage: Storage): Set<Entitlement> =
+    try {
+        storage
+            .read(LatestDeviceCustomerInfo)
+            ?.entitlements
+            ?.toSet() ?: emptySet()
+    } catch (e: Throwable) {
+        // Without the dates we can only fall back to demoting, which is
+        // what this read would have done anyway.
+        Logger.debug(
+            logLevel = LogLevel.error,
+            scope = LogScope.nativePurchaseController,
+            message = "Unable to read the stored device entitlements.",
+            error = e,
+        )
+        emptySet()
+    }
+
+class AutomaticPurchaseController internal constructor(
     var context: Context,
     val scope: IOScope,
-    val entitlementsInfo: () -> Entitlements = { Superwall.instance.dependencyContainer.entitlements },
+    val entitlementsInfo: () -> Entitlements,
     // The status holds config-shaped entitlements, which carry no expiry date.
     // The device CustomerInfo built from Play receipts does, and it survives
     // launches, so it is what an empty read gets measured against.
-    val deviceEntitlementRecords: () -> Set<Entitlement> = {
-        try {
-            Superwall.instance.dependencyContainer.storage
-                .read(LatestDeviceCustomerInfo)
-                ?.entitlements
-                ?.toSet() ?: emptySet()
-        } catch (e: Throwable) {
-            // Without the dates we can only fall back to demoting, which is
-            // what this read would have done anyway.
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.nativePurchaseController,
-                message = "Unable to read the stored device entitlements.",
-                error = e,
-            )
-            emptySet()
-        }
-    },
-    val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
-        try {
-            BillingClient
-                .newBuilder(ctx)
-                .setListener(listener)
-                .enablePendingPurchases(
-                    PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
-                ).build()
-        } catch (e: Throwable) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.nativePurchaseController,
-                message = BILLING_INSANTIATION_ERROR,
-                info = mapOf("error_message" to (e.message ?: "Unknown message")),
-                error = e,
-            )
-            throw e
-        }
-    },
+    val deviceEntitlementRecords: () -> Set<Entitlement>,
+    val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient,
+    private val passIdentifiersToPlayStore: () -> Boolean,
+    private val userId: () -> String,
+    private val externalAccountId: () -> String,
+    private val configurationState: () -> Flow<ConfigurationStatus>,
+    private val setSubscriptionStatus: (SubscriptionStatus) -> Unit,
 ) : PurchaseController,
     PurchasesUpdatedListener {
+    /**
+     * Kept for compatibility. The SDK builds [AutomaticPurchaseController] with the internal
+     * constructor; this one reads options, identity, config state and status from the configured SDK.
+     */
+    constructor(
+        context: Context,
+        scope: IOScope,
+        entitlementsInfo: () -> Entitlements = { SuperwallGraph.requireContainer().entitlements },
+        deviceEntitlementRecords: () -> Set<Entitlement> = {
+            readDeviceEntitlementRecords(SuperwallGraph.requireContainer().storage)
+        },
+        getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = defaultGetBilling,
+    ) : this(
+        context = context,
+        scope = scope,
+        entitlementsInfo = entitlementsInfo,
+        deviceEntitlementRecords = deviceEntitlementRecords,
+        getBilling = getBilling,
+        passIdentifiersToPlayStore = { SuperwallGraph.requireContainer().makeSuperwallOptions().passIdentifiersToPlayStore },
+        userId = { SuperwallGraph.requireContainer().identityManager.userId },
+        externalAccountId = { SuperwallGraph.requireContainer().identityManager.externalAccountId },
+        configurationState = { SuperwallGraph.requireContainer().configManager.configurationStatus },
+        setSubscriptionStatus = { SuperwallGraph.requireContainer().subscriptionStatusManager.internallySetSubscriptionStatus(it) },
+    )
+
     companion object {
         private const val QUERY_TIMEOUT_MS = 10_000L
         private const val CONNECTION_TIMEOUT_MS = 10_000L
@@ -336,7 +376,7 @@ class AutomaticPurchaseController(
 
         val shouldPassIdToPlayStore =
             try {
-                Superwall.instance.options.passIdentifiersToPlayStore
+                passIdentifiersToPlayStore()
             } catch (e: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,
@@ -348,7 +388,7 @@ class AutomaticPurchaseController(
 
         val id =
             try {
-                Superwall.instance.userId
+                userId()
             } catch (e: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,
@@ -361,7 +401,7 @@ class AutomaticPurchaseController(
             BillingFlowParams
                 .newBuilder()
                 .apply {
-                    setObfuscatedAccountId(Superwall.instance.externalAccountId)
+                    setObfuscatedAccountId(externalAccountId())
                 }.setProductDetailsParamsList(listOf(productDetailsParams))
                 .apply {
                     replacement?.toSubscriptionUpdateParams()?.let { setSubscriptionUpdateParams(it) }
@@ -492,7 +532,7 @@ class AutomaticPurchaseController(
         val status: SubscriptionStatus =
             if (hasActivePurchaseOrSubscription) {
                 // We await for configuration to be set so our entitlements are available
-                Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
+                configurationState().first { it is ConfigurationStatus.Configured }
                 allPurchases
                     .flatMap {
                         it.products
@@ -527,7 +567,7 @@ class AutomaticPurchaseController(
                 // Wait until config has finished applying (or failed) so flags like
                 // test mode are known before publishing Inactive - otherwise we'd
                 // fire a spurious status change in test-mode apps
-                Superwall.instance.configurationStateListener.first { it !is ConfigurationStatus.Pending }
+                configurationState().first { it !is ConfigurationStatus.Pending }
                 statusForEmptyRead(
                     activeProductIds = activeProductIds,
                     readReturnedPurchases = allPurchases.isNotEmpty(),
@@ -543,7 +583,7 @@ class AutomaticPurchaseController(
             return
         }
 
-        Superwall.instance.internallySetSubscriptionStatus(status)
+        setSubscriptionStatus(status)
 
         if (failed && count < MAX_RETRIES) {
             scope.launch {

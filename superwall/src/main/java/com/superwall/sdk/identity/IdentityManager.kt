@@ -1,7 +1,6 @@
 package com.superwall.sdk.identity
 
 import com.superwall.sdk.SdkContext
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -29,7 +28,7 @@ class IdentityManager(
     private val stringToSha: (String) -> String = { it },
     override val notifyUserChange: (change: Map<String, Any>) -> Unit,
     override val completeReset: () -> Unit = {
-        Superwall.instance.reset(duringIdentify = true)
+        SuperwallGraph.container?.sdkResetter?.completeReset()
     },
     override val installScopedAttributes: () -> Map<String, Any?> = { emptyMap() },
     override val tracker: suspend (TrackableSuperwallEvent) -> Unit = {

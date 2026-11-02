@@ -32,7 +32,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.R
-import com.superwall.sdk.Superwall
+import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.debug.localizations.SWLocalizationActivity
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.ViewFactory
@@ -46,6 +47,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
@@ -67,7 +69,7 @@ interface AppCompatActivityEncapsulatable {
     var encapsulatingActivity: AppCompatActivity?
 }
 
-class DebugView(
+class DebugView internal constructor(
     private val context: Context,
     private val storeManager: StoreManager,
     private val network: Network,
@@ -75,8 +77,41 @@ class DebugView(
     private val paywallManager: PaywallManager,
     private val debugManager: DebugManager,
     private val factory: Factory,
+    private val options: () -> SuperwallOptions,
+    private val setLocaleIdentifier: (String?) -> Unit,
+    private val isPaywallPresented: () -> Boolean,
+    private val present: suspend (PresentationRequest, MutableSharedFlow<PaywallState>) -> Unit,
 ) : ConstraintLayout(context),
     AppCompatActivityEncapsulatable {
+    /**
+     * Kept for binary compatibility. The SDK builds [DebugView] with the internal constructor;
+     * this one reads options and presentation from the configured SDK.
+     */
+    @Deprecated("Internal SDK class; the SDK builds it when the debugger opens.")
+    constructor(
+        context: Context,
+        storeManager: StoreManager,
+        network: Network,
+        paywallRequestManager: PaywallRequestManager,
+        paywallManager: PaywallManager,
+        debugManager: DebugManager,
+        factory: Factory,
+    ) : this(
+        context = context,
+        storeManager = storeManager,
+        network = network,
+        paywallRequestManager = paywallRequestManager,
+        paywallManager = paywallManager,
+        debugManager = debugManager,
+        factory = factory,
+        options = { SuperwallGraph.requireContainer().makeSuperwallOptions() },
+        setLocaleIdentifier = { SuperwallGraph.requireContainer().setLocaleIdentifier(it) },
+        isPaywallPresented = { SuperwallGraph.container?.presentationCoordinator?.isPaywallPresented ?: false },
+        present = { request, publisher ->
+            SuperwallGraph.requireContainer().requireOwner().internallyPresent(request, publisher)
+        },
+    )
+
     interface Factory :
         RequestFactory,
         ViewFactory
@@ -318,7 +353,7 @@ class DebugView(
     }
 
     init {
-        initialLocaleIdentifier = Superwall.instance.options.localeIdentifier
+        initialLocaleIdentifier = options().localeIdentifier
         addSubviews()
         CoroutineScope(Dispatchers.IO).launch {
             loadPreview()
@@ -328,7 +363,7 @@ class DebugView(
     fun viewDestroyed() {
         paywallManager.resetCache()
         debugManager.isDebuggerLaunched = false
-        Superwall.instance.options.localeIdentifier = initialLocaleIdentifier
+        options().localeIdentifier = initialLocaleIdentifier
     }
 
     fun addSubviews() {
@@ -766,7 +801,7 @@ class DebugView(
         // Set the completion callback
         SWLocalizationActivity.completion = { locale ->
             // Handle the locale identifier
-            Superwall.instance.localeIdentifier = locale
+            setLocaleIdentifier(locale)
             // Continue with any other operations after locale selection
             CoroutineScope(Dispatchers.IO).launch {
                 loadPreview()
@@ -851,7 +886,7 @@ class DebugView(
                 presenter = encapsulatingActivity,
                 isDebuggerLaunched = true,
                 subscriptionStatus = inactiveSubscriptionPublisher,
-                isPaywallPresented = Superwall.instance.isPaywallPresented,
+                isPaywallPresented = isPaywallPresented(),
                 type = PresentationRequestType.Presentation,
             )
 
@@ -909,7 +944,7 @@ class DebugView(
         }
 
         CoroutineScope(Dispatchers.IO).launch {
-            Superwall.instance.internallyPresent(presentationRequest, publisher)
+            present(presentationRequest, publisher)
         }
     }
 }
@@ -923,7 +958,8 @@ internal class DebugViewActivity : AppCompatActivity() {
             view: View,
         ) {
             val key = UUID.randomUUID().toString()
-            Superwall.instance.dependencyContainer
+            SuperwallGraph
+                .requireContainer()
                 .makeViewRegistry()
                 .storeView(key, view)
 
@@ -961,7 +997,8 @@ internal class DebugViewActivity : AppCompatActivity() {
             return
         }
         val view =
-            Superwall.instance.dependencyContainer
+            SuperwallGraph
+                .requireContainer()
                 .makeViewRegistry()
                 .retrieveView(key) ?: run {
                 finish() // Close the activity if the view associated with the key is not found

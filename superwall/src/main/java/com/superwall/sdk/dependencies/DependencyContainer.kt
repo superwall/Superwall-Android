@@ -61,7 +61,7 @@ import com.superwall.sdk.identity.IdentityPendingInterceptor
 import com.superwall.sdk.identity.IdentityPersistenceInterceptor
 import com.superwall.sdk.identity.IdentityState
 import com.superwall.sdk.identity.createInitialIdentityState
-import com.superwall.sdk.identity.setUserAttributes
+import com.superwall.sdk.identity.cleanAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -158,8 +158,11 @@ import com.superwall.sdk.store.SubscriptionStatusObserver
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.defaultGetBilling
+import com.superwall.sdk.store.readDeviceEntitlementRecords
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeTransactionHandler
+import com.superwall.sdk.store.testmode.ui.TestModeModal
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.notifications.TrialReminderLogic
 import com.superwall.sdk.utilities.DateUtils
@@ -182,6 +185,7 @@ import java.lang.ref.WeakReference
 import java.nio.charset.StandardCharsets
 import java.util.Date
 import com.superwall.sdk.paywall.presentation.internal.dismiss as internalDismiss
+import com.superwall.sdk.paywall.presentation.internal.internallyPresent
 
 // TransactionVerifierFactory is deprecated for SDK consumers; the SDK still implements it.
 @Suppress("DEPRECATION")
@@ -245,12 +249,36 @@ class DependencyContainer internal constructor(
      * Tracks [event] through the owning [Superwall]. Every class the container builds gets this
      * function (or a lambda over it) as its `track` dependency.
      */
+    /** Sets the locale used for paywalls and tracks the changed config attributes. */
+    internal fun setLocaleIdentifier(value: String?) {
+        configManager.options.localeIdentifier = value
+        ioScope.launch {
+            trackEvent(makeConfigAttributes())
+        }
+    }
+
+    /** Dismisses the presented paywall, if one exists, as `Superwall.dismiss()` does. */
+    internal suspend fun dismissPaywall() {
+        superwall?.dismiss()
+    }
+
+    /** Opens the web restore page for the current config in the current activity. */
+    internal fun openRestoreOnWeb() =
+        com.superwall.sdk.web.openRestoreOnWeb(
+            config = configManager.config,
+            activityProvider = activityProvider,
+        )
+
+    /** The [Superwall] that owns this container, for the public extension functions it calls. */
+    internal fun requireOwner(): Superwall =
+        superwall ?: throw IllegalStateException("This DependencyContainer is not owned by a configured Superwall.")
+
     internal suspend fun trackEvent(event: Trackable): Result<TrackingResult> =
         superwall?.track(event)
             ?: Result.failure(IllegalStateException("This DependencyContainer is not owned by a configured Superwall."))
 
     internal val getPaywallComponentsFactory: GetPaywallComponentsFactory by lazy {
-        DefaultGetPaywallComponentsFactory(Superwall.instance)
+        DefaultGetPaywallComponentsFactory(requireOwner())
     }
 
     var network: Network
@@ -550,6 +578,20 @@ class DependencyContainer internal constructor(
                     }
                 },
                 tracker = { trackEvent(it) },
+                showModal = { activity, reason, hasPurchaseController, available, apiKey, dashboardBaseUrl, saved ->
+                    TestModeModal.show(
+                        activity = activity,
+                        reason = reason,
+                        hasPurchaseController = hasPurchaseController,
+                        availableEntitlements = available,
+                        apiKey = apiKey,
+                        dashboardBaseUrl = dashboardBaseUrl,
+                        savedSettings = saved,
+                        userId = { identityManager.userId },
+                        userAttributes = { identityManager.userAttributes },
+                        deviceAttributes = { makeSessionDeviceAttributes() },
+                    )
+                },
                 ioScope = ioScope,
             )
         testModeTransactionHandler =
@@ -573,7 +615,18 @@ class DependencyContainer internal constructor(
             InternalPurchaseController(
                 kotlinPurchaseController =
                     purchaseController
-                        ?: AutomaticPurchaseController(context, ioScope, { entitlements }),
+                        ?: AutomaticPurchaseController(
+                            context = context,
+                            scope = ioScope,
+                            entitlementsInfo = { entitlements },
+                            deviceEntitlementRecords = { readDeviceEntitlementRecords(storage) },
+                            getBilling = defaultGetBilling,
+                            passIdentifiersToPlayStore = { makeSuperwallOptions().passIdentifiersToPlayStore },
+                            userId = { identityManager.userId },
+                            externalAccountId = { identityManager.externalAccountId },
+                            configurationState = { configManager.configurationStatus },
+                            setSubscriptionStatus = { subscriptionStatusManager.internallySetSubscriptionStatus(it) },
+                        ),
                 javaPurchaseController = null,
                 context,
             )
@@ -697,6 +750,7 @@ class DependencyContainer internal constructor(
                 factory = this,
                 ioScope = ioScope,
                 track = { trackEvent(it) },
+                getGlobalOverrides = { makeSuperwallOptions().paywalls.overrideProductsByName },
             )
         paywallManager =
             PaywallManager(
@@ -712,6 +766,7 @@ class DependencyContainer internal constructor(
                 factory = this,
                 classifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
                 tcfAdConsent = { tcfConsentReader.read() },
+                subscriptionStatus = { entitlements.status.value },
                 ipCollector =
                     DeviceIpCollector(
                         lookups =
@@ -857,6 +912,8 @@ class DependencyContainer internal constructor(
                 context = context,
                 storage = storage,
                 factory = this,
+                isPaywallPresented = { presentationCoordinator.isPaywallPresented },
+                dismissPaywall = { dismissPaywall() },
             )
 
         uiScope.launch {
@@ -906,6 +963,18 @@ class DependencyContainer internal constructor(
                 },
                 webEntitlements = {
                     entitlements.web
+                },
+                subscriptionStatus = {
+                    entitlements.status.value
+                },
+                currentCustomerInfo = {
+                    customerInfoManager.customerInfo.value
+                },
+                activeDeviceEntitlements = {
+                    entitlements.activeDeviceEntitlements
+                },
+                openRestoreOnWeb = {
+                    openRestoreOnWeb()
                 },
                 refreshReceipt = {
                     storeManager.refreshReceipt()
@@ -1028,12 +1097,13 @@ class DependencyContainer internal constructor(
 
         deepLinkRouter =
             DeepLinkRouter(
-                reedemer,
-                ioScope,
-                debugManager,
-                {
+                redeemer = reedemer,
+                ioScope = ioScope,
+                debugManager = debugManager,
+                track = {
                     track(it)
                 },
+                configurationState = { configManager.configurationStatus },
             )
 
         attributionManager =
@@ -1052,7 +1122,7 @@ class DependencyContainer internal constructor(
                 storage = storage,
                 tracker = { track(it) },
                 userAttributes = { identityManager.userAttributes },
-                setUserAttributes = { Superwall.instance.setUserAttributes(it) },
+                setUserAttributes = { identityManager.mergeUserAttributes(cleanAttributes(it)) },
                 sendMatchRequest = { clickId ->
                     network.matchMMPInstall(clickId, attributionManager.integrationAttributes)
                 },
@@ -1119,7 +1189,7 @@ class DependencyContainer internal constructor(
                 "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
                 "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
                 "X-Entitlement-Status" to
-                    Superwall.instance.entitlements.status.value
+                    entitlements.status.value
                         .toString(),
                 "Content-Type" to "application/json",
                 "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
@@ -1219,6 +1289,10 @@ class DependencyContainer internal constructor(
                 paywallManager = paywallManager,
                 debugManager = debugManager,
                 factory = this,
+                options = { makeSuperwallOptions() },
+                setLocaleIdentifier = { setLocaleIdentifier(it) },
+                isPaywallPresented = { presentationCoordinator.isPaywallPresented },
+                present = { request, publisher -> requireOwner().internallyPresent(request, publisher) },
             )
         view.paywallDatabaseId = id
         // Note: Modal presentation style is an iOS concept. In Android, you might handle this differently.
@@ -1241,7 +1315,7 @@ class DependencyContainer internal constructor(
             ?.paywall
             ?.identifier
 
-    override fun currentCustomerInfo(): CustomerInfo = Superwall.instance.getCustomerInfo()
+    override fun currentCustomerInfo(): CustomerInfo = customerInfoManager.customerInfo.value
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
@@ -1318,7 +1392,7 @@ class DependencyContainer internal constructor(
                 PresentationRequest.Flags(
                     isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
                     // TODO: (PresentationCritical) Fix subscription status
-                    entitlements = subscriptionStatus ?: Superwall.instance.entitlements.status,
+                    entitlements = subscriptionStatus ?: entitlements.status,
 //                subscriptionStatus = subscriptionStatus!!,
                     isPaywallPresented = isPaywallPresented,
                     type = type,
@@ -1480,7 +1554,7 @@ class DependencyContainer internal constructor(
             }
             if (makeSuperwallOptions().paywalls.automaticallyDismiss) {
                 ioScope.launch {
-                    Superwall.instance.dismiss()
+                    dismissPaywall()
                 }
             }
         }
@@ -1522,7 +1596,7 @@ class DependencyContainer internal constructor(
 
     override fun delegate(): SuperwallDelegateAdapter = delegateAdapter
 
-    override fun customerInfoFlow(): StateFlow<CustomerInfo> = Superwall.instance.customerInfo
+    override fun customerInfoFlow(): StateFlow<CustomerInfo> = customerInfoManager.customerInfo
 
     override fun activeEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> = entitlements.active
 
@@ -1543,7 +1617,7 @@ class DependencyContainer internal constructor(
         event: Trackable,
         isImplicit: Boolean,
     ) {
-        Superwall.instance.internallyGetPresentationResult(
+        requireOwner().internallyGetPresentationResult(
             event,
             isImplicit,
         )
@@ -1637,7 +1711,7 @@ class DependencyContainer internal constructor(
 
     override fun closePaywallIfExists() {
         ioScope.launch {
-            Superwall.instance.dismiss()
+            dismissPaywall()
         }
     }
 

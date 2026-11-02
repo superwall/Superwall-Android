@@ -2,6 +2,7 @@ package com.superwall.sdk.store.testmode
 
 import android.app.Activity
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -65,7 +66,18 @@ class TestMode(
         dashboardBaseUrl: String,
         savedSettings: TestModeSettings?,
     ) -> TestModeModalResult = { activity, reason, hasPC, available, ak, db, saved ->
-        TestModeModal.show(activity, reason, hasPC, available, ak, db, saved)
+        TestModeModal.show(
+            activity = activity,
+            reason = reason,
+            hasPurchaseController = hasPC,
+            availableEntitlements = available,
+            apiKey = ak,
+            dashboardBaseUrl = db,
+            savedSettings = saved,
+            userId = { SuperwallGraph.requireContainer().identityManager.userId },
+            userAttributes = { SuperwallGraph.requireContainer().identityManager.userAttributes },
+            deviceAttributes = { SuperwallGraph.requireContainer().makeSessionDeviceAttributes() },
+        )
     },
     private val ioScope: CoroutineScope = IOScope(),
     override val actor: StateActor<TestModeContext, TestModeState> =
