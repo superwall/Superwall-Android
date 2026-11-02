@@ -29,6 +29,8 @@ import kotlinx.coroutines.awaitAll
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 
+// StoreKit is deprecated for SDK consumers; StoreManager keeps implementing it until it is removed.
+@Suppress("DEPRECATION")
 class StoreManager(
     val purchaseController: InternalPurchaseController,
     val billing: Billing,
@@ -438,7 +440,7 @@ class StoreManager(
     override fun refreshReceipt() {
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
+            scope = LogScope.billing,
             message = "Refreshing Google Play receipt.",
         )
         receiptManager.refreshReceipt()
@@ -447,7 +449,7 @@ class StoreManager(
     override suspend fun loadPurchasedProducts(serverEntitlementsByProductId: Map<String, Set<Entitlement>>) {
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
+            scope = LogScope.billing,
             message = "Loading purchased products from the Google Play receipt.",
         )
         receiptManager.loadPurchasedProducts(serverEntitlementsByProductId)

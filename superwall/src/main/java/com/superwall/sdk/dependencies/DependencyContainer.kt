@@ -162,6 +162,8 @@ import java.nio.charset.StandardCharsets
 import java.util.Date
 import com.superwall.sdk.paywall.presentation.internal.dismiss as internalDismiss
 
+// TransactionVerifierFactory is deprecated for SDK consumers; the SDK still implements it.
+@Suppress("DEPRECATION")
 class DependencyContainer(
     val context: Context,
     purchaseController: PurchaseController? = null,

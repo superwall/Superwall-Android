@@ -22,7 +22,6 @@ import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
-import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.dependencies.WebToAppFactory
 import com.superwall.sdk.logger.LogLevel
@@ -122,10 +121,12 @@ class TransactionManager(
         ) : PurchaseSource()
     }
 
+    // TransactionVerifierFactory is deprecated for SDK consumers; the SDK still implements it.
+    @Suppress("DEPRECATION")
     interface Factory :
         OptionsFactory,
         TriggerFactory,
-        TransactionVerifierFactory,
+        com.superwall.sdk.dependencies.TransactionVerifierFactory,
         StoreTransactionFactory,
         DeviceHelperFactory,
         CacheFactory,

@@ -124,6 +124,9 @@ interface LocaleIdentifierFactory {
     fun makeLocaleIdentifier(): String?
 }
 
+@Deprecated(
+    message = "Internal SDK factory that exposes the concrete GoogleBillingWrapper. It will be replaced by a store-neutral factory and removed in a future release.",
+)
 interface TransactionVerifierFactory {
     fun makeTransactionVerifier(): GoogleBillingWrapper
 }

@@ -4658,6 +4658,7 @@ public final class com/superwall/sdk/logger/LogLevel : java/lang/Enum {
 
 public final class com/superwall/sdk/logger/LogScope : java/lang/Enum {
 	public static final field all Lcom/superwall/sdk/logger/LogScope;
+	public static final field billing Lcom/superwall/sdk/logger/LogScope;
 	public static final field bounceButton Lcom/superwall/sdk/logger/LogScope;
 	public static final field cache Lcom/superwall/sdk/logger/LogScope;
 	public static final field configManager Lcom/superwall/sdk/logger/LogScope;

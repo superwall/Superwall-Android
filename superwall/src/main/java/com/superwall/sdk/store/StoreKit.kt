@@ -6,6 +6,9 @@ import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 
+@Deprecated(
+    message = "Leftover from the iOS port, implemented only by StoreManager. It will be removed in a future release.",
+)
 interface StoreKit {
     suspend fun getProductVariables(
         paywall: Paywall,
