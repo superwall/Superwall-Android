@@ -3,10 +3,8 @@ package com.superwall.sdk
 import android.app.Application
 import android.content.ComponentCallbacks2
 import android.content.Context
-import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
-import androidx.work.WorkManager
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
@@ -51,36 +49,20 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.device.InterfaceStyle
-import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.presentation.PresentationCoordinator
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
-import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.*
-import com.superwall.sdk.paywall.view.PaywallNotifications
 import com.superwall.sdk.paywall.view.PaywallView
-import com.superwall.sdk.paywall.view.PaywallViewState
-import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
-import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.webview.PaywallResource
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Closed
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Custom
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.InitiatePurchase
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.InitiateRestore
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.RequestPermission
 import com.superwall.sdk.storage.DidTrackAppInstall
 import com.superwall.sdk.storage.LatestCustomerInfo
-import com.superwall.sdk.storage.ReviewCount
-import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.StoredSubscriptionStatus
-import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -92,7 +74,6 @@ import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
@@ -129,9 +110,11 @@ class Superwall(
         get() = dependencyContainer.mainScope()
     internal var context: Context = context.applicationContext
 
-    private var purchaseTask: Job? = null
+    internal val presentationItems: PresentationItems
+        get() = presentationCoordinator.presentationItems
 
-    internal val presentationItems: PresentationItems = PresentationItems()
+    private val presentationCoordinator: PresentationCoordinator
+        get() = dependencyContainer.presentationCoordinator
 
     private val _placements: MutableSharedFlow<SuperwallEventInfo> =
         MutableSharedFlow(
@@ -234,7 +217,7 @@ class Superwall(
      * The presented paywall view.
      */
     val paywallView: PaywallView?
-        get() = dependencyContainer.paywallManager.currentView
+        get() = presentationCoordinator.paywallView
 
     /**
      * A convenience variable to access and change the paywall options that you passed
@@ -259,7 +242,7 @@ class Superwall(
      * Determines whether a paywall is being presented.
      */
     val isPaywallPresented: Boolean
-        get() = paywallView != null
+        get() = presentationCoordinator.isPaywallPresented
 
     /**
      * The delegate that handles Superwall lifecycle events.
@@ -516,11 +499,7 @@ class Superwall(
      * The `PaywallInfo` object of the most recently presented view.
      */
     val latestPaywallInfo: PaywallInfo?
-        get() {
-            val presentedPaywallInfo =
-                dependencyContainer.paywallManager.currentView?.info
-            return presentedPaywallInfo ?: presentationItems.paywallInfo
-        }
+        get() = presentationCoordinator.latestPaywallInfo
 
     val entitlements: Entitlements by lazy {
         dependencyContainer.entitlements
@@ -919,11 +898,7 @@ class Superwall(
      * @param isHidden Toggles the paywall loading spinner on and off.
      */
     fun togglePaywallSpinner(isHidden: Boolean) {
-        ioScope.launchWithTracking {
-            val paywallView =
-                dependencyContainer.paywallManager.currentView ?: return@launchWithTracking
-            paywallView.updateState(PaywallViewState.Updates.ToggleSpinner(isHidden))
-        }
+        presentationCoordinator.togglePaywallSpinner(isHidden)
     }
 
     /**
@@ -960,11 +935,7 @@ class Superwall(
      * Removes all of Superwall's pending local notifications.
      */
     fun cancelAllScheduledNotifications() {
-        withErrorTracking {
-            WorkManager
-                .getInstance(context)
-                .cancelAllWorkByTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
-        }
+        presentationCoordinator.cancelAllScheduledNotifications()
     }
 
     /**
@@ -979,7 +950,7 @@ class Superwall(
         action: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null,
     ) {
-        paywallView?.showAlert(
+        presentationCoordinator.showAlert(
             title,
             message,
             actionTitle,
@@ -1511,182 +1482,15 @@ class Superwall(
             onFinished(restorePurchases())
         }
 
+    /**
+     * Handles an event from a paywall's web view. The SDK's own paywalls send their events to
+     * the internal handler directly; this stays for views created with `Superwall` as callback.
+     */
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
         paywallView: PaywallView,
     ) {
-        mainScope.launchWithTracking {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallView,
-                message = "Event Did Occur",
-                info = mapOf("event" to paywallEvent),
-            )
-
-            when (paywallEvent) {
-                is Closed -> {
-                    dismiss(
-                        paywallView,
-                        result = Declined(),
-                        closeReason = PaywallCloseReason.ManualClose,
-                    )
-                }
-
-                is InitiatePurchase -> {
-                    if (purchaseTask != null) {
-                        // If a purchase is already in progress, do not start another
-                        return@launchWithTracking
-                    }
-                    paywallView.updateState(
-                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase),
-                    )
-                    purchaseTask =
-                        launch {
-                            try {
-                                dependencyContainer.transactionManager.purchase(
-                                    Internal(
-                                        paywallEvent.productId,
-                                        paywallView.controller.state,
-                                        replacementMode = paywallEvent.replacementMode,
-                                    ),
-                                    shouldDismiss = paywallEvent.shouldDismiss,
-                                )
-                            } finally {
-                                // Ensure the task is cleared once the purchase is complete or if an error occurs
-                                purchaseTask = null
-                            }
-                        }
-                }
-
-                is InitiateRestore -> {
-                    dependencyContainer.transactionManager.tryToRestorePurchases(paywallView)
-                }
-
-                is OpenedURL -> {
-                    dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
-                }
-
-                is OpenedUrlInChrome -> {
-                    dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
-                }
-
-                is OpenedDeepLink -> {
-                    dependencyContainer.delegateAdapter.paywallWillOpenDeepLink(url = paywallEvent.url)
-                }
-
-                is Custom -> {
-                    dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
-                }
-
-                is PaywallWebEvent.CustomPlacement -> {
-                    @Suppress("UNCHECKED_CAST")
-                    track(
-                        CustomPlacement(
-                            placementName = paywallEvent.name,
-                            params =
-                                paywallEvent.params.convertFromJsonElement() as? Map<String, Any>
-                                    ?: emptyMap(),
-                            paywallInfo = paywallView.info,
-                        ),
-                    )
-                }
-
-                is PaywallWebEvent.RequestReview -> {
-                    // Trigger review request
-                    ioScope.launch {
-                        try {
-                            when (paywallEvent.type) {
-                                PaywallWebEvent.RequestReview.Type.INAPP -> {
-                                    val reviewInfo =
-                                        dependencyContainer.reviewManager.requestReviewFlow()
-                                    val activity =
-                                        dependencyContainer.activityProvider?.getCurrentActivity()
-                                    if (activity != null) {
-                                        dependencyContainer.reviewManager.launchReviewFlow(
-                                            activity,
-                                            reviewInfo,
-                                        )
-                                        // Track successful review request
-                                        val currentCount =
-                                            dependencyContainer.deviceHelper.reviewRequestsTotal()
-                                        dependencyContainer.storage.write(
-                                            ReviewData,
-                                            ReviewCount(
-                                                (currentCount + 1),
-                                            ),
-                                        )
-                                        track(
-                                            ReviewRequested(
-                                                count = currentCount + 1,
-                                                type = paywallEvent.type.rawValue,
-                                            ),
-                                        )
-                                        dependencyContainer.configManager.recheckPreloadIfNeeded()
-                                    }
-                                }
-
-                                else -> {
-                                    val packageName = dependencyContainer.deviceHelper.urlScheme
-                                    val url =
-                                        "https://play.google.com/store/apps/details?id=$packageName"
-                                    (
-                                        activityProvider?.getCurrentActivity()
-                                            ?: paywallView.encapsulatingActivity?.get()
-                                    )?.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(url)),
-                                    )
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Logger.debug(
-                                logLevel = LogLevel.error,
-                                scope = LogScope.paywallView,
-                                message = "Failed to request review",
-                                error = e,
-                            )
-                        }
-                    }
-                }
-
-                is PaywallWebEvent.ScheduleNotification -> {
-                    val notifications =
-                        PaywallNotifications.forPaywall(
-                            paywallView,
-                            dependencyContainer.activityProvider?.getCurrentActivity(),
-                        )
-                    // Cancel any existing fallback notification of the same type before scheduling
-                    // the dynamic notification from the paywall
-                    notifications?.attemptToSchedule(
-                        notifications = listOf(paywallEvent.localNotification),
-                        factory = dependencyContainer,
-                        cancelExisting = true,
-                        applySandboxScaling = true,
-                    ) ?: run {
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.paywallView,
-                            message = "No superwall paywall host alive to schedule notifications",
-                        )
-                    }
-                }
-
-                is RequestPermission -> {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.paywallView,
-                        message = "Permission requested: ${paywallEvent.permissionType.rawValue}",
-                    )
-                }
-
-                is PaywallWebEvent.RequestCallback -> {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.paywallView,
-                        message = "Custom callback requested: ${paywallEvent.name}",
-                    )
-                }
-            }
-        }
+        dependencyContainer.paywallEventHandler.eventDidOccur(paywallEvent, paywallView)
     }
 
     internal fun redeem(code: String) {
