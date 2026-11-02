@@ -29,8 +29,16 @@ import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.SdkBootstrapper
+import com.superwall.sdk.analytics.SuperwallEventBus
 import com.superwall.sdk.config.AppConfigChangeObserver
+import com.superwall.sdk.config.AssignmentService
 import com.superwall.sdk.config.Assignments
+import com.superwall.sdk.identity.SdkResetter
+import com.superwall.sdk.models.internal.RedemptionOwnershipType
+import com.superwall.sdk.network.device.DeviceOverrides
+import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
+import com.superwall.sdk.store.ObserverModeHandler
+import com.superwall.sdk.store.PurchaseFacade
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.ConfigState
@@ -389,6 +397,71 @@ class DependencyContainer(
         )
     }
 
+    /** Clears the current user's data on reset and user switches; the identity actor calls it. */
+    internal val sdkResetter: SdkResetter by lazy {
+        SdkResetter(
+            scope = ioScope,
+            clearStorage = { storage.reset() },
+            clearPaywallCache = { paywallManager.resetCache() },
+            clearPresentationItems = { presentationCoordinator.presentationItems.reset() },
+            resetConfig = { configManager.reset() },
+            clearAppUserRedemptions = { reedemer.clear(RedemptionOwnershipType.AppUser) },
+            track = { Superwall.instance.track(it) },
+        )
+    }
+
+    /** Reads and confirms experiment assignments. */
+    internal val assignmentService: AssignmentService by lazy {
+        AssignmentService(
+            track = { Superwall.instance.track(it) },
+            triggers = { configManager.config?.triggers },
+            storedAssignments = { storage.getConfirmedAssignments() },
+            confirm = { eventData ->
+                val request =
+                    makePresentationRequest(
+                        presentationInfo = PresentationInfo.ExplicitTrigger(eventData),
+                        paywallOverrides = null,
+                        isPaywallPresented = false,
+                        type = PresentationRequestType.ConfirmAllAssignments,
+                    )
+                confirmAssignment(getPaywallComponentsFactory, request)
+            },
+        )
+    }
+
+    /** Tracks purchases the app makes itself, when observer mode is on. */
+    internal val observerModeHandler: ObserverModeHandler by lazy {
+        ObserverModeHandler(
+            scope = ioScope,
+            shouldObservePurchases = { makeSuperwallOptions().shouldObservePurchases },
+            transactionManager = { transactionManager },
+        )
+    }
+
+    /** Purchase, product, consume and restore calls made outside a paywall. */
+    internal val purchaseFacade: PurchaseFacade by lazy {
+        PurchaseFacade(
+            transactionManager = { transactionManager },
+            storeManager = { storeManager },
+            hasInternalPurchaseController = { makeHasInternalPurchaseController() },
+        )
+    }
+
+    /** The platform wrapper and interface style overrides the app sets. */
+    internal val deviceOverrides: DeviceOverrides by lazy {
+        DeviceOverrides(
+            deviceHelper = deviceHelper,
+            scope = ioScope,
+            trackDeviceAttributes = {
+                Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(makeSessionDeviceAttributes()))
+            },
+            recheckPreload = { configManager.recheckPreloadIfNeeded() },
+        )
+    }
+
+    /** The flow behind `Superwall.placements`. */
+    internal val superwallEventBus: SuperwallEventBus by lazy { SuperwallEventBus(ioScope) }
+
     /** Ad consent stored by the app's IAB TCF consent banner, in its default SharedPreferences. */
     internal val tcfConsentReader: TcfConsentReader by lazy {
         TcfConsentReader(
@@ -697,6 +770,7 @@ class DependencyContainer(
                     delegate().userAttributesDidChange(it)
                 },
                 webPaywallRedeemer = { reedemer },
+                completeReset = { sdkResetter.completeReset() },
                 installScopedAttributes = { mmpAttributionManager.cachedAcquisitionAttributes() },
                 actor = identityActor,
                 sdkContext = sdkContext,
