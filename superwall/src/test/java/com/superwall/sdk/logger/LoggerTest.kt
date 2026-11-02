@@ -2,7 +2,6 @@ package com.superwall.sdk.logger
 
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.assertFalse
@@ -10,11 +9,9 @@ import com.superwall.sdk.assertTrue
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
-import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
+import com.superwall.sdk.dependencies.attachMockGraph
 import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -270,15 +267,8 @@ class LoggerTest {
                 }
             }
 
-        val dependencyContainer = mockk<DependencyContainer>()
+        val dependencyContainer = attachMockGraph(SuperwallOptions())
         every { dependencyContainer.delegateAdapter } returns adapter
-        val superwall = mockk<Superwall>()
-        every { superwall.dependencyContainer } returns dependencyContainer
-        every { superwall.options } returns SuperwallOptions()
-
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns superwall
-        Superwall.initialized = true
 
         try {
             Logger.debug(
@@ -296,8 +286,7 @@ class LoggerTest {
             assertEquals(2, deliveryCount)
             assertTrue(out.lines.any { it.contains("delegate survives") })
         } finally {
-            Superwall.initialized = false
-            unmockkObject(Superwall.Companion)
+            SuperwallGraph.detach(dependencyContainer)
         }
     }
 }

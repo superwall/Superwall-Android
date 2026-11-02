@@ -103,7 +103,7 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
         dependencyContainer.storage.coreDataManager.saveEventData(eventData)
 
         if (event.canImplicitlyTriggerPaywall) {
-            Superwall.instance.handleImplicitTrigger(
+            handleImplicitTrigger(
                 event = event,
                 eventData = eventData,
             )

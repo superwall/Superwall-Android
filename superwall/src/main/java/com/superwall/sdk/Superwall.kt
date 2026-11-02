@@ -24,6 +24,7 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -254,7 +255,11 @@ class Superwall(
      *
      * Paywall HTML usage: `<video src="swlocal://hero-video" autoplay></video>`
      */
-    var localResources: Map<String, PaywallResource> = emptyMap()
+    var localResources: Map<String, PaywallResource>
+        get() = dependencyContainer.localResources
+        set(value) {
+            dependencyContainer.localResources = value
+        }
 
     /**
      * Exposes customer info as a stateflow.
@@ -584,6 +589,7 @@ class Superwall(
                 // Retain the activity provider for reuse in next configure call
                 retainedActivityProvider = _instance?.dependencyContainer?.activityProvider
                 _instance?.teardown()
+                SuperwallGraph.detach(_instance?.dependencyContainer)
                 _instance = null
                 initialized = false
                 _hasInitialized.update { false }
@@ -611,7 +617,9 @@ class Superwall(
                             options = _options,
                             activityProvider = activityProvider,
                             apiKey = apiKey,
+                            superwall = this,
                         )
+                    SuperwallGraph.attach(dependencyContainer)
                     dependencyContainer.storage.configure(apiKey = apiKey)
                 } catch (e: Exception) {
                     e.printStackTrace()

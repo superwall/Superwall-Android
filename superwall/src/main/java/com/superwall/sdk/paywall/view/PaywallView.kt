@@ -724,6 +724,7 @@ class PaywallView(
             paywallInfo = info,
             storage = storage,
             factory = factory,
+            track = { factory.track(it) },
         ) { res ->
             controller.updateState(UpdateSurveyState(res))
             finalDismiss()
@@ -1122,9 +1123,12 @@ class PaywallView(
         oldWebView.detach(this)
         oldWebView.destroyView()
         webView =
-            SWWebView(context, oldWebView.messageHandler, options = {
-                factory.makeSuperwallOptions().paywalls
-            })
+            SWWebView(
+                context,
+                oldWebView.messageHandler,
+                options = { factory.makeSuperwallOptions().paywalls },
+                track = { factory.track(it) },
+            )
         webView.attach(this)
         webView.delegate = this
         loadWebView()

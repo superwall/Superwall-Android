@@ -2,9 +2,7 @@ package com.superwall.sdk.dependencies
 
 import android.app.Activity
 import com.android.billingclient.api.Purchase
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingResult
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
@@ -63,7 +61,7 @@ interface ApiFactory : JsonFactory {
     var appLifecycleObserver: AppLifecycleObserver
 
     suspend fun track(event: Trackable) {
-        Superwall.instance.track(event)
+        SuperwallGraph.track(event)
     }
 
     suspend fun makeHeaders(

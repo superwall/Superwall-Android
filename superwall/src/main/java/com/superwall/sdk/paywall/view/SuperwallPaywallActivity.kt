@@ -41,6 +41,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -145,7 +146,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
 
             return launchPaywallActivity(context, intent).onFailure {
-                Superwall.instance.dependencyContainer
+                SuperwallGraph.requireContainer()
                     .makeViewRegistry()
                     .removeView(key)
                 view.clearActivityLaunchState()
@@ -155,7 +156,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         private fun PaywallView.prepareViewForDisplay(key: String) {
             webView.enableBackgroundRendering()
             webView.attach(this)
-            val registry = Superwall.instance.dependencyContainer.makeViewRegistry()
+            val registry = SuperwallGraph.requireContainer().makeViewRegistry()
             // If we started it directly and the view does not have shimmer and loading attached
             // We set them up for this PaywallView. Acquire through the cache rather than reading
             // ViewStorage: the canonical views are created lazily, so they may not exist yet
@@ -239,7 +240,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         val viewRegistry =
             try {
-                Superwall.instance.dependencyContainer.makeViewRegistry()
+                SuperwallGraph.requireContainer().makeViewRegistry()
             } catch (e: Exception) {
                 Logger.debug(
                     LogLevel.error,
@@ -268,7 +269,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             )
             // The view was cleared during cleanup but activity is being recreated
             // Get the current paywall view from Superwall instance and recreate the activity
-            val currentPaywallView = Superwall.instance.paywallView
+            val currentPaywallView = SuperwallGraph.requireContainer().presentationCoordinator.paywallView
             if (currentPaywallView != null) {
                 // Check if the view has been cleaned up (no child views)
                 if (currentPaywallView.childCount == 0) {
@@ -351,7 +352,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         isBackPressConsumedByApp(
                             rerouteBackButton = paywallView?.state?.paywall?.rerouteBackButton,
                             consumedByApp = {
-                                Superwall.instance.options.paywalls.onBackPressed
+                                SuperwallGraph
+                                    .requireContainer()
+                                    .configManager.options.paywalls.onBackPressed
                                     ?.let { it(paywallView?.info) }
                                     ?: false
                             },
@@ -839,7 +842,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         withErrorTracking {
             if (pv != null) {
                 (
-                    Superwall.instance.dependencyContainer
+                    SuperwallGraph.requireContainer()
                         .makeViewRegistry()
                         .retrieveView(pv) as? PaywallView?
                 )?.cleanup()

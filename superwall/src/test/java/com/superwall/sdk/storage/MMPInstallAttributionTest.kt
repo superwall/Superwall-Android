@@ -40,6 +40,7 @@ class MMPInstallAttributionTest {
                 ioScope = IOScope(UnconfinedTestDispatcher()),
                 cache = Cache(context, ioQueue = UnconfinedTestDispatcher(), json = json),
                 coreDataManager = mockk(relaxed = true),
+                track = {},
             )
     }
 

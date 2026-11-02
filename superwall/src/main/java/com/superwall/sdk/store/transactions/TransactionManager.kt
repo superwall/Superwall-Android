@@ -5,7 +5,6 @@ import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Transaction.TransactionSource
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
@@ -22,6 +21,7 @@ import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.dependencies.WebToAppFactory
 import com.superwall.sdk.logger.LogLevel
@@ -71,7 +71,7 @@ class TransactionManager(
     private val factory: Factory,
     private val ioScope: IOScope,
     private val track: suspend (TrackableSuperwallEvent) -> Unit = {
-        Superwall.instance.track(it)
+        SuperwallGraph.track(it)
     },
     private val dismiss: suspend (paywallId: String, result: PaywallResult) -> Unit,
     private val showAlert: (AlertProps) -> Unit,

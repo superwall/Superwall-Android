@@ -1,11 +1,11 @@
 package com.superwall.sdk.paywall.request
 
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.dependencies.ConfigManagerFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -52,7 +52,7 @@ class PaywallRequestManager(
     private val factory: PaywallRequestManagerDepFactory,
     private val ioScope: IOScope,
     private val track: suspend (TrackableSuperwallEvent) -> Unit = {
-        Superwall.instance.track(it)
+        SuperwallGraph.track(it)
     },
     private val getGlobalOverrides: () -> Map<String, String> = {
         Superwall.instance.overrideProductsByName

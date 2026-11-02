@@ -1,11 +1,10 @@
 package com.superwall.sdk.store
 
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.billing.BillingError
 import com.superwall.sdk.billing.DecomposedProductIds
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -36,7 +35,7 @@ class StoreManager(
     val billing: Billing,
     receiptManagerFactory: () -> ReceiptManager,
     private val track: suspend (InternalSuperwallEvent) -> Unit = {
-        Superwall.instance.track(it)
+        SuperwallGraph.track(it)
     },
     private val getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError> = {
         Either.Success(SuperwallProductsResponse(emptyList()))

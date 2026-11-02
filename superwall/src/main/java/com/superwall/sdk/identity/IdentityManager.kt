@@ -2,10 +2,10 @@ package com.superwall.sdk.identity
 
 import com.superwall.sdk.SdkContext
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.network.device.DeviceHelper
@@ -33,7 +33,7 @@ class IdentityManager(
     },
     override val installScopedAttributes: () -> Map<String, Any?> = { emptyMap() },
     override val tracker: suspend (TrackableSuperwallEvent) -> Unit = {
-        Superwall.instance.track(it)
+        SuperwallGraph.track(it)
     },
     private val options: () -> SuperwallOptions,
     override val webPaywallRedeemer: () -> WebPaywallRedeemer,

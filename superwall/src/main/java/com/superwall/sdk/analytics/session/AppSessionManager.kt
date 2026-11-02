@@ -2,12 +2,12 @@ package com.superwall.sdk.analytics.session
 
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.getConfig
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.dependencies.UserAttributesEventFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.storage.LocalStorage
@@ -23,12 +23,31 @@ interface AppManagerDelegate {
 }
 
 //
-class AppSessionManager(
+class AppSessionManager internal constructor(
     private val configManager: ConfigManager,
     private val storage: LocalStorage,
     private val delegate: Factory,
     private val backgroundScope: IOScope,
+    private val track: suspend (Trackable) -> Unit,
+    private val republishAdConsentIfChanged: suspend () -> Unit,
 ) : DefaultLifecycleObserver {
+    @Deprecated("Internal SDK type: the SDK builds it in Superwall.configure.")
+    constructor(
+        configManager: ConfigManager,
+        storage: LocalStorage,
+        delegate: Factory,
+        backgroundScope: IOScope,
+    ) : this(
+        configManager = configManager,
+        storage = storage,
+        delegate = delegate,
+        backgroundScope = backgroundScope,
+        track = { SuperwallGraph.track(it) },
+        republishAdConsentIfChanged = {
+            SuperwallGraph.container?.let { it.adConsentPublisher.republishIfChanged() }
+        },
+    )
+
     interface Factory :
         AppManagerDelegate,
         DeviceHelperFactory,
@@ -54,7 +73,7 @@ class AppSessionManager(
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
         backgroundScope.launch {
-            Superwall.instance.track(InternalSuperwallEvent.AppOpen())
+            track(InternalSuperwallEvent.AppOpen())
         }
         // A new session sends fresh device attributes, which already carry the current consent.
         val willSendDeviceAttributes =
@@ -64,7 +83,7 @@ class AppSessionManager(
             // Catches a consent change made while the app was in the background, such as one
             // stored by a consent banner in another process.
             backgroundScope.launch {
-                Superwall.instance.republishAdConsentIfChanged()
+                republishAdConsentIfChanged()
             }
         }
     }
@@ -73,7 +92,7 @@ class AppSessionManager(
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
         backgroundScope.launch {
-            Superwall.instance.track(InternalSuperwallEvent.AppClose())
+            track(InternalSuperwallEvent.AppClose())
         }
         lastAppClose = Date()
         appSession.endAt = Date()
@@ -123,19 +142,19 @@ class AppSessionManager(
                     val deviceAttributes = delegate.makeSessionDeviceAttributes()
                     val userAttributes = delegate.makeUserAttributesEvent()
 
-                    Superwall.instance.track(InternalSuperwallEvent.SessionStart())
+                    track(InternalSuperwallEvent.SessionStart())
 
                     // Only track device attributes if we've already tracked app launch before.
                     // This is because we track device attributes after the config is first fetched.
                     // Otherwise we'd track it twice and it won't contain geo info here on cold app start.
                     if (didTrackAppLaunch) {
-                        Superwall.instance.track(
+                        track(
                             InternalSuperwallEvent.DeviceAttributes(
                                 deviceAttributes,
                             ),
                         )
                     }
-                    Superwall.instance.track(userAttributes)
+                    track(userAttributes)
                 }
                 // If we are returning to the app, we can refresh the config here.
                 backgroundScope.launch {
@@ -153,7 +172,7 @@ class AppSessionManager(
             return
         }
         backgroundScope.launch {
-            Superwall.instance.track(InternalSuperwallEvent.AppLaunch())
+            track(InternalSuperwallEvent.AppLaunch())
         }
         didTrackAppLaunch = true
     }

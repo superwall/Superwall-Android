@@ -3,16 +3,15 @@ package com.superwall.sdk.paywall.view.webview
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import com.superwall.sdk.Given
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
+import com.superwall.sdk.dependencies.attachMockGraph
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -27,6 +26,7 @@ class SWWebViewInputConnectionTest {
     private val context get() = RuntimeEnvironment.getApplication()
     private lateinit var webView: SWWebView
     private lateinit var superwallOptions: SuperwallOptions
+    private lateinit var container: DependencyContainer
 
     @Before
     fun setUp() {
@@ -37,17 +37,12 @@ class SWWebViewInputConnectionTest {
                 options = { PaywallOptions() },
             )
         superwallOptions = SuperwallOptions()
-        val superwall = mockk<Superwall>()
-        every { superwall.options } returns superwallOptions
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns superwall
-        Superwall.initialized = true
+        container = attachMockGraph(superwallOptions)
     }
 
     @After
     fun tearDown() {
-        Superwall.initialized = false
-        unmockkObject(Superwall.Companion)
+        SuperwallGraph.detach(container)
     }
 
     @Test
@@ -79,7 +74,7 @@ class SWWebViewInputConnectionTest {
     @Test
     fun `delegates to the webview when Superwall is not initialized`() {
         Given("Superwall has not been configured yet") {
-            Superwall.initialized = false
+            SuperwallGraph.detach(container)
             When("the IME requests an input connection") {
                 val connection = webView.onCreateInputConnection(EditorInfo())
                 Then("the dummy connection is not returned") {
