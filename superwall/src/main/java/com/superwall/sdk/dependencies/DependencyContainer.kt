@@ -28,6 +28,8 @@ import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
+import com.superwall.sdk.SdkBootstrapper
+import com.superwall.sdk.config.AppConfigChangeObserver
 import com.superwall.sdk.config.Assignments
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
@@ -132,12 +134,16 @@ import com.superwall.sdk.permissions.UserPermissionsImpl
 import com.superwall.sdk.review.MockReviewManager
 import com.superwall.sdk.review.ReviewManager
 import com.superwall.sdk.review.ReviewManagerImpl
+import com.superwall.sdk.storage.DidTrackAppInstall
 import com.superwall.sdk.storage.EventsQueue
+import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.AutomaticPurchaseController
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.SubscriptionStatusManager
+import com.superwall.sdk.store.SubscriptionStatusObserver
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -318,6 +324,71 @@ class DependencyContainer(
         )
     }
 
+    /** Sets the subscription status for the app and for the SDK's own purchase handling. */
+    internal val subscriptionStatusManager: SubscriptionStatusManager by lazy {
+        SubscriptionStatusManager(
+            entitlements = { entitlements },
+            isTestMode = { testMode.isTestMode },
+            hasExternalPurchaseController = { makeHasExternalPurchaseController() },
+        )
+    }
+
+    /** Tells the delegate, analytics and storage about subscription status and customer info changes. */
+    internal val subscriptionStatusObserver: SubscriptionStatusObserver by lazy {
+        SubscriptionStatusObserver(
+            scope = ioScope,
+            subscriptionStatus = entitlements.status,
+            customerInfo = customerInfoManager.customerInfo,
+            storage = storage,
+            delegate = { delegateAdapter },
+            track = { Superwall.instance.track(it) },
+            recheckPreload = { configManager.recheckPreloadIfNeeded() },
+        )
+    }
+
+    /** Rechecks the paywall preload when the app's locale, timezone or theme changes. */
+    internal val appConfigChangeObserver: AppConfigChangeObserver by lazy {
+        AppConfigChangeObserver(
+            context = context,
+            scope = ioScope,
+            onChange = { configManager.recheckPreloadIfNeeded() },
+        )
+    }
+
+    /** Starts the SDK: cached state, listeners, then config and identity. */
+    internal val sdkBootstrapper: SdkBootstrapper by lazy {
+        SdkBootstrapper(
+            scope = ioScope,
+            readCachedSubscriptionStatus = { storage.read(StoredSubscriptionStatus) },
+            restoreCachedCustomerInfo = { customerInfoManager.restoreCachedCustomerInfo() },
+            setSubscriptionStatus = { subscriptionStatusManager.setSubscriptionStatus(it) },
+            mergeCustomerInfo = { customerInfoManager.updateMergedCustomerInfo() },
+            startListeners = {
+                subscriptionStatusObserver.start()
+                appConfigChangeObserver.register()
+            },
+            observeAdConsent = {
+                tcfConsentReader.observeReportedChanges(
+                    options = { makeSuperwallOptions() },
+                    onChange = { adConsentPublisher.publish() },
+                )
+            },
+            shouldMatchInstall = {
+                storage.shouldAttemptInitialMMPInstallAttributionMatch(
+                    hadTrackedAppInstallBeforeConfigure = storage.read(DidTrackAppInstall) ?: false,
+                    appInstalledAtMillis = deviceHelper.appInstalledAtMillis,
+                )
+            },
+            markInstallMatchPending = { mmpAttributionManager.markMatchPending() },
+            recordAppInstall = { storage.recordAppInstall { Superwall.instance.track(it) } },
+            fetchConfiguration = { configManager.fetchConfiguration() },
+            configureIdentity = {
+                identityManager.configure(neverCalledStaticConfig = storage.neverCalledStaticConfig)
+            },
+            matchInstall = { mmpAttributionManager.matchInstallOnceEnabled() },
+        )
+    }
+
     /** Ad consent stored by the app's IAB TCF consent banner, in its default SharedPreferences. */
     internal val tcfConsentReader: TcfConsentReader by lazy {
         TcfConsentReader(
@@ -386,7 +457,8 @@ class DependencyContainer(
         customerInfoManager =
             CustomerInfoManager(
                 storage = storage,
-                updateCustomerInfo = { Superwall.instance._customerInfo.value = it },
+                // The manager holds the merged value itself; nothing else needs telling.
+                updateCustomerInfo = {},
                 ioScope = ioScope,
                 hasExternalPurchaseController = { storeManager.purchaseController.hasExternalPurchaseController },
                 getSubscriptionStatus = { entitlements.status.value },
@@ -1404,7 +1476,7 @@ class DependencyContainer(
     }
 
     override fun internallySetSubscriptionStatus(status: SubscriptionStatus) {
-        Superwall.instance.internallySetSubscriptionStatus(status)
+        subscriptionStatusManager.internallySetSubscriptionStatus(status)
     }
 
     override suspend fun isPaywallVisible(): Boolean = presentationCoordinator.isPaywallPresented

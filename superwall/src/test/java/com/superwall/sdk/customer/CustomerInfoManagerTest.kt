@@ -402,4 +402,39 @@ class CustomerInfoManagerTest {
 
             assert(result.entitlements.isEmpty()) { "Should have no entitlements when Inactive" }
         }
+
+    @Test
+    fun `restoreCachedCustomerInfo sets the flow from storage, or empty`() {
+        val cached = CustomerInfo.empty().copy(userId = "cached", isPlaceholder = false)
+        every { storage.read(LatestCustomerInfo) } returns cached
+        manager.restoreCachedCustomerInfo()
+        assert(manager.customerInfo.value == cached)
+
+        every { storage.read(LatestCustomerInfo) } returns null
+        manager.restoreCachedCustomerInfo()
+        assert(manager.customerInfo.value == CustomerInfo.empty())
+    }
+
+    @Test
+    fun `updateMergedCustomerInfo sets the manager's own flow before the hook`() =
+        runTest(testDispatcher) {
+            val deviceInfo = CustomerInfo.empty().copy(userId = "device", isPlaceholder = false)
+            every { storage.read(LatestDeviceCustomerInfo) } returns deviceInfo
+            every { storage.read(LatestWebCustomerInfo) } returns CustomerInfo.empty()
+            var seenByHook: CustomerInfo? = null
+            lateinit var manager: CustomerInfoManager
+            manager =
+                CustomerInfoManager(
+                    storage = storage,
+                    updateCustomerInfo = { seenByHook = manager.customerInfo.value },
+                    ioScope = ioScope,
+                    hasExternalPurchaseController = { false },
+                    getSubscriptionStatus = { SubscriptionStatus.Unknown },
+                )
+            manager.updateMergedCustomerInfo()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assert(manager.customerInfo.value == deviceInfo)
+            assert(seenByHook == deviceInfo)
+        }
 }

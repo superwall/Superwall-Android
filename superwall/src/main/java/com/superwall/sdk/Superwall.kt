@@ -1,9 +1,7 @@
 package com.superwall.sdk
 
 import android.app.Application
-import android.content.ComponentCallbacks2
 import android.content.Context
-import android.content.res.Configuration
 import android.net.Uri
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
@@ -43,7 +41,6 @@ import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.models.customer.CustomerInfo
-import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
@@ -60,9 +57,6 @@ import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.webview.PaywallResource
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
-import com.superwall.sdk.storage.DidTrackAppInstall
-import com.superwall.sdk.storage.LatestCustomerInfo
-import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -72,23 +66,14 @@ import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
 import com.superwall.sdk.utilities.flatten
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -296,21 +281,18 @@ class Superwall(
      */
     var localResources: Map<String, PaywallResource> = emptyMap()
 
-    internal val _customerInfo: MutableStateFlow<CustomerInfo> =
-        MutableStateFlow(CustomerInfo.empty())
-
     /**
      * Exposes customer info as a stateflow.
      */
 
-    val customerInfo: StateFlow<CustomerInfo> get() = _customerInfo
+    val customerInfo: StateFlow<CustomerInfo> get() = dependencyContainer.customerInfoManager.customerInfo
 
     /**
      * Gets the current CustomerInfo synchronously.
      *
      * @return The current CustomerInfo containing purchase and subscription data.
      */
-    fun getCustomerInfo(): CustomerInfo = _customerInfo.value
+    fun getCustomerInfo(): CustomerInfo = customerInfo.value
 
     /**
      * Sets the Java delegate that handles Superwall lifecycle events.
@@ -363,15 +345,7 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        if (dependencyContainer.testMode.isTestMode) {
-            Logger.debug(
-                LogLevel.warn,
-                LogScope.superwallCore,
-                "setSubscriptionStatus ignored: test mode is active",
-            )
-            return
-        }
-        entitlements.setSubscriptionStatus(subscriptionStatus)
+        dependencyContainer.subscriptionStatusManager.setSubscriptionStatus(subscriptionStatus)
     }
 
     /**
@@ -385,59 +359,11 @@ class Superwall(
      * @param entitlements A list of entitlements.
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
-        if (dependencyContainer.testMode.isTestMode) {
-            Logger.debug(
-                LogLevel.warn,
-                LogScope.superwallCore,
-                "setSubscriptionStatus ignored: test mode is active",
-            )
-            return
-        }
-        if (entitlements.isEmpty()) {
-            this@Superwall.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
-        } else {
-            this@Superwall.entitlements.setSubscriptionStatus(
-                SubscriptionStatus.Active(
-                    entitlements
-                        .map {
-                            Entitlement(
-                                it,
-                            )
-                        }.toSet(),
-                ),
-            )
-        }
+        dependencyContainer.subscriptionStatusManager.setSubscriptionStatus(entitlements)
     }
 
     internal fun internallySetSubscriptionStatus(toStatus: SubscriptionStatus) {
-        if (dependencyContainer.makeHasExternalPurchaseController()) {
-            return
-        }
-        if (dependencyContainer.testMode.isTestMode) {
-            return
-        }
-        val webEntitlements = dependencyContainer.entitlements.web
-        when (toStatus) {
-            is SubscriptionStatus.Active -> {
-                val allEntitlements = toStatus.entitlements.plus(webEntitlements)
-                if (allEntitlements.isEmpty()) {
-                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
-                } else {
-                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(allEntitlements))
-                }
-            }
-
-            SubscriptionStatus.Inactive ->
-                if (webEntitlements.isEmpty()) {
-                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
-                } else {
-                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(webEntitlements))
-                }
-
-            SubscriptionStatus.Unknown -> {
-                entitlements.setSubscriptionStatus(SubscriptionStatus.Unknown)
-            }
-        }
+        dependencyContainer.subscriptionStatusManager.internallySetSubscriptionStatus(toStatus)
     }
 
     /**
@@ -723,171 +649,9 @@ class Superwall(
                     throw e
                 }
 
-                val cachedSubscriptionStatus =
-                    dependencyContainer.storage.read(StoredSubscriptionStatus)
-                        ?: SubscriptionStatus.Unknown
-                _customerInfo.value =
-                    dependencyContainer.storage.read(LatestCustomerInfo) ?: CustomerInfo.empty()
-
-                setSubscriptionStatus(cachedSubscriptionStatus)
-
-                // Trigger initial CustomerInfo merge on startup
-                dependencyContainer.customerInfoManager.updateMergedCustomerInfo()
-
-                addListeners()
-
-                // Off the main thread: the first read loads the app's default preferences.
-                ioScope.launch {
-                    dependencyContainer.tcfConsentReader.observeReportedChanges(
-                        options = { options },
-                        onChange = { adConsentPublisher.publish() },
-                    )
-                }
-
-                ioScope.launch {
-                    withErrorTracking {
-                        val hadTrackedAppInstallBeforeConfigure =
-                            dependencyContainer.storage.read(DidTrackAppInstall) ?: false
-
-                        // The eligibility check runs before anything else can stall, whatever
-                        // the config or tracking setting says: it records that this install may
-                        // be matched, which a later launch relies on if this one is killed before
-                        // config arrives. Only the request waits for config to enable the MMP.
-                        val shouldMatchInstall =
-                            dependencyContainer.storage.shouldAttemptInitialMMPInstallAttributionMatch(
-                                hadTrackedAppInstallBeforeConfigure = hadTrackedAppInstallBeforeConfigure,
-                                appInstalledAtMillis = dependencyContainer.deviceHelper.appInstalledAtMillis,
-                            )
-                        if (shouldMatchInstall) {
-                            // Marked before config is fetched so a paywall can't get ahead of it.
-                            dependencyContainer.mmpAttributionManager.markMatchPending()
-                        }
-
-                        dependencyContainer.storage.recordAppInstall {
-                            track(event = it)
-                        }
-                        // Identity awaits config internally where it needs it, so both
-                        // can run concurrently. Implicitly wait for both.
-                        coroutineScope {
-                            listOf(
-                                async {
-                                    dependencyContainer.configManager.fetchConfiguration()
-                                },
-                                async {
-                                    dependencyContainer.identityManager.configure(
-                                        neverCalledStaticConfig = dependencyContainer.storage.neverCalledStaticConfig,
-                                    )
-                                },
-                            ).awaitAll()
-                        }
-
-                        if (shouldMatchInstall) {
-                            dependencyContainer.mmpAttributionManager.matchInstallOnceEnabled()
-                        }
-                    }.toResult().fold({
-                        CoroutineScope(Dispatchers.Main).launch {
-                            completion?.invoke(Result.success(Unit))
-                        }
-                    }, {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            completion?.invoke(Result.failure(it))
-                        }
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.superwallCore,
-                            message = "Superwall SDK failed to initialize - ${it.message}",
-                            error = it,
-                        )
-                    })
-                }
+                dependencyContainer.sdkBootstrapper.start(completion)
             }
         }
-
-    // / Listens to config and the subscription status
-    private fun addListeners() {
-        ioScope.launchWithTracking {
-            entitlements.status
-                // Default StateFlow equality re-fires when entitlement product fields get
-                // enriched (productIds, latestProductId) even though the user-facing
-                // status is unchanged. Dedupe ignoring product identifiers — see
-                // Entitlement.isDistinct.
-                .distinctUntilChanged { old, new ->
-                    when {
-                        old === new -> true
-                        old is SubscriptionStatus.Active && new is SubscriptionStatus.Active -> {
-                            if (old.entitlements.size != new.entitlements.size) {
-                                false
-                            } else {
-                                val newById = new.entitlements.associateBy { it.id }
-                                old.entitlements.all { o ->
-                                    val n = newById[o.id] ?: return@all false
-                                    !o.isDistinct(n)
-                                }
-                            }
-                        }
-                        else -> old::class == new::class
-                    }
-                }
-                // Pair each status with the one before it. Entitlements persists the
-                // new status before this collector runs, so storage can't supply `from`.
-                .scan<SubscriptionStatus, Pair<SubscriptionStatus?, SubscriptionStatus>?>(null) { previous, newStatus ->
-                    Pair(previous?.second, newStatus)
-                }.filterNotNull()
-                .filter { it.first != null } // Drops the cached/initial emission
-                .collect { (previous, newValue) ->
-                    // Save and handle the new value
-                    val oldValue = previous ?: SubscriptionStatus.Unknown
-                    dependencyContainer.storage.write(StoredSubscriptionStatus, newValue)
-                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(
-                        oldValue,
-                        newValue,
-                    )
-                    val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
-                    track(event)
-                    dependencyContainer.configManager.recheckPreloadIfNeeded()
-                }
-        }
-        ioScope.launchWithTracking {
-            _customerInfo
-                .asSharedFlow()
-                .distinctUntilChanged()
-                .scan<CustomerInfo, Pair<CustomerInfo?, CustomerInfo>?>(null) { previousPair, newStatus ->
-                    Pair(previousPair?.second, newStatus)
-                }.filterNotNull()
-                .filter { it.first != null }
-                .collect {
-                    val (old, new) = it
-                    dependencyContainer.storage.write(LatestCustomerInfo, new)
-                    dependencyContainer.delegateAdapter.customerInfoDidChange(old!!, new)
-                    track(CustomerInfoDidChange(old, new))
-                    dependencyContainer.configManager.recheckPreloadIfNeeded()
-                }
-        }
-        registerConfigurationChangeListener()
-    }
-
-    private var configurationChangeListener: ComponentCallbacks2? = null
-
-    private fun registerConfigurationChangeListener() {
-        // Locale / region / language / timezone / interfaceStyle (when overrides
-        // are off) all reflect Android Configuration. ComponentCallbacks2 fires on
-        // changes and runs on the main thread; bounce through ioScope to call the
-        // suspend recheck.
-        val listener =
-            object : ComponentCallbacks2 {
-                override fun onConfigurationChanged(newConfig: Configuration) {
-                    ioScope.launchWithTracking {
-                        dependencyContainer.configManager.recheckPreloadIfNeeded()
-                    }
-                }
-
-                override fun onLowMemory() = Unit
-
-                override fun onTrimMemory(level: Int) = Unit
-            }
-        configurationChangeListener = listener
-        context.applicationContext.registerComponentCallbacks(listener)
-    }
 
     /**
      * Toggles the paywall loading spinner on and off.
@@ -1029,10 +793,7 @@ class Superwall(
             // because the activity provider will be retained and reused in the next configure call.
             // This ensures the current activity is still tracked across hot reload cycles.
 
-            configurationChangeListener?.let {
-                context.applicationContext.unregisterComponentCallbacks(it)
-                configurationChangeListener = null
-            }
+            dependencyContainer.appConfigChangeObserver.unregister()
         }
     }
 
