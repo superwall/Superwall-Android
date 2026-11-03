@@ -19,7 +19,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AppLifecycleObserver
-import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -42,7 +41,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -64,32 +62,56 @@ internal const val MAX_TRANSIENT_SETUP_FAILURES = 3
 // never arrives can't leave paywalls waiting on their products for the life of the process.
 internal const val PRODUCTS_QUERY_TIMEOUT_MS = 15_000L
 
-class GoogleBillingWrapper(
+/** Builds the Play billing client the SDK uses, reporting purchases to [listener]. */
+internal fun playBillingClient(context: Context): (PurchasesUpdatedListener) -> BillingClient =
+    { listener ->
+        BillingClient
+            .newBuilder(context)
+            .setListener(listener)
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
+            ).build()
+    }
+
+class GoogleBillingWrapper internal constructor(
     val context: Context,
     val ioScope: IOScope,
     val appLifecycleObserver: AppLifecycleObserver,
     val factory: Factory,
-    val createBillingClient: (PurchasesUpdatedListener) -> BillingClient = {
-        BillingClient
-            .newBuilder(context)
-            .setListener(it)
-            .enablePendingPurchases(
-                PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
-            ).build()
-    },
+    val createBillingClient: (PurchasesUpdatedListener) -> BillingClient,
+    private val productDetails: ProductDetailsRepository,
 ) : PurchasesUpdatedListener,
     BillingClientStateListener,
     Billing {
+    /**
+     * Builds a wrapper with its own product cache. The SDK builds its wrapper through the
+     * internal constructor, from `DependencyContainer`.
+     */
+    constructor(
+        context: Context,
+        ioScope: IOScope,
+        appLifecycleObserver: AppLifecycleObserver,
+        factory: Factory,
+        createBillingClient: (PurchasesUpdatedListener) -> BillingClient = playBillingClient(context),
+    ) : this(
+        context = context,
+        ioScope = ioScope,
+        appLifecycleObserver = appLifecycleObserver,
+        factory = factory,
+        createBillingClient = createBillingClient,
+        productDetails = ProductDetailsRepository(),
+    )
+
     companion object {
-        private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
         private const val QUERY_PURCHASES_TIMEOUT_MS = 10_000L
         private const val QUERY_PURCHASES_MAX_RETRIES = 3
         private const val CONNECT_TIMEOUT_MS = 5_000L
+    }
 
-        @androidx.annotation.VisibleForTesting
-        internal fun clearProductsCache() {
-            productsCache.clear()
-        }
+    /** Forgets every product this wrapper fetched, so the next request asks Play again. */
+    @androidx.annotation.VisibleForTesting
+    internal fun clearProductsCache() {
+        productDetails.clear()
     }
 
     interface Factory :
@@ -316,26 +338,12 @@ class GoogleBillingWrapper(
     @JvmSynthetic
     @Throws(Throwable::class)
     override suspend fun awaitGetProducts(fullProductIds: Set<String>): Set<StoreProduct> {
-        // Get the cached products. If any are a failure, we throw an error.
-        val cachedProducts =
-            fullProductIds
-                .mapNotNull { fullProductId ->
-                    productsCache[fullProductId]?.let { result ->
-                        when (result) {
-                            is Either.Success -> result.value
-                            is Either.Failure -> throw result.error
-                        }
-                    }
-                }.toSet()
-
-        // If all products are found in cache, return them directly
-        if (cachedProducts.size == fullProductIds.size) {
-            return cachedProducts
-        }
-
-        // Determine which product IDs are not in cache
-        val missingFullProductIds =
-            fullProductIds - cachedProducts.map { it.fullIdentifier }.toSet()
+        val (cachedProducts, missingFullProductIds) =
+            when (val lookup = productDetails.lookup(fullProductIds)) {
+                is ProductLookup.AllCached -> return lookup.products
+                is ProductLookup.KnownMissing -> throw lookup.error
+                is ProductLookup.Partial -> lookup.cached to lookup.missingIds
+            }
 
         return try {
             withTimeout(PRODUCTS_QUERY_TIMEOUT_MS) {
@@ -344,20 +352,7 @@ class GoogleBillingWrapper(
                         missingFullProductIds,
                         object : GetStoreProductsCallback {
                             override fun onReceived(storeProducts: Set<StoreProduct>) {
-                                // Update cache with fetched products and collect their identifiers
-                                val foundProductIds =
-                                    storeProducts.map { product ->
-                                        productsCache[product.fullIdentifier] = Either.Success(product)
-                                        product.fullIdentifier
-                                    }
-
-                                // Identify and handle missing products
-                                missingFullProductIds
-                                    .filterNot { it in foundProductIds }
-                                    .forEach { fullProductId ->
-                                        productsCache[fullProductId] =
-                                            Either.Failure(Exception("Failed to query product details for $fullProductId"))
-                                    }
+                                productDetails.store(missingFullProductIds, storeProducts)
 
                                 // Combine cached products (now including the newly fetched ones) with the fetched products
                                 val allProducts = cachedProducts + storeProducts

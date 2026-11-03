@@ -28,6 +28,8 @@ import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
+import com.superwall.sdk.billing.ProductDetailsRepository
+import com.superwall.sdk.billing.playBillingClient
 import com.superwall.sdk.SdkBootstrapper
 import com.superwall.sdk.analytics.SuperwallEventBus
 import com.superwall.sdk.config.AppConfigChangeObserver
@@ -547,10 +549,12 @@ class DependencyContainer internal constructor(
 
         googleBillingWrapper =
             GoogleBillingWrapper(
-                context,
-                ioScope,
+                context = context,
+                ioScope = ioScope,
                 appLifecycleObserver = appLifecycleObserver,
-                this,
+                factory = this,
+                createBillingClient = playBillingClient(context),
+                productDetails = ProductDetailsRepository(),
             )
         storage =
             LocalStorage(
