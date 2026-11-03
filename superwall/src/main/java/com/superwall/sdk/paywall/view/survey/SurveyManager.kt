@@ -19,7 +19,6 @@ import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.config.models.SurveyShowCondition
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -37,33 +36,6 @@ import kotlinx.coroutines.launch
 
 object SurveyManager {
     private var otherAlertDialog: AlertDialog? = null
-
-    fun presentSurveyIfAvailable(
-        surveys: List<Survey>,
-        paywallResult: PaywallResult,
-        paywallCloseReason: PaywallCloseReason,
-        activity: Activity?,
-        paywallView: PaywallView,
-        loadingState: PaywallLoadingState,
-        isDebuggerLaunched: Boolean,
-        paywallInfo: PaywallInfo,
-        storage: LocalStorage,
-        factory: TriggerFactory,
-        completion: (SurveyPresentationResult) -> Unit,
-    ) = presentSurveyIfAvailable(
-        surveys = surveys,
-        paywallResult = paywallResult,
-        paywallCloseReason = paywallCloseReason,
-        activity = activity,
-        paywallView = paywallView,
-        loadingState = loadingState,
-        isDebuggerLaunched = isDebuggerLaunched,
-        paywallInfo = paywallInfo,
-        storage = storage,
-        factory = factory,
-        track = { SuperwallGraph.track(it) },
-        completion = completion,
-    )
 
     internal fun presentSurveyIfAvailable(
         surveys: List<Survey>,

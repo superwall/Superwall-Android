@@ -2,6 +2,8 @@
 
 package com.superwall.sdk.store
 
+import com.superwall.sdk.store.testmode.noTestModeModal
+
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.superwall.sdk.And
@@ -77,7 +79,7 @@ class TestModeBillingUnavailableIntegrationTest {
     }
 
     private fun makeActiveTestMode(): TestMode {
-        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false)
+        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false, showModal = noTestModeModal)
         testMode.evaluateTestMode(
             config = mockk(relaxed = true),
             bundleId = "com.app",

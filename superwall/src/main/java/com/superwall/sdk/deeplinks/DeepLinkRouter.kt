@@ -28,24 +28,6 @@ class DeepLinkRouter internal constructor(
     val track: suspend (TrackableSuperwallEvent) -> Unit,
     private val configurationState: () -> Flow<ConfigurationStatus>,
 ) {
-    /**
-     * Kept for binary compatibility. The SDK builds [DeepLinkRouter] with the internal constructor;
-     * this one reads the configuration state from the configured SDK.
-     */
-    @Deprecated("Internal SDK class; construct it through Superwall.configure.")
-    constructor(
-        redeemer: WebPaywallRedeemer,
-        ioScope: IOScope = IOScope(),
-        debugManager: DebugManager,
-        track: suspend (TrackableSuperwallEvent) -> Unit,
-    ) : this(
-        redeemer = redeemer,
-        ioScope = ioScope,
-        debugManager = debugManager,
-        track = track,
-        configurationState = { SuperwallGraph.requireContainer().configManager.configurationStatus },
-    )
-
     companion object {
         private var unhandledDeepLinks = ConcurrentLinkedDeque<Uri>()
 

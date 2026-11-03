@@ -1,5 +1,6 @@
 package com.superwall.sdk.storage
 
+import com.superwall.sdk.storage.core_data.CoreDataManager
 import android.content.Context
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.triggers.Experiment
@@ -37,6 +38,9 @@ class StorageMock(
                 ignoreUnknownKeys = true
             },
         _apiKey = "",
+        cache = Cache(context = context, json = Json { ignoreUnknownKeys = true }),
+        coreDataManager = CoreDataManager(context = context),
+        track = {},
     ) {
     var didClearCachedSessionEvents = false
 

@@ -29,7 +29,6 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.game.GameControllerManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -65,22 +64,23 @@ interface SendPaywallMessages {
     fun handle(message: PaywallMessage)
 }
 
-class SWWebView(
+class SWWebView internal constructor(
     context: Context,
     override val messageHandler: PaywallMessageHandler,
     private val onFinishedLoading: ((url: String) -> Unit)? = null,
     private val options: () -> PaywallOptions,
-    private val track: suspend (TrackableSuperwallEvent) -> Unit = { SuperwallGraph.track(it) },
+    private val track: suspend (TrackableSuperwallEvent) -> Unit,
+    private val currentActivity: () -> Activity?,
+    private val localResources: () -> Map<String, PaywallResource>,
+    private val deviceLocale: () -> String?,
+    private val gameControllerEnabled: () -> Boolean,
 ) : WebView(context),
     PaywallWebUI {
     override var delegate: PaywallUIDelegate? = null
     private val mainScope = MainScope()
     private val ioScope = IOScope()
     val activity: Activity?
-        get() =
-            SuperwallGraph.container
-                ?.activityProvider
-                ?.getCurrentActivity()
+        get() = currentActivity()
     private val gestureDetector: GestureDetector by lazy {
         GestureDetector(
             context,
@@ -90,7 +90,7 @@ class SWWebView(
     override var onScrollChangeListener: PaywallWebUI.OnScrollChangeListener? = null
 
     private val localResourceHandler by lazy {
-        LocalResourceHandler(context) { SuperwallGraph.container?.localResources ?: emptyMap() }
+        LocalResourceHandler(context, localResources)
     }
 
     override fun detach(fromView: ViewGroup) {
@@ -237,7 +237,7 @@ class SWWebView(
     // runtime just falls back to waiting for `template_variables` as before.
     private fun currentDeviceLocale(): String? =
         delegate?.state?.locale
-            ?: SuperwallGraph.container?.deviceHelper?.locale
+            ?: deviceLocale()
 
     private val onPageStartedPreloadHook: (WebView) -> Unit = { view ->
         updateMediaPlayback()
@@ -330,8 +330,21 @@ class SWWebView(
             super.onCreateInputConnection(outAttrs)
         }
 
-    private fun isGameControllerEnabled(): Boolean =
-        SuperwallGraph.container?.let { it.configManager.options.isGameControllerEnabled } == true
+    private fun isGameControllerEnabled(): Boolean = gameControllerEnabled()
+
+    /** A fresh web view with the same message handler and inputs, used after the renderer crashes. */
+    internal fun recreate(): SWWebView =
+        SWWebView(
+            context = context,
+            messageHandler = messageHandler,
+            onFinishedLoading = onFinishedLoading,
+            options = options,
+            track = track,
+            currentActivity = currentActivity,
+            localResources = localResources,
+            deviceLocale = deviceLocale,
+            gameControllerEnabled = gameControllerEnabled,
+        )
 
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
         if (event == null || !isGameControllerEnabled()) {

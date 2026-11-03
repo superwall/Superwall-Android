@@ -60,9 +60,7 @@ interface ApiFactory : JsonFactory {
     var identityManager: IdentityManager
     var appLifecycleObserver: AppLifecycleObserver
 
-    suspend fun track(event: Trackable) {
-        SuperwallGraph.track(event)
-    }
+    suspend fun track(event: Trackable)
 
     suspend fun makeHeaders(
         isForDebugging: Boolean,
