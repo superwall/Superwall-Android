@@ -2,6 +2,7 @@ package com.superwall.sdk.billing.google
 
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.billing.StorePurchase
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -24,4 +25,10 @@ internal class PlayPurchases {
 
     /** The Play purchases last seen for [purchases], skipping any never seen. */
     fun native(purchases: List<StorePurchase>): List<Purchase> = purchases.mapNotNull { native(it.token) }
+
+    /** The SDK transaction [make] builds from the Play purchase behind [purchase], or `null` if none was seen. */
+    suspend fun transactionFor(
+        purchase: StorePurchase,
+        make: suspend (Purchase) -> StoreTransaction,
+    ): StoreTransaction? = native(purchase.token)?.let { make(it) }
 }

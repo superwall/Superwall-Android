@@ -9,6 +9,8 @@ import com.superwall.sdk.billing.PurchaseQueries
 import com.superwall.sdk.billing.Store
 import com.superwall.sdk.billing.StorePurchase
 import com.superwall.sdk.billing.StorePurchaseResult
+import com.superwall.sdk.billing.StorePurchaseUpdate
+import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.coroutines.CoroutineDispatcher
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transform
 
 /**
@@ -29,6 +32,7 @@ import kotlinx.coroutines.flow.transform
  *
  * @param purchaseUpdates every outcome Play reports to the wrapper's purchases listener.
  * @param purchases records each Play purchase it converts, by token.
+ * @param latestResult the last result the wrapper's purchases listener kept, or `null` once cleared.
  * @param flowParams builds Play's purchase flow params; replaceable in tests, where Play's builder can't run.
  */
 internal class GooglePlayStore(
@@ -36,6 +40,7 @@ internal class GooglePlayStore(
     override val availability: StateFlow<BillingAvailability>,
     private val purchaseUpdates: SharedFlow<StorePurchaseResult>,
     private val purchases: PlayPurchases,
+    private val latestResult: Flow<InternalPurchaseResult?>,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
     private val flowParams: (RawStoreProduct, PurchaseOptions) -> BillingFlowParams = ::billingFlowParamsOf,
 ) : Store {
@@ -78,4 +83,10 @@ internal class GooglePlayStore(
         purchaseUpdates
             .filterIsInstance<StorePurchaseResult.Purchased>()
             .transform { result -> result.purchases.forEach { emit(it) } }
+
+    override suspend fun subscriptionPurchases(): Result<List<StorePurchase>> =
+        queries.subscriptionPurchases().map(purchases::record)
+
+    override val latestPurchaseUpdate: Flow<StorePurchaseUpdate?> =
+        latestResult.map { it?.toStorePurchaseUpdate(purchases) }
 }

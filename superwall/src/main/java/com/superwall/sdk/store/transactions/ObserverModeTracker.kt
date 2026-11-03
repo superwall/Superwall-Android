@@ -1,9 +1,8 @@
 package com.superwall.sdk.store.transactions
 
-import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.billing.StorePurchaseUpdate
 import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.misc.primitives.StateActor
-import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource
 import kotlinx.coroutines.CoroutineScope
@@ -41,9 +40,9 @@ internal class ObserverModeTracker(
     /** The app started buying [purchase]. Applied at once so a quick result finds it. */
     fun begin(purchase: ObservedPurchase) = update(ObserverModeState.Updates.Begin(purchase))
 
-    /** Acts on a Play [result] for the latest observed purchase. */
+    /** Acts on a store [result] for the latest observed purchase. */
     suspend fun handle(
-        result: InternalPurchaseResult,
-        observerState: PurchasingObserverState,
-    ) = runInline(ObserverModeState.Actions.Handle(result, observerState))
+        result: StorePurchaseUpdate,
+        report: ObservedReport,
+    ) = runInline(ObserverModeState.Actions.Handle(result, report))
 }

@@ -1,7 +1,8 @@
 package com.superwall.sdk.store
 
-import com.superwall.sdk.billing.toInternalResult
-import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.billing.StorePurchaseUpdate
+import com.superwall.sdk.billing.google.toObservedReport
+import com.superwall.sdk.billing.google.toStorePurchaseUpdates
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -43,15 +44,17 @@ internal class ObserverModeHandler(
                     )
                 }
 
+                // The app's Play types become neutral ones here, at the public edge.
                 is PurchasingObserverState.PurchaseResult -> {
-                    val result = (state.result to state.purchases).toInternalResult()
-                    for (internalPurchaseResult in result) {
-                        transactionManager.handle(internalPurchaseResult, state)
+                    val report = state.toObservedReport() ?: return@launchWithTracking
+                    for (update in state.toStorePurchaseUpdates()) {
+                        transactionManager.handle(update, report)
                     }
                 }
 
                 is PurchasingObserverState.PurchaseError -> {
-                    transactionManager.handle(InternalPurchaseResult.Failed(state.error), state)
+                    val report = state.toObservedReport() ?: return@launchWithTracking
+                    transactionManager.handle(StorePurchaseUpdate.Failed(state.error), report)
                 }
             }
         }

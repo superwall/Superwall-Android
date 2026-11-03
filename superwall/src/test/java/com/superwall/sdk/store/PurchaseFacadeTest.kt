@@ -7,6 +7,7 @@ import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager
 import io.mockk.coEvery
@@ -59,10 +60,10 @@ class PurchaseFacadeTest {
         }
 
     @Test
-    fun `purchasing ProductDetails wraps them in a StoreProduct`() =
+    fun `a StoreProduct wrapping Play details is purchased externally`() =
         runTest {
             val details = mockk<ProductDetails>(relaxed = true) { every { productId } returns "pro" }
-            val result = facade.purchase(details)
+            val result = facade.purchase(StoreProduct(RawStoreProduct.from(details)))
             Given("Play product details") {
                 Then("they are purchased as an external purchase of the same product id") {
                     assertSame(purchased, result.getOrThrow())

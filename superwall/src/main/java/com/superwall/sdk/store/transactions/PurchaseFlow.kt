@@ -1,6 +1,6 @@
 package com.superwall.sdk.store.transactions
 
-import com.android.billingclient.api.Purchase
+import com.superwall.sdk.billing.StorePurchaseState
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.misc.primitives.SequentialActor
@@ -132,7 +132,7 @@ internal suspend fun TransactionContext.resolveReplacement(
             }
         } else {
             val purchases =
-                dependencies.storeManager.billing.querySubscriptionPurchases().getOrElse {
+                dependencies.store.subscriptionPurchases().getOrElse {
                     transactionLog(
                         logLevel = LogLevel.warn,
                         message = "Couldn't read the user's subscriptions to replace one with ${product.fullIdentifier}.",
@@ -141,17 +141,17 @@ internal suspend fun TransactionContext.resolveReplacement(
                     return Result.failure(it)
                 }
             purchases
-                .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                .filter { it.state == StorePurchaseState.Purchased }
                 .filter { purchase ->
-                    purchase.products.any { productId ->
+                    purchase.productIds.any { productId ->
                         entitlementsById(productId).any { it.id in entitlementIds }
                     }
                 }.maxByOrNull { it.purchaseTime }
                 ?.let {
                     ProductReplacement(
                         mode = mode,
-                        oldProductId = it.products.firstOrNull(),
-                        oldPurchaseToken = it.purchaseToken,
+                        oldProductId = it.productIds.firstOrNull(),
+                        oldPurchaseToken = it.token,
                     )
                 }
         }

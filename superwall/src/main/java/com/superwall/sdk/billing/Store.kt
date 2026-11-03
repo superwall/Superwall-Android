@@ -48,6 +48,18 @@ internal interface Store {
 
     /** Every purchase the store reports to the SDK, including pending ones completing later. */
     val externalPurchases: Flow<StorePurchase>
+
+    /**
+     * The subscriptions the user owns. Fails when the store can't be asked, so a failure is
+     * never mistaken for owning none.
+     */
+    suspend fun subscriptionPurchases(): Result<List<StorePurchase>>
+
+    /**
+     * The last purchase update the store reported, replayed to each new collector, or `null`
+     * once it was cleared. Observer mode follows it.
+     */
+    val latestPurchaseUpdate: Flow<StorePurchaseUpdate?>
 }
 
 /** The answer to [Store.products]: the products found and the ids the store didn't return. */
@@ -96,6 +108,23 @@ internal data class PurchaseOptions(
     /** The subscription this purchase replaces, if any. */
     val replacement: ProductReplacement? = null,
 )
+
+/** One update the store reports about a purchase, as observer mode reads it. */
+internal sealed interface StorePurchaseUpdate {
+    data class Purchased(
+        val purchase: StorePurchase,
+    ) : StorePurchaseUpdate
+
+    object Cancelled : StorePurchaseUpdate
+
+    object Pending : StorePurchaseUpdate
+
+    object Restored : StorePurchaseUpdate
+
+    data class Failed(
+        val error: Throwable,
+    ) : StorePurchaseUpdate
+}
 
 /** The outcome of a purchase flow. */
 internal sealed interface StorePurchaseResult {

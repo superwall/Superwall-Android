@@ -168,6 +168,7 @@ class GoogleBillingWrapper internal constructor(
             availability = availability,
             purchaseUpdates = purchaseUpdates,
             purchases = playPurchases,
+            latestResult = purchaseResults,
         )
 
     override suspend fun queryAllPurchases(): List<Purchase> = queries.allPurchases()

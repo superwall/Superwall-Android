@@ -2,6 +2,7 @@ package com.superwall.sdk.billing
 
 import android.app.Activity
 import com.superwall.sdk.billing.google.PlayPurchases
+import com.superwall.sdk.billing.google.toStorePurchaseUpdate
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import kotlinx.coroutines.flow.Flow
@@ -9,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transform
 
 /**
@@ -53,6 +55,12 @@ internal class BillingBackedStore(
         billing.purchaseResults
             .filterIsInstance<InternalPurchaseResult.Purchased>()
             .transform { emit(purchases.record(listOf(it.purchase)).first()) }
+
+    override suspend fun subscriptionPurchases(): Result<List<StorePurchase>> =
+        billing.querySubscriptionPurchases().map(purchases::record)
+
+    override val latestPurchaseUpdate: Flow<StorePurchaseUpdate?> =
+        billing.purchaseResults.map { it?.toStorePurchaseUpdate(purchases) }
 
     companion object {
         /** [billing] as a [Store], with a way to find the Play purchase behind a neutral one. */

@@ -18,6 +18,9 @@ import com.superwall.sdk.billing.BillingConnection
 import com.superwall.sdk.billing.ProductDetailsRepository
 import com.superwall.sdk.billing.PurchaseQueries
 import com.superwall.sdk.billing.StorePurchaseResult
+import com.superwall.sdk.billing.StorePurchaseState
+import com.superwall.sdk.billing.StorePurchaseUpdate
+import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import io.mockk.every
@@ -27,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -87,6 +91,7 @@ class GooglePlayStoreTest {
         val store: GooglePlayStore,
         val updates: MutableSharedFlow<StorePurchaseResult>,
         val purchases: PlayPurchases,
+        val latest: MutableStateFlow<InternalPurchaseResult?>,
     )
 
     private fun TestScope.store(fake: FakeClient): Harness {
@@ -103,16 +108,18 @@ class GooglePlayStoreTest {
         runCurrent()
         val updates = MutableSharedFlow<StorePurchaseResult>(extraBufferCapacity = 8)
         val purchases = PlayPurchases()
+        val latest = MutableStateFlow<InternalPurchaseResult?>(null)
         val store =
             GooglePlayStore(
                 queries = PurchaseQueries(connection, ProductDetailsRepository(), appInBackground = { false }),
                 availability = connection.availability,
                 purchaseUpdates = updates,
                 purchases = purchases,
+                latestResult = latest,
                 mainDispatcher = dispatcher,
                 flowParams = { _, _ -> mockk(relaxed = true) },
             )
-        return Harness(fake.client, store, updates, purchases)
+        return Harness(fake.client, store, updates, purchases, latest)
     }
 
     private fun playProduct(): StoreProduct {
@@ -236,6 +243,51 @@ class GooglePlayStoreTest {
                     Then("only the purchase is emitted") {
                         assertEquals("late", first.await().token)
                     }
+                }
+            }
+        }
+
+    @Test
+    fun `the latest purchase update is Play's last result in neutral form, with the original kept`() =
+        runTest {
+            Given("the wrapper's listener kept a purchase") {
+                val harness = store(FakeClient())
+                harness.latest.value = InternalPurchaseResult.Purchased(purchase("kept"))
+
+                When("the latest update is read, then the result is cleared") {
+                    val update = harness.store.latestPurchaseUpdate.first()
+                    harness.latest.value = null
+                    val cleared = harness.store.latestPurchaseUpdate.first()
+
+                    Then("it is the neutral purchase, then null, and the original is found by token") {
+                        assertEquals("kept", (update as StorePurchaseUpdate.Purchased).purchase.token)
+                        assertEquals(null, cleared)
+                        assertEquals("kept", harness.purchases.native("kept")?.purchaseToken)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `subscription purchases are read in neutral form, and fail when Play can't be asked`() =
+        runTest {
+            Given("a store whose subscriptions query answers") {
+                val harness = store(FakeClient(subscriptions = listOf(purchase("sub"))))
+
+                When("the subscriptions are read") {
+                    val subs = harness.store.subscriptionPurchases().getOrThrow()
+
+                    Then("they come back neutral and purchased") {
+                        assertEquals(listOf("sub"), subs.map { it.token })
+                        assertEquals(StorePurchaseState.Purchased, subs.single().state)
+                    }
+                }
+            }
+            Given("a store whose queries fail") {
+                val harness = store(FakeClient(queryCode = BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE))
+
+                Then("reading subscriptions fails instead of returning none") {
+                    assertTrue(harness.store.subscriptionPurchases().isFailure)
                 }
             }
         }
