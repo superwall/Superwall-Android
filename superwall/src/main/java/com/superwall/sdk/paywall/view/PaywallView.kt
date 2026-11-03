@@ -66,7 +66,6 @@ import com.superwall.sdk.paywall.view.webview.PaywallUIDelegate
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
-import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallStateDelegate
@@ -76,19 +75,13 @@ import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
 import com.superwall.sdk.misc.primitives.StateActor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.timeout
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -304,6 +297,27 @@ class PaywallView internal constructor(
             customerInfo = { factory.customerInfoFlow() },
         )
 
+    /**
+     * The presentation's load watch and deferred webview failure. Runs on the main scope, like the
+     * dismissal it can start and the view-creation callback it waits for.
+     */
+    private val presentationLifecycle: PaywallPresentationLifecycle =
+        PaywallPresentationLifecycle(
+            scope = mainScope,
+            loadWatchScope = ioScope,
+            storage = storage,
+            tracker = { factory.track(it) },
+            paywallState = { controller.state },
+            paywallStates = controller.currentState,
+            applyPaywallUpdate = { controller.updateState(it) },
+            dismiss = {
+                dismiss(
+                    PaywallResult.Declined(),
+                    PaywallCloseReason.WebViewFailedToLoad,
+                )
+            },
+        )
+
     init {
         id = View.generateViewId()
         setBackgroundColor(backgroundColor)
@@ -352,7 +366,6 @@ class PaywallView internal constructor(
         this.loadingView = loadingView
     }
 
-    @OptIn(FlowPreview::class)
     fun present(
         presenter: Activity,
         request: PresentationRequest,
@@ -367,40 +380,11 @@ class PaywallView internal constructor(
             setupLoading(it)
         }
 
-        val timeout = factory.makeSuperwallOptions().paywalls.timeoutAfter
-        loadTimeoutJob?.cancel()
-        if (timeout != null) {
-            loadTimeoutJob =
-                ioScope.launch {
-                    val msg =
-                        "Timeout triggered - paywall wasn't loaded in ${timeout.inWholeSeconds} seconds"
-                    controller.currentState
-                        .filter { it.loadingState == PaywallLoadingState.Ready }
-                        .map { Result.success(it.loadingState) }
-                        .timeout(timeout)
-                        .catch { err ->
-                            emit(Result.failure<PaywallLoadingState>(err))
-                        }.first()
-                        .onFailure { e ->
-                            if (e is TimeoutCancellationException) {
-                                val trackedEvent =
-                                    InternalSuperwallEvent.PaywallWebviewLoad(
-                                        state =
-                                            InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
-                                                WebviewError.Timeout(msg),
-                                                listOf(info.url.value),
-                                            ),
-                                        paywallInfo = info,
-                                    )
-                                factory.track(trackedEvent)
-                                // The app set a deadline for the paywall to appear and it passed, so
-                                // the paywall is closed rather than left on screen behind the
-                                // app's own fallback. Same outcome as a webview that can't load.
-                                webViewDidFail()
-                            }
-                        }
-                }
-        }
+        presentationLifecycle.dispatch(
+            PresentationLifecycleState.Actions.WatchLoad(
+                factory.makeSuperwallOptions().paywalls.timeoutAfter,
+            ),
+        )
 
         cache?.acquireShimmerView()?.let {
             setupShimmer(it)
@@ -437,56 +421,13 @@ class PaywallView internal constructor(
         cache?.activePaywallVcKey = null
     }
 
-    /** Watches for `paywalls.timeoutAfter` while a presentation waits for the webview. */
-    private var loadTimeoutJob: Job? = null
-
-    /**
-     * Set when the webview fails while the activity for this presentation is still being
-     * created, so onViewCreated() dismisses it as soon as it's on screen.
-     */
-    @Volatile
-    private var dismissOnceViewCreated = false
-
     /**
      * The webview can't load this paywall: every URL and retry is used up, or the app's
-     * `paywalls.timeoutAfter` passed. Mirrors iOS's `handleWebViewFailure`: a paywall on screen
-     * is dismissed as declined with [PaywallCloseReason.WebViewFailedToLoad], so the register
-     * handler runs the feature for a non-gated placement and `onError` for a gated one. A paywall
-     * that isn't on screen is marked [PaywallViewState.webviewFailedToLoad] and reloads the next
-     * time it's presented (see [presentationWillBegin]).
+     * `paywalls.timeoutAfter` passed. [PresentationLifecycleState.Actions.WebviewFailed] decides
+     * what that does to the presentation.
      */
     internal fun webViewDidFail() {
-        mainScope.launch {
-            updateState(WebLoadingFailed)
-            updateState(WebLoadingExhausted)
-            when {
-                state.isPresented -> {
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.paywallView,
-                        "Webview failed to load - dismissing paywall ${state.paywall.identifier}",
-                    )
-                    dismiss(
-                        PaywallResult.Declined(),
-                        PaywallCloseReason.WebViewFailedToLoad,
-                    )
-                }
-
-                state.viewCreatedCompletion != null -> {
-                    // The activity for this presentation hasn't been created yet.
-                    dismissOnceViewCreated = true
-                }
-
-                else -> {
-                    Logger.debug(
-                        LogLevel.warn,
-                        LogScope.paywallView,
-                        "Webview failed to load off-screen - paywall ${state.paywall.identifier} " +
-                            "will reload when next presented",
-                    )
-                }
-            }
-        }
+        presentationLifecycle.dispatch(PresentationLifecycleState.Actions.WebviewFailed)
     }
 
     internal fun handleActivityLaunchFailure(
@@ -660,7 +601,7 @@ class PaywallView internal constructor(
         ) {
             controller.updateState(SetLoadingState(PaywallLoadingState.Ready))
         }
-        dismissOnceViewCreated = false
+        presentationLifecycle.dispatch(PresentationLifecycleState.Actions.ResetForNewPresentation)
         resetPresentationPreparations()
     }
 
@@ -669,8 +610,7 @@ class PaywallView internal constructor(
         closeReason: PaywallCloseReason,
         completion: (() -> Unit)? = null,
     ) {
-        loadTimeoutJob?.cancel()
-        loadTimeoutJob = null
+        presentationLifecycle.dispatch(PresentationLifecycleState.Actions.StopWatchingLoad)
         controller.updateState(
             InitiateDismiss(
                 result,
@@ -840,10 +780,7 @@ class PaywallView internal constructor(
         factory
             .delegate()
             .didPresentPaywall(info)
-        if (dismissOnceViewCreated) {
-            dismissOnceViewCreated = false
-            webViewDidFail()
-        }
+        presentationLifecycle.dispatch(PresentationLifecycleState.Actions.ViewCreated)
         loadingStateDidChange()
         webView.messageHandler.flushPendingMessages()
         ioScope.launch {
