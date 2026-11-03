@@ -234,12 +234,6 @@ class PaywallView internal constructor(
             controller.updateState(SetLoadingState(value))
         }
 
-    // The last loading state handled by `loadingStateDidChange` while presented.
-    private var lastHandledLoadingState: PaywallLoadingState = PaywallLoadingState.Unknown
-
-    // Pending delayed hide of the loading/shimmer views, cancelled on the next state change.
-    private var delayedHideJob: Job? = null
-
     val backgroundColor: Int
         get() {
 
@@ -316,6 +310,20 @@ class PaywallView internal constructor(
                     PaywallCloseReason.WebViewFailedToLoad,
                 )
             },
+        )
+
+    /** The shimmer and purchase spinner. Runs on the main scope, where their views live. */
+    private val loadingOverlay: PaywallLoadingOverlay =
+        PaywallLoadingOverlay(
+            scope = mainScope,
+            delayScope = ioScope,
+            storage = storage,
+            tracker = { factory.track(it) },
+            paywallState = { controller.state },
+            transactionBackgroundView = { factory.makeSuperwallOptions().paywalls.transactionBackgroundView },
+            preloadingEnabled = { factory.makeSuperwallOptions().computedShouldPreload(deviceHelper.deviceTier) },
+            applyPaywallUpdate = { controller.updateState(it) },
+            views = { PaywallLoadingOverlay.OverlayViews(shimmer = shimmerView, spinner = loadingView) },
         )
 
     init {
@@ -503,8 +511,8 @@ class PaywallView internal constructor(
                 // webview. A load that is still retrying isn't restarted.
                 loadWebView()
             }
-            trackShimmerStart()
             controller.updateState(ShimmerStarted)
+            loadingOverlay.dispatch(LoadingOverlayState.Actions.TrackShimmerStart)
         }
     }
 
@@ -844,91 +852,8 @@ class PaywallView internal constructor(
         activity.finish()
     }
 
-    private fun showLoadingView() {
-        val transactionBackgroundView =
-            factory.makeSuperwallOptions().paywalls.transactionBackgroundView
-        if (transactionBackgroundView != PaywallOptions.TransactionBackgroundView.SPINNER) {
-            return
-        }
-        loadingView?.let {
-            mainScope.launch {
-                it.showLoading()
-            }
-        }
-    }
-
-    private fun hideLoadingView() {
-        loadingView?.let {
-            mainScope.launch {
-                it.hideLoading()
-            }
-        }
-    }
-
-    private fun trackShimmerStart() {
-        val trackedEvent =
-            InternalSuperwallEvent.ShimmerLoad(
-                state = InternalSuperwallEvent.ShimmerLoad.State.Started,
-                paywallId = state.paywall.identifier,
-                visibleDuration = null,
-                preloadingEnabled = factory.makeSuperwallOptions().computedShouldPreload(deviceHelper.deviceTier),
-                delay =
-                    state.paywall.presentation.delay
-                        .toDouble(),
-            )
-        ioScope.launch {
-            factory.track(trackedEvent)
-        }
-    }
-
     fun onThemeChanged() {
         webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
-    }
-
-    private fun showShimmerView() {
-        shimmerView?.let {
-            mainScope.launch {
-                it.showShimmer()
-            }
-        }
-    }
-
-    private fun hideShimmerView() {
-        shimmerView?.let {
-            mainScope.launch {
-                it.hideShimmer()
-            }
-        }
-
-        // Guard against duplicate tracking
-        if (state.paywall.shimmerLoadingInfo.endAt != null) return
-
-        // Match iOS: visibleDuration = now - lastOpen (when paywall was presented)
-        // Duration is 0 if shimmer was never started (preloaded) or lastOpen not set yet
-        val shimmerStartAt = state.paywall.shimmerLoadingInfo.startAt
-        val lastOpen = state.lastOpen
-        val now = Date()
-        val visibleDuration =
-            if (shimmerStartAt != null && lastOpen != null) {
-                (now.time - lastOpen.time).seconds.toDouble(DurationUnit.SECONDS)
-            } else {
-                0.0
-            }
-
-        controller.updateState(ShimmerEnded)
-        ioScope.launch {
-            val trackedEvent =
-                InternalSuperwallEvent.ShimmerLoad(
-                    state = InternalSuperwallEvent.ShimmerLoad.State.Complete,
-                    paywallId = state.paywall.identifier,
-                    visibleDuration = visibleDuration,
-                    delay =
-                        state.paywall.presentation.delay
-                            .toDouble(),
-                    preloadingEnabled = factory.makeSuperwallOptions().computedShouldPreload(deviceHelper.deviceTier),
-                )
-            factory.track(trackedEvent)
-        }
     }
 
     fun showRefreshButtonAfterTimeout(isVisible: Boolean) {
@@ -973,55 +898,14 @@ class PaywallView internal constructor(
 
 //region State
 
+    /** Hands the current loading state to the shimmer and spinner overlay. */
     internal fun loadingStateDidChange() {
-        if (state.isPresented) {
-            val previousLoadingState = lastHandledLoadingState
-            val currentLoadingState = loadingState
-            lastHandledLoadingState = currentLoadingState
-            delayedHideJob?.cancel()
-            delayedHideJob = null
-            mainScope.launch {
-                when (currentLoadingState) {
-                    is PaywallLoadingState.Unknown -> {
-                    }
-
-                    is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
-                        // Add Loading View
-                        showLoadingView()
-                    }
-
-                    is PaywallLoadingState.LoadingURL -> {
-                        showShimmerView()
-                        showRefreshButtonAfterTimeout(isVisible = true)
-                    }
-
-                    is PaywallLoadingState.Ready -> {
-                        val isInitialReveal =
-                            previousLoadingState is PaywallLoadingState.LoadingURL ||
-                                previousLoadingState is PaywallLoadingState.Unknown
-                        if (isInitialReveal) {
-                            // The presentation delay only applies to the first shimmer
-                            // -> content reveal, not to hiding the purchase spinner.
-                            delayedHideJob =
-                                ioScope.launch {
-                                    delay(state.paywall.presentation.delay)
-                                    mainScope.launch {
-                                        showRefreshButtonAfterTimeout(false)
-                                        hideLoadingView()
-                                        hideShimmerView()
-                                    }
-                                    controller.updateState(ResetCrashRetry)
-                                }
-                        } else {
-                            showRefreshButtonAfterTimeout(false)
-                            hideLoadingView()
-                            hideShimmerView()
-                            controller.updateState(ResetCrashRetry)
-                        }
-                    }
-                }
-            }
-        }
+        loadingOverlay.dispatch(
+            LoadingOverlayState.Actions.LoadingStateChanged(
+                current = loadingState,
+                isPresented = state.isPresented,
+            ),
+        )
     }
 
     fun loadWebView() {
