@@ -57,6 +57,8 @@ class TransactionContextTest {
         override val scope: CoroutineScope,
     ) : TransactionContext {
         override val actor = StateActor<TransactionContext, TransactionState>(TransactionState(), scope)
+
+        override fun onObservedPurchaseStarted(purchase: ObservedPurchase) = Unit
     }
 
     private class TestRestoreContext(

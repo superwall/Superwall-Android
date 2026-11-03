@@ -77,7 +77,10 @@ internal interface TransactionDependenciesContext<S, Self : BaseContext<S, Self>
 }
 
 /** Context for purchase [TransactionState.Actions]: start, result, pending and cancel. */
-internal interface TransactionContext : TransactionDependenciesContext<TransactionState, TransactionContext>
+internal interface TransactionContext : TransactionDependenciesContext<TransactionState, TransactionContext> {
+    /** Tells the observer-mode tracker about a purchase the app started itself. */
+    fun onObservedPurchaseStarted(purchase: ObservedPurchase)
+}
 
 /** Context for restore [RestoreState.Actions], including the restore-on-web prompt. */
 internal interface RestoreContext : TransactionDependenciesContext<RestoreState, RestoreContext>
