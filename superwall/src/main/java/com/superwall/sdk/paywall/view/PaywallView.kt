@@ -1123,11 +1123,15 @@ class PaywallView(
         oldWebView.detach(this)
         oldWebView.destroyView()
         webView =
-            SWWebView(
+            (oldWebView as? SWWebView)?.recreate() ?: SWWebView(
                 context,
                 oldWebView.messageHandler,
                 options = { factory.makeSuperwallOptions().paywalls },
                 track = { factory.track(it) },
+                currentActivity = { encapsulatingActivity?.get() },
+                localResources = { emptyMap() },
+                deviceLocale = { deviceHelper.locale },
+                gameControllerEnabled = { false },
             )
         webView.attach(this)
         webView.delegate = this

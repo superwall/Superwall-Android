@@ -19,7 +19,6 @@ import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -117,31 +116,6 @@ class AutomaticPurchaseController internal constructor(
     private val setSubscriptionStatus: (SubscriptionStatus) -> Unit,
 ) : PurchaseController,
     PurchasesUpdatedListener {
-    /**
-     * Kept for compatibility. The SDK builds [AutomaticPurchaseController] with the internal
-     * constructor; this one reads options, identity, config state and status from the configured SDK.
-     */
-    constructor(
-        context: Context,
-        scope: IOScope,
-        entitlementsInfo: () -> Entitlements = { SuperwallGraph.requireContainer().entitlements },
-        deviceEntitlementRecords: () -> Set<Entitlement> = {
-            readDeviceEntitlementRecords(SuperwallGraph.requireContainer().storage)
-        },
-        getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = defaultGetBilling,
-    ) : this(
-        context = context,
-        scope = scope,
-        entitlementsInfo = entitlementsInfo,
-        deviceEntitlementRecords = deviceEntitlementRecords,
-        getBilling = getBilling,
-        passIdentifiersToPlayStore = { SuperwallGraph.requireContainer().makeSuperwallOptions().passIdentifiersToPlayStore },
-        userId = { SuperwallGraph.requireContainer().identityManager.userId },
-        externalAccountId = { SuperwallGraph.requireContainer().identityManager.externalAccountId },
-        configurationState = { SuperwallGraph.requireContainer().configManager.configurationStatus },
-        setSubscriptionStatus = { SuperwallGraph.requireContainer().subscriptionStatusManager.internallySetSubscriptionStatus(it) },
-    )
-
     companion object {
         private const val QUERY_TIMEOUT_MS = 10_000L
         private const val CONNECTION_TIMEOUT_MS = 10_000L

@@ -4,6 +4,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -126,28 +127,38 @@ class TransactionManagerTest {
 
         transactionManager =
             TransactionManager(
-                storeManager = storeManager,
-                purchaseController = purchaseController,
-                eventsQueue = eventsQueue,
-                storage = storage,
-                activityProvider = activityProvider,
-                factory = factory,
-                ioScope = ioScope,
-                track = { trackedEvents.add(it) },
-                dismiss = { id, result -> dismissCalls.add(id to result) },
-                showAlert = { alertCalls.add(it) },
-                subscriptionStatus = { subscriptionStatusValue },
-                entitlementsById = { entitlementsMap[it] ?: emptySet() },
-                allEntitlementsByProductId = { entitlementsMap },
-                webEntitlements = { webEntitlementsValue },
-                showRestoreDialogForWeb = { showRestoreDialogCalled = true },
-                refreshReceipt = { refreshReceiptCalled = true },
-                updateState = { key, update -> stateUpdates.add(key to update) },
-                notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
-                    transactionCompleteCalls.add(cacheKey to trialEndDate)
-                    transactionCompleteTrialFlags.add(didStartFreeTrial)
-                    transactionCompleteProductIds.add(id)
-                },
+                TransactionDependencies(
+                    storeManager = storeManager,
+                    purchaseController = purchaseController,
+                    eventsQueue = eventsQueue,
+                    storage = storage,
+                    activityProvider = activityProvider,
+                    factory = factory,
+                    ioScope = ioScope,
+                    track = { trackedEvents.add(it) },
+                    dismiss = { id, result -> dismissCalls.add(id to result) },
+                    showAlert = { alertCalls.add(it) },
+                    subscriptionStatus = { subscriptionStatusValue },
+                    entitlementsById = { entitlementsMap[it] ?: emptySet() },
+                    allEntitlementsByProductId = { entitlementsMap },
+                    webEntitlements = { webEntitlementsValue },
+                    showRestoreDialogForWeb = { showRestoreDialogCalled = true },
+                    refreshReceipt = { refreshReceiptCalled = true },
+                    updateState = { key, update -> stateUpdates.add(key to update) },
+                    notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
+                        transactionCompleteCalls.add(cacheKey to trialEndDate)
+                        transactionCompleteTrialFlags.add(didStartFreeTrial)
+                        transactionCompleteProductIds.add(id)
+                    },
+                    currentCustomerInfo = { CustomerInfo.empty() },
+                    notifyBackendOfReceipts = {},
+                    notifyOfTransactionAbandon = {},
+                    testMode = null,
+                    testModeTransactionHandler = null,
+                    setSubscriptionStatus = null,
+                    activeDeviceEntitlements = { emptySet() },
+                    openRestoreOnWeb = {},
+                ),
             )
     }
 

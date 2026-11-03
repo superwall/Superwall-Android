@@ -83,35 +83,6 @@ class DebugView internal constructor(
     private val present: suspend (PresentationRequest, MutableSharedFlow<PaywallState>) -> Unit,
 ) : ConstraintLayout(context),
     AppCompatActivityEncapsulatable {
-    /**
-     * Kept for binary compatibility. The SDK builds [DebugView] with the internal constructor;
-     * this one reads options and presentation from the configured SDK.
-     */
-    @Deprecated("Internal SDK class; the SDK builds it when the debugger opens.")
-    constructor(
-        context: Context,
-        storeManager: StoreManager,
-        network: Network,
-        paywallRequestManager: PaywallRequestManager,
-        paywallManager: PaywallManager,
-        debugManager: DebugManager,
-        factory: Factory,
-    ) : this(
-        context = context,
-        storeManager = storeManager,
-        network = network,
-        paywallRequestManager = paywallRequestManager,
-        paywallManager = paywallManager,
-        debugManager = debugManager,
-        factory = factory,
-        options = { SuperwallGraph.requireContainer().makeSuperwallOptions() },
-        setLocaleIdentifier = { SuperwallGraph.requireContainer().setLocaleIdentifier(it) },
-        isPaywallPresented = { SuperwallGraph.container?.presentationCoordinator?.isPaywallPresented ?: false },
-        present = { request, publisher ->
-            SuperwallGraph.requireContainer().requireOwner().internallyPresent(request, publisher)
-        },
-    )
-
     interface Factory :
         RequestFactory,
         ViewFactory

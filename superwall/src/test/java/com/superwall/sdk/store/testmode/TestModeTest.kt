@@ -2,6 +2,7 @@
 
 package com.superwall.sdk.store.testmode
 
+
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -34,7 +35,7 @@ class TestModeTest {
     private fun makeManager(
         storage: Storage = makeStorage(),
         isTestEnvironment: Boolean = false,
-    ): TestMode = TestMode(storage, isTestEnvironment)
+    ): TestMode = TestMode(storage, isTestEnvironment, showModal = noTestModeModal)
 
     private fun makeConfig(
         bundleIdConfig: String? = null,
@@ -1045,7 +1046,7 @@ class TestModeTest {
                     },
                     // No activity available → activate short-circuits the modal step.
                     activityProvider = { null },
-                    activityTracker = { null },
+                    activityTracker = { null }, showModal = noTestModeModal,
                 )
             activateTestMode(manager)
 
@@ -1072,7 +1073,7 @@ class TestModeTest {
                         com.superwall.sdk.misc.Either.Success(
                             com.superwall.sdk.store.testmode.models.SuperwallProductsResponse(data = emptyList()),
                         )
-                    },
+                    }, showModal = noTestModeModal,
                 )
             activateTestMode(manager)
 
@@ -1093,7 +1094,7 @@ class TestModeTest {
                         com.superwall.sdk.misc.Either.Failure(
                             com.superwall.sdk.network.NetworkError.Unknown(),
                         )
-                    },
+                    }, showModal = noTestModeModal,
                 )
             activateTestMode(manager)
             // Seed a product so we can verify the failure path leaves it untouched.
@@ -1126,7 +1127,7 @@ class TestModeTest {
                     entitlements = entitlements,
                     activityProvider = { null },
                     activityTracker = { null },
-                    tracker = { tracked.add(it) },
+                    tracker = { tracked.add(it) }, showModal = noTestModeModal,
                 )
             activateTestMode(manager)
 

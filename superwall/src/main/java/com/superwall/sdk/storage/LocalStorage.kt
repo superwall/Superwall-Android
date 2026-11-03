@@ -6,7 +6,6 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.triggers.Experiment
@@ -33,26 +32,6 @@ open class LocalStorage internal constructor(
     private val track: suspend (Trackable) -> Unit,
 ) : Storage,
     CoroutineScope {
-    @Deprecated("Internal SDK type: the SDK builds its storage in Superwall.configure.")
-    constructor(
-        context: Context,
-        json: Json,
-        _apiKey: String,
-        factory: LocalStorage.Factory,
-        ioScope: IOScope,
-        cache: Cache = Cache(context = context, json = json),
-        coreDataManager: CoreDataManager = CoreDataManager(context = context),
-    ) : this(
-        context = context,
-        json = json,
-        _apiKey = _apiKey,
-        factory = factory,
-        ioScope = ioScope,
-        cache = cache,
-        coreDataManager = coreDataManager,
-        track = { SuperwallGraph.track(it) },
-    )
-
     companion object {
         private const val MMP_INSTALL_ATTRIBUTION_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
     }

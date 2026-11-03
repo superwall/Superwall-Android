@@ -1,10 +1,8 @@
 package com.superwall.sdk.store.transactions
 
-import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.AttributesFactory
 import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
@@ -13,106 +11,18 @@ import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.dependencies.WebToAppFactory
-import com.superwall.sdk.misc.ActivityProvider
-import com.superwall.sdk.misc.AlertControllerFactory.AlertProps
-import com.superwall.sdk.misc.IOScope
-import com.superwall.sdk.models.customer.CustomerInfo
-import com.superwall.sdk.models.entitlements.Entitlement
-import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
-import com.superwall.sdk.storage.EventsQueue
-import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.store.PurchasingObserverState
-import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.testmode.TestMode
-import com.superwall.sdk.store.testmode.TestModeTransactionHandler
-import com.superwall.sdk.web.openRestoreOnWeb
 
 class TransactionManager internal constructor(
     internal val dependencies: TransactionDependencies,
 ) {
-    /**
-     * Kept for binary compatibility. The SDK builds [TransactionManager] with the internal
-     * constructor; this one reads the device entitlements and web restore from the configured SDK.
-     */
-    @Deprecated("Internal SDK class; construct it through Superwall.configure.")
-    constructor(
-        storeManager: StoreManager,
-        purchaseController: PurchaseController,
-        eventsQueue: EventsQueue,
-        storage: Storage,
-        activityProvider: ActivityProvider,
-        factory: Factory,
-        ioScope: IOScope,
-        track: suspend (TrackableSuperwallEvent) -> Unit = {
-            SuperwallGraph.track(it)
-        },
-        dismiss: suspend (paywallId: String, result: PaywallResult) -> Unit,
-        showAlert: (AlertProps) -> Unit,
-        subscriptionStatus: () -> SubscriptionStatus = {
-            SuperwallGraph.container?.entitlements?.status?.value ?: SubscriptionStatus.Unknown
-        },
-        entitlementsById: (String) -> Set<Entitlement>,
-        allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
-        webEntitlements: () -> Set<Entitlement> = {
-            SuperwallGraph.container?.entitlements?.web ?: emptySet()
-        },
-        currentCustomerInfo: () -> CustomerInfo = {
-            SuperwallGraph.container?.customerInfoManager?.customerInfo?.value ?: CustomerInfo.empty()
-        },
-        showRestoreDialogForWeb: suspend () -> Unit,
-        notifyBackendOfReceipts: suspend () -> Unit = {},
-        refreshReceipt: () -> Unit,
-        updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
-        notifyOfTransactionComplete: suspend (
-            paywallCacheKey: String,
-            trialEndDate: Long?,
-            productId: String,
-            didStartFreeTrial: Boolean,
-        ) -> Unit,
-        notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit = {},
-        testMode: TestMode? = null,
-        testModeTransactionHandler: TestModeTransactionHandler? = null,
-        setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
-    ) : this(
-        TransactionDependencies(
-            storeManager = storeManager,
-            purchaseController = purchaseController,
-            eventsQueue = eventsQueue,
-            storage = storage,
-            activityProvider = activityProvider,
-            factory = factory,
-            ioScope = ioScope,
-            track = track,
-            dismiss = dismiss,
-            showAlert = showAlert,
-            subscriptionStatus = subscriptionStatus,
-            entitlementsById = entitlementsById,
-            allEntitlementsByProductId = allEntitlementsByProductId,
-            webEntitlements = webEntitlements,
-            currentCustomerInfo = currentCustomerInfo,
-            showRestoreDialogForWeb = showRestoreDialogForWeb,
-            notifyBackendOfReceipts = notifyBackendOfReceipts,
-            refreshReceipt = refreshReceipt,
-            updateState = updateState,
-            notifyOfTransactionComplete = notifyOfTransactionComplete,
-            notifyOfTransactionAbandon = notifyOfTransactionAbandon,
-            testMode = testMode,
-            testModeTransactionHandler = testModeTransactionHandler,
-            setSubscriptionStatus = setSubscriptionStatus,
-            activeDeviceEntitlements = { SuperwallGraph.container?.entitlements?.activeDeviceEntitlements ?: emptySet() },
-            openRestoreOnWeb = { SuperwallGraph.container?.openRestoreOnWeb() },
-        ),
-    )
-
     sealed class PurchaseSource {
         data class Internal(
             val productId: String,

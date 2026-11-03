@@ -4,7 +4,6 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.billing.BillingError
 import com.superwall.sdk.billing.DecomposedProductIds
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -30,13 +29,11 @@ import java.util.concurrent.ConcurrentHashMap
 
 // StoreKit is deprecated for SDK consumers; StoreManager keeps implementing it until it is removed.
 @Suppress("DEPRECATION")
-class StoreManager(
+class StoreManager internal constructor(
     val purchaseController: InternalPurchaseController,
     val billing: Billing,
     receiptManagerFactory: () -> ReceiptManager,
-    private val track: suspend (InternalSuperwallEvent) -> Unit = {
-        SuperwallGraph.track(it)
-    },
+    private val track: suspend (InternalSuperwallEvent) -> Unit,
     private val getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError> = {
         Either.Success(SuperwallProductsResponse(emptyList()))
     },

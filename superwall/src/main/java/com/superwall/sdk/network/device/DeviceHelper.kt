@@ -33,7 +33,6 @@ import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.StorefrontCountryFactory
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.cleanAttributes
 import com.superwall.sdk.logger.LogLevel
@@ -97,30 +96,6 @@ class DeviceHelper internal constructor(
     private val ipCollector: DeviceIpCollector?,
     private val subscriptionStatus: () -> SubscriptionStatus?,
 ) {
-    /**
-     * Kept for binary compatibility. The SDK builds [DeviceHelper] with the internal constructor
-     * and passes the subscription status in; this one reads it from the configured SDK.
-     */
-    @Deprecated("Internal SDK class; construct it through Superwall.configure.")
-    constructor(
-        context: Context,
-        storage: LocalStorage,
-        network: SuperwallAPI,
-        factory: Factory,
-        classifier: DeviceClassifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
-        tcfAdConsent: () -> AdConsent.Custom? = { null },
-        ipCollector: DeviceIpCollector? = null,
-    ) : this(
-        context = context,
-        storage = storage,
-        network = network,
-        factory = factory,
-        classifier = classifier,
-        tcfAdConsent = tcfAdConsent,
-        ipCollector = ipCollector,
-        subscriptionStatus = { SuperwallGraph.container?.entitlements?.status?.value },
-    )
-
     interface Factory :
         IdentityInfoFactory,
         LocaleIdentifierFactory,
