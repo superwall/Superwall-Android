@@ -141,6 +141,25 @@ class NeutralReceiptTest {
         }
 
     @Test
+    fun `a custom provider's null offer type is kept, not replaced by the SDK's`() {
+        Given("a custom provider that answers no offer type for a known Play purchase") {
+            val play = mockk<Purchase>()
+            val custom =
+                mockk<SubscriptionStatusProvider> {
+                    every { getOfferType(play, any()) } returns null
+                }
+            val status = ProviderSubscriptionStatus.of(custom) { if (it.token == "token-1") play else null }
+
+            // In a trial, so the SDK's own logic would answer TRIAL instead of null.
+            val inTrial = product().also { every { it.trialPeriodEndDate } returns java.util.Date(System.currentTimeMillis() + 86_400_000L) }
+            val offerType = When("the offer type of that purchase is read") { status.offerType(storePurchase(), inTrial) }
+            Then("the provider's null is the answer") {
+                assertNull(offerType)
+            }
+        }
+    }
+
+    @Test
     fun `a public Billing is read as a store that remembers the Play purchases`() =
         runTest {
             val play =

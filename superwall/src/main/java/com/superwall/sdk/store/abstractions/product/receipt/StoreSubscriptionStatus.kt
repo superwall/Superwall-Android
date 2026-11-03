@@ -129,9 +129,12 @@ internal class ProviderSubscriptionStatus(
     override fun offerType(
         purchase: StorePurchase,
         product: StoreProduct?,
-    ): LatestPeriodType? =
-        playPurchase(purchase)?.let { provider.getOfferType(it, product) }
-            ?: DefaultSubscriptionStatus.offerType(purchase, product)
+    ): LatestPeriodType? {
+        // The offer type is nullable, so a provider's `null` is its answer: only a purchase
+        // never seen as a Play purchase falls back to the SDK's own logic.
+        val play = playPurchase(purchase) ?: return DefaultSubscriptionStatus.offerType(purchase, product)
+        return provider.getOfferType(play, product)
+    }
 
     override suspend fun isActive(
         purchase: StorePurchase,
