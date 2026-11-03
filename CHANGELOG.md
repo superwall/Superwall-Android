@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## Unreleased
+
+## Enhancements
+- Adds `LogScope.billing` for the SDK's Google Play Billing logs. `LogScope.storeKitManager` is deprecated; setting it in `SuperwallOptions.logging.scopes` still enables the billing logs.
+
+## Deprecations
+- Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
+- Deprecates the unused iOS-port types `com.superwall.sdk.billing.StoreProductType`, `StoreKit`, `StoreKitManagerInterface`, `ProductPurchaser`, `TransactionRestorer`, `Purchasing` and `TransactionVerifierFactory`. They will be removed in a future release. `GetProductsResponse` is unchanged.
+
 ## 2.9.0
 
 ## Enhancements

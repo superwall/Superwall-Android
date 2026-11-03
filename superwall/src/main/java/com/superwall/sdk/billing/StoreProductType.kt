@@ -3,6 +3,10 @@ package com.superwall.sdk.billing
 import java.math.BigDecimal
 import java.util.*
 
+@Deprecated(
+    message = "Unused leftover from the iOS port. Use com.superwall.sdk.store.abstractions.product.StoreProductType instead. It will be removed in a future release.",
+    replaceWith = ReplaceWith("com.superwall.sdk.store.abstractions.product.StoreProductType"),
+)
 interface StoreProductType {
     val productIdentifier: String
     val price: BigDecimal

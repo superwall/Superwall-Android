@@ -59,10 +59,7 @@ interface Loggable {
                 return false
             }
             val exceedsCurrentLogLevel = logLevel.level >= logging.level.level
-            val isInScope = logging.scopes.contains(scope)
-            val allLogsActive = logging.scopes.contains(LogScope.all)
-
-            return exceedsCurrentLogLevel && (isInScope || allLogsActive)
+            return exceedsCurrentLogLevel && scope.isEnabledBy(logging.scopes)
         }
 
         // True when a delegate will consume the log or it will be printed,

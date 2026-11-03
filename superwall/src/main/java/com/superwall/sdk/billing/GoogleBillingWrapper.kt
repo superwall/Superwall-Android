@@ -738,14 +738,14 @@ class GoogleBillingWrapper(
     ) {
         Logger.debug(
             LogLevel.debug,
-            LogScope.storeKitManager,
+            LogScope.billing,
             "onPurchasesUpdated: $result",
         )
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (purchase in purchases) {
                 Logger.debug(
                     LogLevel.debug,
-                    LogScope.storeKitManager,
+                    LogScope.billing,
                     "Purchase: $purchase",
                 )
                 CoroutineScope(Dispatchers.IO).launch {
@@ -761,7 +761,7 @@ class GoogleBillingWrapper(
 
             Logger.debug(
                 LogLevel.debug,
-                LogScope.storeKitManager,
+                LogScope.billing,
                 "User cancelled purchase",
             )
         } else {
@@ -770,7 +770,7 @@ class GoogleBillingWrapper(
             }
             Logger.debug(
                 LogLevel.debug,
-                LogScope.storeKitManager,
+                LogScope.billing,
                 "Purchase failed",
             )
         }
