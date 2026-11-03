@@ -62,4 +62,17 @@ class ProductConversionsTest {
             assertNull(ProductReplacement(ProductReplacement.Mode.DEFAULT, oldProductId = "old", oldPurchaseToken = null).toSubscriptionUpdateParams())
         } }
     }
+
+    @Test
+    fun `Play product types map to neutral kinds`() {
+        org.junit.Assert.assertEquals(
+            com.superwall.sdk.billing.StoreProductKind.Subscription,
+            productKindOf(com.android.billingclient.api.BillingClient.ProductType.SUBS),
+        )
+        org.junit.Assert.assertEquals(
+            com.superwall.sdk.billing.StoreProductKind.OneTime,
+            productKindOf(com.android.billingclient.api.BillingClient.ProductType.INAPP),
+        )
+        org.junit.Assert.assertEquals(com.superwall.sdk.billing.StoreProductKind.Unknown, productKindOf(null))
+    }
 }

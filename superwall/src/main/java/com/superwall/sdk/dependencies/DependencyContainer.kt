@@ -646,7 +646,7 @@ class DependencyContainer internal constructor(
                 receiptManagerFactory = {
                     ReceiptManager(
                         delegate = storeManager,
-                        billing = googleBillingWrapper,
+                        store = googleBillingWrapper.store,
                         storage = storage,
                         customerInfoManager = { customerInfoManager },
                     )

@@ -1,9 +1,12 @@
 package com.superwall.sdk.billing.google
 
+import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingFlowParams
 import com.superwall.sdk.billing.PurchaseOptions
+import com.superwall.sdk.billing.StoreProductKind
 import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 /**
  * The offer token Play needs to buy this product's selected offer, or `null` when Play must
@@ -62,3 +65,28 @@ internal fun billingFlowParamsOf(
         .setProductDetailsParamsList(listOf(product.toProductDetailsParams(product.offerId)))
         .apply { options.replacement?.toSubscriptionUpdateParams()?.let { setSubscriptionUpdateParams(it) } }
         .build()
+
+/** Maps Play's product type string to the neutral kind. */
+internal fun productKindOf(playProductType: String?): StoreProductKind =
+    when (playProductType) {
+        BillingClient.ProductType.SUBS -> StoreProductKind.Subscription
+        BillingClient.ProductType.INAPP -> StoreProductKind.OneTime
+        else -> StoreProductKind.Unknown
+    }
+
+/** What kind of product this is, from the Play details it wraps. */
+internal val StoreProduct.kind: StoreProductKind
+    get() = productKindOf(rawStoreProduct?.underlyingProductDetails?.productType)
+
+/**
+ * The price of each phase of this product's selected subscription offer, in micros and in
+ * order. Empty for a one-time product or one without a selected offer.
+ */
+internal val StoreProduct.offerPhasePricesMicros: List<Long>
+    get() =
+        when (val offer = rawStoreProduct?.selectedOffer) {
+            is RawStoreProduct.SelectedOfferDetails.Subscription ->
+                offer.underlying.pricingPhases.pricingPhaseList
+                    .map { it.priceAmountMicros }
+            is RawStoreProduct.SelectedOfferDetails.OneTime, null -> emptyList()
+        }

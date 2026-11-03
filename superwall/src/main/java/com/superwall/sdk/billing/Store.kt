@@ -32,6 +32,13 @@ internal interface Store {
     /** The purchases the store reports as owned, subscriptions and one-time products alike. */
     suspend fun activePurchases(): Result<List<StorePurchase>>
 
+    /**
+     * The owned purchases the store could read, best effort: a query that fails counts as
+     * owning nothing of that type instead of failing the call. Receipts are built from this,
+     * so one failed query doesn't drop the purchases the other query found.
+     */
+    suspend fun ownedPurchases(): List<StorePurchase>
+
     suspend fun acknowledge(purchase: StorePurchase): Result<Unit>
 
     suspend fun consume(token: String): Result<Unit>
@@ -68,6 +75,18 @@ internal sealed interface StorePurchaseState {
     object Pending : StorePurchaseState
 
     object Unknown : StorePurchaseState
+}
+
+/** What kind of product a [com.superwall.sdk.store.abstractions.product.StoreProduct] is. */
+internal sealed interface StoreProductKind {
+    /** A product that renews on a schedule. */
+    object Subscription : StoreProductKind
+
+    /** A product bought once. */
+    object OneTime : StoreProductKind
+
+    /** The store didn't say, or the product isn't from a store. */
+    object Unknown : StoreProductKind
 }
 
 /** How [Store.purchase] should buy the product. */

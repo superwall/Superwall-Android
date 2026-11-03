@@ -66,6 +66,8 @@ internal class GooglePlayStore(
 
     override suspend fun activePurchases(): Result<List<StorePurchase>> = queries.activePurchases().map(purchases::record)
 
+    override suspend fun ownedPurchases(): List<StorePurchase> = purchases.record(queries.allPurchases())
+
     override suspend fun acknowledge(purchase: StorePurchase): Result<Unit> = queries.acknowledge(purchase.token)
 
     override suspend fun consume(token: String): Result<Unit> = queries.consume(token).map { }
