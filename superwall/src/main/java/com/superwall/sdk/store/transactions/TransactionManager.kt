@@ -4,8 +4,6 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Transaction.TransactionSource
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.delegate.InternalPurchaseResult
@@ -62,38 +60,36 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManager internal constructor(
-    private val storeManager: StoreManager,
-    private val purchaseController: PurchaseController,
-    private val eventsQueue: EventsQueue,
-    private val storage: Storage,
-    private val activityProvider: ActivityProvider,
-    private val factory: Factory,
-    private val ioScope: IOScope,
-    private val track: suspend (TrackableSuperwallEvent) -> Unit,
-    private val dismiss: suspend (paywallId: String, result: PaywallResult) -> Unit,
-    private val showAlert: (AlertProps) -> Unit,
-    private val subscriptionStatus: () -> SubscriptionStatus,
-    private val entitlementsById: (String) -> Set<Entitlement>,
-    private val allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
-    private val webEntitlements: () -> Set<Entitlement>,
-    private val currentCustomerInfo: () -> CustomerInfo,
-    private val showRestoreDialogForWeb: suspend () -> Unit,
-    private val notifyBackendOfReceipts: suspend () -> Unit,
-    private val refreshReceipt: () -> Unit,
-    private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
-    private val notifyOfTransactionComplete: suspend (
-        paywallCacheKey: String,
-        trialEndDate: Long?,
-        productId: String,
-        didStartFreeTrial: Boolean,
-    ) -> Unit,
-    private val notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit,
-    private val testMode: TestMode?,
-    private val testModeTransactionHandler: TestModeTransactionHandler?,
-    private val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)?,
-    private val activeDeviceEntitlements: () -> Set<Entitlement>,
-    private val openRestoreOnWeb: () -> Unit,
+    internal val dependencies: TransactionDependencies,
 ) {
+    // Short names for the collaborators while the flows move onto their actors.
+    private val storeManager = dependencies.storeManager
+    private val purchaseController = dependencies.purchaseController
+    private val eventsQueue = dependencies.eventsQueue
+    private val storage = dependencies.storage
+    private val activityProvider = dependencies.activityProvider
+    private val factory = dependencies.factory
+    private val ioScope = dependencies.ioScope
+    private val track = dependencies.track
+    private val dismiss = dependencies.dismiss
+    private val showAlert = dependencies.showAlert
+    private val subscriptionStatus = dependencies.subscriptionStatus
+    private val entitlementsById = dependencies.entitlementsById
+    private val allEntitlementsByProductId = dependencies.allEntitlementsByProductId
+    private val webEntitlements = dependencies.webEntitlements
+    private val currentCustomerInfo = dependencies.currentCustomerInfo
+    private val showRestoreDialogForWeb = dependencies.showRestoreDialogForWeb
+    private val notifyBackendOfReceipts = dependencies.notifyBackendOfReceipts
+    private val refreshReceipt = dependencies.refreshReceipt
+    private val updateState = dependencies.updateState
+    private val notifyOfTransactionComplete = dependencies.notifyOfTransactionComplete
+    private val notifyOfTransactionAbandon = dependencies.notifyOfTransactionAbandon
+    private val testMode = dependencies.testMode
+    private val testModeTransactionHandler = dependencies.testModeTransactionHandler
+    private val setSubscriptionStatus = dependencies.setSubscriptionStatus
+    private val activeDeviceEntitlements = dependencies.activeDeviceEntitlements
+    private val openRestoreOnWeb = dependencies.openRestoreOnWeb
+
     /**
      * Kept for binary compatibility. The SDK builds [TransactionManager] with the internal
      * constructor; this one reads the device entitlements and web restore from the configured SDK.
@@ -138,32 +134,34 @@ class TransactionManager internal constructor(
         testModeTransactionHandler: TestModeTransactionHandler? = null,
         setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
     ) : this(
-        storeManager = storeManager,
-        purchaseController = purchaseController,
-        eventsQueue = eventsQueue,
-        storage = storage,
-        activityProvider = activityProvider,
-        factory = factory,
-        ioScope = ioScope,
-        track = track,
-        dismiss = dismiss,
-        showAlert = showAlert,
-        subscriptionStatus = subscriptionStatus,
-        entitlementsById = entitlementsById,
-        allEntitlementsByProductId = allEntitlementsByProductId,
-        webEntitlements = webEntitlements,
-        currentCustomerInfo = currentCustomerInfo,
-        showRestoreDialogForWeb = showRestoreDialogForWeb,
-        notifyBackendOfReceipts = notifyBackendOfReceipts,
-        refreshReceipt = refreshReceipt,
-        updateState = updateState,
-        notifyOfTransactionComplete = notifyOfTransactionComplete,
-        notifyOfTransactionAbandon = notifyOfTransactionAbandon,
-        testMode = testMode,
-        testModeTransactionHandler = testModeTransactionHandler,
-        setSubscriptionStatus = setSubscriptionStatus,
-        activeDeviceEntitlements = { SuperwallGraph.container?.entitlements?.activeDeviceEntitlements ?: emptySet() },
-        openRestoreOnWeb = { SuperwallGraph.container?.openRestoreOnWeb() },
+        TransactionDependencies(
+            storeManager = storeManager,
+            purchaseController = purchaseController,
+            eventsQueue = eventsQueue,
+            storage = storage,
+            activityProvider = activityProvider,
+            factory = factory,
+            ioScope = ioScope,
+            track = track,
+            dismiss = dismiss,
+            showAlert = showAlert,
+            subscriptionStatus = subscriptionStatus,
+            entitlementsById = entitlementsById,
+            allEntitlementsByProductId = allEntitlementsByProductId,
+            webEntitlements = webEntitlements,
+            currentCustomerInfo = currentCustomerInfo,
+            showRestoreDialogForWeb = showRestoreDialogForWeb,
+            notifyBackendOfReceipts = notifyBackendOfReceipts,
+            refreshReceipt = refreshReceipt,
+            updateState = updateState,
+            notifyOfTransactionComplete = notifyOfTransactionComplete,
+            notifyOfTransactionAbandon = notifyOfTransactionAbandon,
+            testMode = testMode,
+            testModeTransactionHandler = testModeTransactionHandler,
+            setSubscriptionStatus = setSubscriptionStatus,
+            activeDeviceEntitlements = { SuperwallGraph.container?.entitlements?.activeDeviceEntitlements ?: emptySet() },
+            openRestoreOnWeb = { SuperwallGraph.container?.openRestoreOnWeb() },
+        ),
     )
 
     sealed class PurchaseSource {
@@ -676,18 +674,7 @@ class TransactionManager internal constructor(
                 factory.makeHasExternalPurchaseController() &&
                 !factory.makeHasInternalPurchaseController()
         if (isExternalOnly) {
-            track(
-                InternalSuperwallEvent.Transaction(
-                    InternalSuperwallEvent.Transaction.State.Start(product),
-                    PaywallInfo.empty(),
-                    product,
-                    null,
-                    isObserved = false,
-                    source = TransactionSource.EXTERNAL,
-                    demandScore = factory.demandScore(),
-                    demandTier = factory.demandTier(),
-                ),
-            )
+            track(TransactionAnalytics.start(product, purchaseSource, dependencies.demand()))
         }
 
         val activity =
@@ -790,23 +777,15 @@ class TransactionManager internal constructor(
                 RestoreType.ViaRestore
             }
 
-        val trackedEvent =
-            InternalSuperwallEvent.Transaction(
-                state = InternalSuperwallEvent.Transaction.State.Restore(restoreType),
-                paywallInfo = if (purchaseSource is PurchaseSource.Internal) purchaseSource.paywallInfo else PaywallInfo.empty(),
+        track(
+            TransactionAnalytics.restored(
                 product = product,
-                model = null,
-                isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
-                source =
-                    when (purchaseSource) {
-                        is PurchaseSource.ExternalPurchase -> TransactionSource.EXTERNAL
-                        is PurchaseSource.Internal -> TransactionSource.INTERNAL
-                        is PurchaseSource.ObserverMode -> TransactionSource.OBSERVER
-                    },
-                demandScore = factory.demandScore(),
-                demandTier = factory.demandTier(),
-            )
-        track(trackedEvent)
+                restoreType = restoreType,
+                purchaseSource = purchaseSource,
+                observesPurchases = dependencies.observesPurchases,
+                demand = dependencies.demand(),
+            ),
+        )
 
         val superwallOptions = factory.makeSuperwallOptions()
         if (superwallOptions.paywalls.automaticallyDismiss && purchaseSource is PurchaseSource.Internal) {
@@ -837,26 +816,7 @@ class TransactionManager internal constructor(
                 )
 
                 ioScope.launchWithTracking {
-                    val paywallInfo = purchaseSource.paywallInfo
-                    val trackedEvent =
-                        InternalSuperwallEvent.Transaction(
-                            state =
-                                InternalSuperwallEvent.Transaction.State.Fail(
-                                    TransactionError.Failure(
-                                        errorMessage,
-                                        product,
-                                    ),
-                                ),
-                            paywallInfo = paywallInfo,
-                            product = product,
-                            model = null,
-                            isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
-                            source = TransactionSource.INTERNAL,
-                            demandScore = factory.demandScore(),
-                            demandTier = factory.demandTier(),
-                        )
-                    val fail = (trackedEvent.state as InternalSuperwallEvent.Transaction.State.Fail)
-                    track(trackedEvent)
+                    track(failureEvent(errorMessage, product, purchaseSource))
                 }
             }
 
@@ -867,24 +827,7 @@ class TransactionManager internal constructor(
                     error = Error(errorMessage),
                 )
                 ioScope.launch {
-                    val trackedEvent =
-                        InternalSuperwallEvent.Transaction(
-                            state =
-                                InternalSuperwallEvent.Transaction.State.Fail(
-                                    TransactionError.Failure(
-                                        errorMessage,
-                                        product,
-                                    ),
-                                ),
-                            paywallInfo = PaywallInfo.empty(),
-                            product = product,
-                            model = null,
-                            isObserved = purchaseSource is PurchaseSource.ObserverMode,
-                            source = TransactionSource.EXTERNAL,
-                            demandScore = factory.demandScore(),
-                            demandTier = factory.demandTier(),
-                        )
-                    track(trackedEvent)
+                    track(failureEvent(errorMessage, product, purchaseSource))
                 }
             }
         }
@@ -912,19 +855,7 @@ class TransactionManager internal constructor(
                     )
                 }
 
-                val paywallInfo = source.paywallInfo
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Start(product),
-                        paywallInfo,
-                        product,
-                        null,
-                        isObserved = isObserved,
-                        source = TransactionSource.INTERNAL,
-                        demandScore = factory.demandScore(),
-                        demandTier = factory.demandTier(),
-                    )
-                track(trackedEvent)
+                track(TransactionAnalytics.start(product, source, dependencies.demand()))
             }
 
             is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
@@ -956,18 +887,7 @@ class TransactionManager internal constructor(
                     )
                 }
 
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Start(product),
-                        PaywallInfo.empty(),
-                        product,
-                        null,
-                        isObserved = isObserved,
-                        source = TransactionSource.EXTERNAL,
-                        demandScore = factory.demandScore(),
-                        demandTier = factory.demandTier(),
-                    )
-                track(trackedEvent)
+                track(TransactionAnalytics.start(product, source, dependencies.demand()))
             }
         }
     }
@@ -1041,9 +961,6 @@ class TransactionManager internal constructor(
         product: StoreProduct,
         purchaseSource: PurchaseSource,
     ) {
-        val isObserved =
-            purchaseSource is PurchaseSource.ObserverMode
-
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
                 ioScope.launch {
@@ -1058,18 +975,7 @@ class TransactionManager internal constructor(
                 }
 
                 val paywallInfo = purchaseSource.paywallInfo
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Abandon(product),
-                        paywallInfo,
-                        product,
-                        null,
-                        isObserved = isObserved,
-                        source = TransactionSource.INTERNAL,
-                        demandScore = factory.demandScore(),
-                        demandTier = factory.demandTier(),
-                    )
-                track(trackedEvent)
+                track(TransactionAnalytics.abandon(product, purchaseSource, dependencies.demand()))
 
                 notifyOfTransactionAbandon(paywallInfo.cacheKey)
 
@@ -1089,26 +995,12 @@ class TransactionManager internal constructor(
                     )
                 }
 
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Abandon(product),
-                        PaywallInfo.empty(),
-                        product,
-                        null,
-                        isObserved = isObserved,
-                        source = TransactionSource.EXTERNAL,
-                        demandScore = factory.demandScore(),
-                        demandTier = factory.demandTier(),
-                    )
-                track(trackedEvent)
+                track(TransactionAnalytics.abandon(product, purchaseSource, dependencies.demand()))
             }
         }
     }
 
     private suspend fun handlePendingTransaction(purchaseSource: PurchaseSource) {
-        val isObserved =
-            purchaseSource is PurchaseSource.ObserverMode
-
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
                 ioScope.launch {
@@ -1118,20 +1010,7 @@ class TransactionManager internal constructor(
                     )
                 }
 
-                val paywallInfo = purchaseSource.paywallInfo
-
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Fail(TransactionError.Pending("Needs parental approval")),
-                        paywallInfo,
-                        null,
-                        null,
-                        isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
-                        source = TransactionSource.INTERNAL,
-                        demandScore = factory.demandScore(),
-                        demandTier = factory.demandTier(),
-                    )
-                track(trackedEvent)
+                track(pendingEvent(purchaseSource))
 
                 showAlert(
                     AlertProps(
@@ -1148,18 +1027,7 @@ class TransactionManager internal constructor(
                     log(message = "Transaction Pending")
                 }
 
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Fail(TransactionError.Pending("Needs parental approval")),
-                        PaywallInfo.empty(),
-                        null,
-                        null,
-                        isObserved = isObserved,
-                        source = TransactionSource.EXTERNAL,
-                        demandScore = factory.demandScore(),
-                        demandTier = factory.demandTier(),
-                    )
-                track(trackedEvent)
+                track(pendingEvent(purchaseSource))
             }
         }
     }
@@ -1192,12 +1060,7 @@ class TransactionManager internal constructor(
         val paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty()
         paywallView?.updateState(PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase))
 
-        track(
-            InternalSuperwallEvent.Restore(
-                state = InternalSuperwallEvent.Restore.State.Start,
-                paywallInfo = paywallInfo,
-            ),
-        )
+        track(TransactionAnalytics.restoreStart(paywallInfo))
         val restorationResult = purchaseController.restorePurchases()
 
         val hasRestored = restorationResult is RestorationResult.Restored
@@ -1221,12 +1084,7 @@ class TransactionManager internal constructor(
         if (hasRestored && hasEntitlements) {
             if (existingEntitlements.containsAll(allPaywallEntitlements) || !webToAppEnabled) {
                 log(message = "Transactions Restored")
-                track(
-                    InternalSuperwallEvent.Restore(
-                        state = InternalSuperwallEvent.Restore.State.Complete,
-                        paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty(),
-                    ),
-                )
+                track(TransactionAnalytics.restoreComplete(paywallView?.state?.info ?: PaywallInfo.empty()))
                 if (paywallView != null) {
                     didRestore(null, PurchaseSource.Internal("", paywallView.state))
                 }
@@ -1241,27 +1099,10 @@ class TransactionManager internal constructor(
                 }
             }
         } else {
-            val msg = "Transactions Failed to Restore.${
-                if (hasRestored && !hasEntitlements) {
-                    " The user's subscription status is \"inactive\", but the restoration result is \"restored\"." +
-                        " Ensure the subscription status is active before confirming successful restoration."
-                } else {
-                    " Original restoration error message: ${
-                        when (restorationResult) {
-                            is RestorationResult.Failed -> restorationResult.error?.localizedMessage
-                            else -> null
-                        }
-                    }"
-                }
-            }"
+            val msg = TransactionAnalytics.restoreFailureMessage(restorationResult, hasEntitlements)
             log(message = msg)
 
-            track(
-                InternalSuperwallEvent.Restore(
-                    state = InternalSuperwallEvent.Restore.State.Failure(msg),
-                    paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty(),
-                ),
-            )
+            track(TransactionAnalytics.restoreFailure(msg, paywallView?.state?.info ?: PaywallInfo.empty()))
             if (presentsFailureAlert) {
                 if (webToAppEnabled) {
                     askToRestoreFromWeb()
@@ -1355,100 +1196,51 @@ class TransactionManager internal constructor(
         purchaseSource: PurchaseSource,
         didStartFreeTrial: Boolean,
     ) {
-        val isObserved =
-            purchaseSource is PurchaseSource.ObserverMode
-
-        when (purchaseSource) {
-            is PurchaseSource.Internal -> {
-                // Only report a trial end when a trial actually started; product metadata alone
-                // can describe a trial the user was not eligible for.
-                val trialEnd = if (didStartFreeTrial) product.trialPeriodEndDate?.time else null
-                val paywallInfo = purchaseSource.paywallInfo
-
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Complete(product, transaction),
-                        paywallInfo,
-                        product,
-                        transaction,
-                        source = TransactionSource.INTERNAL,
-                        isObserved = false,
-                        demandScore = factory.demandScore(),
-                        demandTier = factory.demandTier(),
-                        userAttributes = factory.getCurrentUserAttributes(),
-                        storefrontCountryCode = storeManager.storefrontCountryCode,
-                    )
-                track(trackedEvent)
-                eventsQueue.flushInternal()
-                // Notify the paywall for every internal purchase, including one-time products,
-                // so it can run its post-purchase actions.
-                notifyOfTransactionComplete(
-                    purchaseSource.paywallInfo.cacheKey,
-                    trialEnd,
-                    product.fullIdentifier,
-                    didStartFreeTrial,
-                )
-                if (product.subscriptionPeriod == null) {
-                    val nonRecurringEvent =
-                        InternalSuperwallEvent.NonRecurringProductPurchase(
-                            paywallInfo,
-                            product,
-                        )
-                    track(nonRecurringEvent)
-                } else {
-                    if (didStartFreeTrial) {
-                        val freeTrialEvent =
-                            InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
-                        track(freeTrialEvent)
-                    } else {
-                        val subscriptionEvent =
-                            InternalSuperwallEvent.SubscriptionStart(paywallInfo, product)
-                        track(subscriptionEvent)
-                    }
-                }
-            }
-
-            is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Complete(product, transaction),
-                        PaywallInfo.empty(),
-                        product,
-                        transaction,
-                        source = TransactionSource.EXTERNAL,
-                        isObserved = isObserved,
-                        userAttributes = factory.getCurrentUserAttributes(),
-                        demandScore = factory.demandScore(),
-                        demandTier = factory.demandTier(),
-                        storefrontCountryCode = storeManager.storefrontCountryCode,
-                    )
-                track(trackedEvent)
-                eventsQueue.flushInternal()
-
-                if (product.subscriptionPeriod == null) {
-                    val nonRecurringEvent =
-                        InternalSuperwallEvent.NonRecurringProductPurchase(
-                            PaywallInfo.empty(),
-                            product,
-                        )
-                    track(nonRecurringEvent)
-                } else {
-                    if (didStartFreeTrial) {
-                        val freeTrialEvent =
-                            InternalSuperwallEvent.FreeTrialStart(PaywallInfo.empty(), product)
-                        track(freeTrialEvent)
-                    } else {
-                        val subscriptionEvent =
-                            InternalSuperwallEvent.SubscriptionStart(
-                                PaywallInfo.empty(),
-                                product,
-                            )
-                        track(subscriptionEvent)
-                    }
-                }
-            }
+        track(
+            TransactionAnalytics.complete(
+                product = product,
+                transaction = transaction,
+                purchaseSource = purchaseSource,
+                demand = dependencies.demand(),
+                userAttributes = factory.getCurrentUserAttributes(),
+                storefrontCountryCode = storeManager.storefrontCountryCode,
+            ),
+        )
+        eventsQueue.flushInternal()
+        if (purchaseSource is PurchaseSource.Internal) {
+            // Only report a trial end when a trial actually started; product metadata alone
+            // can describe a trial the user was not eligible for.
+            val trialEnd = if (didStartFreeTrial) product.trialPeriodEndDate?.time else null
+            // Notify the paywall for every internal purchase, including one-time products,
+            // so it can run its post-purchase actions.
+            notifyOfTransactionComplete(
+                purchaseSource.paywallInfo.cacheKey,
+                trialEnd,
+                product.fullIdentifier,
+                didStartFreeTrial,
+            )
         }
+        track(TransactionAnalytics.purchaseKind(product, purchaseSource, didStartFreeTrial))
     }
+
+    private fun failureEvent(
+        errorMessage: String,
+        product: StoreProduct,
+        purchaseSource: PurchaseSource,
+    ) = TransactionAnalytics.failure(
+        errorMessage = errorMessage,
+        product = product,
+        purchaseSource = purchaseSource,
+        observesPurchases = dependencies.observesPurchases,
+        demand = dependencies.demand(),
+    )
+
+    private fun pendingEvent(purchaseSource: PurchaseSource) =
+        TransactionAnalytics.pending(
+            purchaseSource = purchaseSource,
+            observesPurchases = dependencies.observesPurchases,
+            demand = dependencies.demand(),
+        )
 
     private fun log(
         logLevel: LogLevel = LogLevel.debug,

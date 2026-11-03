@@ -163,6 +163,7 @@ import com.superwall.sdk.store.readDeviceEntitlementRecords
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeTransactionHandler
 import com.superwall.sdk.store.testmode.ui.TestModeModal
+import com.superwall.sdk.store.transactions.TransactionDependencies
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.notifications.TrialReminderLogic
 import com.superwall.sdk.utilities.DateUtils
@@ -924,165 +925,167 @@ class DependencyContainer internal constructor(
 
         transactionManager =
             TransactionManager(
-                storeManager = storeManager,
-                purchaseController = purchaseController,
-                eventsQueue = eventsQueue,
-                storage = storage,
-                activityProvider,
-                factory = this,
-                testMode = testMode,
-                testModeTransactionHandler = testModeTransactionHandler,
-                setSubscriptionStatus = { status ->
-                    entitlements.setSubscriptionStatus(status)
-                },
-                track = {
-                    trackEvent(it)
-                },
-                dismiss = { key, result ->
-                    val paywallView =
-                        resolvePaywallViewForKey(
-                            makeViewStore(),
-                            presentationCoordinator.paywallView,
-                            key,
+                TransactionDependencies(
+                    storeManager = storeManager,
+                    purchaseController = purchaseController,
+                    eventsQueue = eventsQueue,
+                    storage = storage,
+                    activityProvider = activityProvider,
+                    factory = this,
+                    testMode = testMode,
+                    testModeTransactionHandler = testModeTransactionHandler,
+                    setSubscriptionStatus = { status ->
+                        entitlements.setSubscriptionStatus(status)
+                    },
+                    track = {
+                        trackEvent(it)
+                    },
+                    dismiss = { key, result ->
+                        val paywallView =
+                            resolvePaywallViewForKey(
+                                makeViewStore(),
+                                presentationCoordinator.paywallView,
+                                key,
+                            )
+                        if (paywallView == null) {
+                            return@TransactionDependencies
+                        }
+                        internalDismiss(paywallView, result)
+                    },
+                    ioScope = ioScope(),
+                    showRestoreDialogForWeb = {
+                        showWebRestoreSuccesful()
+                    },
+                    notifyBackendOfReceipts = {
+                        reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+                    },
+                    entitlementsById = {
+                        entitlements.byProductId(it)
+                    },
+                    allEntitlementsByProductId = {
+                        entitlements.entitlementsByProductId
+                    },
+                    webEntitlements = {
+                        entitlements.web
+                    },
+                    subscriptionStatus = {
+                        entitlements.status.value
+                    },
+                    currentCustomerInfo = {
+                        customerInfoManager.customerInfo.value
+                    },
+                    activeDeviceEntitlements = {
+                        entitlements.activeDeviceEntitlements
+                    },
+                    openRestoreOnWeb = {
+                        openRestoreOnWeb()
+                    },
+                    refreshReceipt = {
+                        storeManager.refreshReceipt()
+                    },
+                    showAlert = {
+                        presentationCoordinator.paywallView?.showAlert(
+                            it.title,
+                            it.message,
+                            it.actionTitle,
+                            it.closeActionTitle,
+                            it.action,
+                            it.onClose,
                         )
-                    if (paywallView == null) {
-                        return@TransactionManager
-                    }
-                    internalDismiss(paywallView, result)
-                },
-                ioScope = ioScope(),
-                showRestoreDialogForWeb = {
-                    showWebRestoreSuccesful()
-                },
-                notifyBackendOfReceipts = {
-                    reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
-                },
-                entitlementsById = {
-                    entitlements.byProductId(it)
-                },
-                allEntitlementsByProductId = {
-                    entitlements.entitlementsByProductId
-                },
-                webEntitlements = {
-                    entitlements.web
-                },
-                subscriptionStatus = {
-                    entitlements.status.value
-                },
-                currentCustomerInfo = {
-                    customerInfoManager.customerInfo.value
-                },
-                activeDeviceEntitlements = {
-                    entitlements.activeDeviceEntitlements
-                },
-                openRestoreOnWeb = {
-                    openRestoreOnWeb()
-                },
-                refreshReceipt = {
-                    storeManager.refreshReceipt()
-                },
-                showAlert = {
-                    presentationCoordinator.paywallView?.showAlert(
-                        it.title,
-                        it.message,
-                        it.actionTitle,
-                        it.closeActionTitle,
-                        it.action,
-                        it.onClose,
-                    )
-                },
-                updateState = { key, state ->
-                    val paywallView =
-                        resolvePaywallViewForKey(
-                            makeViewStore(),
-                            presentationCoordinator.paywallView,
-                            key,
-                        )
-                    if (paywallView == null) {
-                        return@TransactionManager
-                    }
-                    paywallView.updateState(state)
-                },
-                notifyOfTransactionAbandon = { key ->
-                    val paywallView =
-                        resolvePaywallViewForKey(
-                            makeViewStore(),
-                            presentationCoordinator.paywallView,
-                            key,
-                        )
-                    if (paywallView == null) {
-                        return@TransactionManager
-                    }
-                    paywallView.webView.messageHandler.handle(PaywallMessage.TransactionAbandon)
-                },
-                notifyOfTransactionComplete = { key, trialEndDate, id, didStartFreeTrial ->
-                    val paywallView =
-                        resolvePaywallViewForKey(
-                            makeViewStore(),
-                            presentationCoordinator.paywallView,
-                            key,
-                        )
-                    if (paywallView == null) {
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.paywallView,
-                            "No active paywall to use - did the app close?",
-                        )
-                        return@TransactionManager
-                    }
+                    },
+                    updateState = { key, state ->
+                        val paywallView =
+                            resolvePaywallViewForKey(
+                                makeViewStore(),
+                                presentationCoordinator.paywallView,
+                                key,
+                            )
+                        if (paywallView == null) {
+                            return@TransactionDependencies
+                        }
+                        paywallView.updateState(state)
+                    },
+                    notifyOfTransactionAbandon = { key ->
+                        val paywallView =
+                            resolvePaywallViewForKey(
+                                makeViewStore(),
+                                presentationCoordinator.paywallView,
+                                key,
+                            )
+                        if (paywallView == null) {
+                            return@TransactionDependencies
+                        }
+                        paywallView.webView.messageHandler.handle(PaywallMessage.TransactionAbandon)
+                    },
+                    notifyOfTransactionComplete = { key, trialEndDate, id, didStartFreeTrial ->
+                        val paywallView =
+                            resolvePaywallViewForKey(
+                                makeViewStore(),
+                                presentationCoordinator.paywallView,
+                                key,
+                            )
+                        if (paywallView == null) {
+                            Logger.debug(
+                                LogLevel.error,
+                                LogScope.paywallView,
+                                "No active paywall to use - did the app close?",
+                            )
+                            return@TransactionDependencies
+                        }
 
-                    paywallView.webView.messageHandler.handle(PaywallMessage.TransactionComplete(id))
-                    // Schedule fallback notifications from the paywall config in case the paywall
-                    // hasn't been updated to send the ScheduleNotification message dynamically.
-                    // If the paywall sends a ScheduleNotification message, it will cancel and
-                    // replace this notification.
-                    // Nothing is scheduled when the purchase did not start a free trial.
-                    val paywallInfo = paywallView.state.info
-                    val trialNotifications =
-                        TrialReminderLogic.fallbackTrialNotifications(
-                            paywallInfo = paywallInfo,
-                            didStartFreeTrial = didStartFreeTrial,
-                        )
-
-                    if (trialNotifications.isNotEmpty()) {
-
-                        val paywallNotifications =
-                            PaywallNotifications.forPaywall(
-                                paywallView,
-                                activityProvider?.getCurrentActivity(),
+                        paywallView.webView.messageHandler.handle(PaywallMessage.TransactionComplete(id))
+                        // Schedule fallback notifications from the paywall config in case the paywall
+                        // hasn't been updated to send the ScheduleNotification message dynamically.
+                        // If the paywall sends a ScheduleNotification message, it will cancel and
+                        // replace this notification.
+                        // Nothing is scheduled when the purchase did not start a free trial.
+                        val paywallInfo = paywallView.state.info
+                        val trialNotifications =
+                            TrialReminderLogic.fallbackTrialNotifications(
+                                paywallInfo = paywallInfo,
+                                didStartFreeTrial = didStartFreeTrial,
                             )
 
-                        if (paywallNotifications != null) {
-                            ioScope.launch {
-                                paywallNotifications.attemptToSchedule(
-                                    notifications = trialNotifications,
-                                    factory = this@DependencyContainer,
-                                    cancelExisting = false,
-                                    applySandboxScaling = true,
+                        if (trialNotifications.isNotEmpty()) {
+
+                            val paywallNotifications =
+                                PaywallNotifications.forPaywall(
+                                    paywallView,
+                                    activityProvider?.getCurrentActivity(),
+                                )
+
+                            if (paywallNotifications != null) {
+                                ioScope.launch {
+                                    paywallNotifications.attemptToSchedule(
+                                        notifications = trialNotifications,
+                                        factory = this@DependencyContainer,
+                                        cancelExisting = false,
+                                        applySandboxScaling = true,
+                                    )
+                                }
+                            } else {
+                                Logger.debug(
+                                    LogLevel.warn,
+                                    LogScope.paywallView,
+                                    "No paywall host available to schedule fallback notifications",
                                 )
                             }
-                        } else {
-                            Logger.debug(
-                                LogLevel.warn,
-                                LogScope.paywallView,
-                                "No paywall host available to schedule fallback notifications",
+                        }
+
+                        // Tell the paywall a trial started whenever one did, independent of whether
+                        // it has trial reminders configured. This only forwards into the webview, so
+                        // it does not double-track the freeTrial_start placement.
+                        if (didStartFreeTrial) {
+                            // Await message delivery to ensure webview has time to process before dismiss
+                            paywallView.webView.messageHandler.handle(
+                                PaywallMessage.TrialStarted(
+                                    trialEndDate,
+                                    id,
+                                ),
                             )
                         }
-                    }
-
-                    // Tell the paywall a trial started whenever one did, independent of whether
-                    // it has trial reminders configured. This only forwards into the webview, so
-                    // it does not double-track the freeTrial_start placement.
-                    if (didStartFreeTrial) {
-                        // Await message delivery to ensure webview has time to process before dismiss
-                        paywallView.webView.messageHandler.handle(
-                            PaywallMessage.TrialStarted(
-                                trialEndDate,
-                                id,
-                            ),
-                        )
-                    }
-                },
+                    },
+                ),
             )
 
         reviewManager =
