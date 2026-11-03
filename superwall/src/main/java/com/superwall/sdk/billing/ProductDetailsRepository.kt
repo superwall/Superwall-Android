@@ -31,6 +31,10 @@ internal class ProductDetailsRepository {
         }
     }
 
+    /** The ids among [fullProductIds] that Play was already asked for and didn't return. */
+    fun knownMissing(fullProductIds: Set<String>): Set<String> =
+        fullProductIds.filterTo(mutableSetOf()) { cache[it] is CachedProduct.NotFound }
+
     /**
      * Caches the result of a query for [requestedIds]: each of [products] as found, and every
      * requested id Play didn't return as missing.

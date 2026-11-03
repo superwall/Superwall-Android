@@ -1,7 +1,10 @@
 package com.superwall.sdk.billing
 
+import android.app.Activity
+import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.ProductType
+import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.GetBillingConfigParams
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.QueryPurchasesParams
@@ -11,6 +14,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -18,6 +22,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
@@ -86,6 +91,17 @@ internal class PurchaseQueries(
             }
         // Billing errors aren't cached, so a later request can retry them.
         return cached + fetched
+    }
+
+    /**
+     * The products for [fullProductIds], with the ids Play didn't return listed as missing
+     * instead of failing. Ids already known to be missing aren't asked for again.
+     */
+    suspend fun productsResult(fullProductIds: Set<String>): ProductsResult {
+        val queryable = fullProductIds - productDetails.knownMissing(fullProductIds)
+        val found = if (queryable.isEmpty()) emptySet() else products(queryable)
+        val foundIds = found.map { it.fullIdentifier }.toSet()
+        return ProductsResult(found = found, missingIds = fullProductIds - foundIds)
     }
 
     /** Queries subscriptions and one-time products together; the first failure fails both. */
@@ -176,6 +192,66 @@ internal class PurchaseQueries(
             val subs = async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() } }
             (apps.await() ?: emptyList()) + (subs.await() ?: emptyList())
         }
+    }
+
+    /**
+     * One-time and subscription purchases. Unlike [allPurchases], a query that can't be made
+     * fails instead of counting as "no purchases".
+     */
+    suspend fun activePurchases(): Result<List<Purchase>> {
+        (connection.availability.value as? BillingAvailability.Unavailable)?.let { return Result.failure(it.error) }
+        return coroutineScope {
+            val apps = async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.INAPP).getOrThrow() } }
+            val subs = async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() } }
+            val inApp = apps.await()
+            val subscriptions = subs.await()
+            if (inApp == null || subscriptions == null) {
+                Result.failure(BillingError.UnknownError)
+            } else {
+                Result.success(inApp + subscriptions)
+            }
+        }
+    }
+
+    /**
+     * Launches Play's purchase flow on [activity] once connected, on [mainDispatcher] as Play
+     * requires. Succeeds when the flow opened; its outcome reaches the purchases listener.
+     */
+    suspend fun launchBillingFlow(
+        activity: Activity,
+        params: BillingFlowParams,
+        mainDispatcher: CoroutineDispatcher,
+    ): Result<Unit> {
+        awaitConnection().onFailure { return Result.failure(it) }
+        val client =
+            connection.client?.takeIf { it.isReady }
+                ?: return Result.failure(Throwable("Billing client not ready"))
+        val result = withContext(mainDispatcher) { client.launchBillingFlow(activity, params) }
+        return if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+            Result.success(Unit)
+        } else {
+            Result.failure(Exception(result.responseCode.toString()))
+        }
+    }
+
+    /** Acknowledges the purchase with [purchaseToken], waiting for the connection first. */
+    suspend fun acknowledge(purchaseToken: String): Result<Unit> {
+        awaitConnection().onFailure { return Result.failure(it) }
+        val result = CompletableDeferred<Result<Unit>>()
+        val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchaseToken).build()
+        withConnectedClient {
+            acknowledgePurchase(params) { billingResult ->
+                result.complete(
+                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                        Result.success(Unit)
+                    } else {
+                        Result.failure(Throwable("Acknowledge failed with code ${billingResult.responseCode}"))
+                    },
+                )
+            }
+        } ?: result.complete(Result.failure(Throwable("Billing client not ready")))
+        return withTimeoutOrNull(QUERY_PURCHASES_TIMEOUT_MS) { result.await() }
+            ?: Result.failure(Throwable("Acknowledge purchase timed out"))
     }
 
     // Unlike the other queries, this one reconnects even when billing was marked unavailable:

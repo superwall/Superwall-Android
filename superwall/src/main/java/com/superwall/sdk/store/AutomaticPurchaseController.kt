@@ -15,6 +15,8 @@ import com.android.billingclient.api.QueryPurchasesParams
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.billing.RECONNECT_TIMER_MAX_TIME_MILLISECONDS
 import com.superwall.sdk.billing.RECONNECT_TIMER_START_MILLISECONDS
+import com.superwall.sdk.billing.google.toProductDetailsParams
+import com.superwall.sdk.billing.google.toSubscriptionUpdateParams
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
@@ -317,36 +319,7 @@ class AutomaticPurchaseController internal constructor(
                 offerType = OfferType.from(offerId),
             )
 
-        val offerToken =
-            when (val offer = rawStoreProduct.selectedOffer) {
-                is RawStoreProduct.SelectedOfferDetails.Subscription -> offer.underlying.offerToken
-                is RawStoreProduct.SelectedOfferDetails.OneTime -> {
-                    // For OTP with purchase options, we need the offerToken to specify which
-                    // purchase option to use, even when there's no discount offer (offerId=null).
-                    // Only skip offerToken for legacy OTPs without purchase options.
-                    if (offer.purchaseOptionId != null || offerId != null) {
-                        offer.underlying.offerToken
-                    } else {
-                        null
-                    }
-                }
-
-                null -> null
-            }
-
-        val hasOfferToken = !offerToken.isNullOrEmpty()
-
-        val productDetailsParams =
-            BillingFlowParams.ProductDetailsParams
-                .newBuilder()
-                .setProductDetails(productDetails)
-                .also {
-                    // Set offer token if we have one (for both subscriptions and OTP with purchase options)
-                    // Don't set empty token as Google Play doesn't support it
-                    if (hasOfferToken) {
-                        it.setOfferToken(offerToken!!)
-                    }
-                }.build()
+        val productDetailsParams = rawStoreProduct.toProductDetailsParams(requestedOfferId = offerId)
 
         val shouldPassIdToPlayStore =
             try {
@@ -437,27 +410,6 @@ class AutomaticPurchaseController internal constructor(
 //endregion
 
 //region Private
-
-    private fun ProductReplacement.toSubscriptionUpdateParams(): BillingFlowParams.SubscriptionUpdateParams? {
-        val oldPurchaseToken = oldPurchaseToken ?: return null
-        return BillingFlowParams.SubscriptionUpdateParams
-            .newBuilder()
-            .setOldPurchaseToken(oldPurchaseToken)
-            .apply {
-                // Without a mode, Play uses the one configured for the base plan in Play Console
-                when (mode) {
-                    ProductReplacement.Mode.DEFAULT -> Unit
-                    ProductReplacement.Mode.CHARGE_PRORATED ->
-                        setSubscriptionReplacementMode(
-                            BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE,
-                        )
-                    ProductReplacement.Mode.CHARGE_FULL_PRICE ->
-                        setSubscriptionReplacementMode(
-                            BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE,
-                        )
-                }
-            }.build()
-    }
 
     private suspend fun syncSubscriptionStatusAndWait(count: Int = 0) {
         // Queries fail instantly while the billing client is still connecting,
