@@ -55,7 +55,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.Date
-import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManagerTest {
     @MockK(relaxed = true)
@@ -927,19 +926,9 @@ class TransactionManagerTest {
     private fun addTransactionInProgress(
         productId: String,
         productDetails: ProductDetails,
-    ) {
-        val field = TransactionManager::class.java.getDeclaredField("transactionsInProgress")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val map = field.get(transactionManager) as ConcurrentHashMap<String, ProductDetails>
-        map[productId] = productDetails
-    }
+    ) = transactionManager.observerModeTracker.begin(ObservedPurchase(productId, productDetails))
 
-    private fun hasTransactionInProgress(productId: String): Boolean {
-        val field = TransactionManager::class.java.getDeclaredField("transactionsInProgress")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val map = field.get(transactionManager) as ConcurrentHashMap<String, ProductDetails>
-        return map.containsKey(productId)
-    }
+    private fun hasTransactionInProgress(productId: String): Boolean =
+        transactionManager.observerModeTracker.state.value.observed
+            .any { it.productId == productId }
 }

@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -73,6 +74,17 @@ class TransactionContextTest {
         override val scope: CoroutineScope,
     ) : ObserverModeContext {
         override val actor = StateActor<ObserverModeContext, ObserverModeState>(ObserverModeState(), scope)
+
+        override suspend fun settleObservedPurchase(
+            product: StoreProduct,
+            source: TransactionManager.PurchaseSource,
+            outcome: PurchaseOutcome,
+        ) = Unit
+
+        override suspend fun restoredByObservedPurchase(
+            product: StoreProduct,
+            source: TransactionManager.PurchaseSource,
+        ) = Unit
     }
 
     @Test

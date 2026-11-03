@@ -14,6 +14,7 @@ import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeTransactionHandler
 
@@ -86,4 +87,17 @@ internal interface TransactionContext : TransactionDependenciesContext<Transacti
 internal interface RestoreContext : TransactionDependenciesContext<RestoreState, RestoreContext>
 
 /** Context for purchases the SDK observes but does not start (observer mode). */
-internal interface ObserverModeContext : TransactionDependenciesContext<ObserverModeState, ObserverModeContext>
+internal interface ObserverModeContext : TransactionDependenciesContext<ObserverModeState, ObserverModeContext> {
+    /** Hands the end of an observed purchase to the purchase flow, which tracks it. */
+    suspend fun settleObservedPurchase(
+        product: StoreProduct,
+        source: TransactionManager.PurchaseSource,
+        outcome: PurchaseOutcome,
+    )
+
+    /** Hands an observed purchase that turned out to restore [product] to the restore flow. */
+    suspend fun restoredByObservedPurchase(
+        product: StoreProduct,
+        source: TransactionManager.PurchaseSource,
+    )
+}
