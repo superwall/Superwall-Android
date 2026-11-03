@@ -862,6 +862,7 @@ class DependencyContainer internal constructor(
                 },
                 webPaywallRedeemer = { reedemer },
                 completeReset = { sdkResetter.completeReset() },
+                tracker = { trackEvent(it) },
                 installScopedAttributes = { mmpAttributionManager.cachedAcquisitionAttributes() },
                 actor = identityActor,
                 sdkContext = sdkContext,
@@ -1257,6 +1258,10 @@ class DependencyContainer internal constructor(
                                 makeSuperwallOptions().paywalls
                             },
                             track = { trackEvent(it) },
+                            currentActivity = { activityProvider?.getCurrentActivity() },
+                            localResources = { localResources },
+                            deviceLocale = { deviceHelper.locale },
+                            gameControllerEnabled = { configManager.options.isGameControllerEnabled },
                         )
 
                     val paywallView =

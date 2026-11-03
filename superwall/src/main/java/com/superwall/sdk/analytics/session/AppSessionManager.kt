@@ -7,7 +7,6 @@ import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.getConfig
 import com.superwall.sdk.dependencies.DeviceHelperFactory
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.dependencies.UserAttributesEventFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.storage.LocalStorage
@@ -31,23 +30,6 @@ class AppSessionManager internal constructor(
     private val track: suspend (Trackable) -> Unit,
     private val republishAdConsentIfChanged: suspend () -> Unit,
 ) : DefaultLifecycleObserver {
-    @Deprecated("Internal SDK type: the SDK builds it in Superwall.configure.")
-    constructor(
-        configManager: ConfigManager,
-        storage: LocalStorage,
-        delegate: Factory,
-        backgroundScope: IOScope,
-    ) : this(
-        configManager = configManager,
-        storage = storage,
-        delegate = delegate,
-        backgroundScope = backgroundScope,
-        track = { SuperwallGraph.track(it) },
-        republishAdConsentIfChanged = {
-            SuperwallGraph.container?.let { it.adConsentPublisher.republishIfChanged() }
-        },
-    )
-
     interface Factory :
         AppManagerDelegate,
         DeviceHelperFactory,

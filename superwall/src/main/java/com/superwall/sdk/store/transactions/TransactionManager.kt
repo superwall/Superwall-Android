@@ -20,7 +20,6 @@ import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.dependencies.WebToAppFactory
 import com.superwall.sdk.logger.LogLevel
@@ -94,78 +93,6 @@ class TransactionManager internal constructor(
     private val activeDeviceEntitlements: () -> Set<Entitlement>,
     private val openRestoreOnWeb: () -> Unit,
 ) {
-    /**
-     * Kept for binary compatibility. The SDK builds [TransactionManager] with the internal
-     * constructor; this one reads the device entitlements and web restore from the configured SDK.
-     */
-    @Deprecated("Internal SDK class; construct it through Superwall.configure.")
-    constructor(
-        storeManager: StoreManager,
-        purchaseController: PurchaseController,
-        eventsQueue: EventsQueue,
-        storage: Storage,
-        activityProvider: ActivityProvider,
-        factory: Factory,
-        ioScope: IOScope,
-        track: suspend (TrackableSuperwallEvent) -> Unit = {
-            SuperwallGraph.track(it)
-        },
-        dismiss: suspend (paywallId: String, result: PaywallResult) -> Unit,
-        showAlert: (AlertProps) -> Unit,
-        subscriptionStatus: () -> SubscriptionStatus = {
-            SuperwallGraph.container?.entitlements?.status?.value ?: SubscriptionStatus.Unknown
-        },
-        entitlementsById: (String) -> Set<Entitlement>,
-        allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
-        webEntitlements: () -> Set<Entitlement> = {
-            SuperwallGraph.container?.entitlements?.web ?: emptySet()
-        },
-        currentCustomerInfo: () -> CustomerInfo = {
-            SuperwallGraph.container?.customerInfoManager?.customerInfo?.value ?: CustomerInfo.empty()
-        },
-        showRestoreDialogForWeb: suspend () -> Unit,
-        notifyBackendOfReceipts: suspend () -> Unit = {},
-        refreshReceipt: () -> Unit,
-        updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
-        notifyOfTransactionComplete: suspend (
-            paywallCacheKey: String,
-            trialEndDate: Long?,
-            productId: String,
-            didStartFreeTrial: Boolean,
-        ) -> Unit,
-        notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit = {},
-        testMode: TestMode? = null,
-        testModeTransactionHandler: TestModeTransactionHandler? = null,
-        setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
-    ) : this(
-        storeManager = storeManager,
-        purchaseController = purchaseController,
-        eventsQueue = eventsQueue,
-        storage = storage,
-        activityProvider = activityProvider,
-        factory = factory,
-        ioScope = ioScope,
-        track = track,
-        dismiss = dismiss,
-        showAlert = showAlert,
-        subscriptionStatus = subscriptionStatus,
-        entitlementsById = entitlementsById,
-        allEntitlementsByProductId = allEntitlementsByProductId,
-        webEntitlements = webEntitlements,
-        currentCustomerInfo = currentCustomerInfo,
-        showRestoreDialogForWeb = showRestoreDialogForWeb,
-        notifyBackendOfReceipts = notifyBackendOfReceipts,
-        refreshReceipt = refreshReceipt,
-        updateState = updateState,
-        notifyOfTransactionComplete = notifyOfTransactionComplete,
-        notifyOfTransactionAbandon = notifyOfTransactionAbandon,
-        testMode = testMode,
-        testModeTransactionHandler = testModeTransactionHandler,
-        setSubscriptionStatus = setSubscriptionStatus,
-        activeDeviceEntitlements = { SuperwallGraph.container?.entitlements?.activeDeviceEntitlements ?: emptySet() },
-        openRestoreOnWeb = { SuperwallGraph.container?.openRestoreOnWeb() },
-    )
-
     sealed class PurchaseSource {
         data class Internal(
             val productId: String,

@@ -1247,7 +1247,6 @@ public final class com/superwall/sdk/analytics/session/AppSessionLogic {
 }
 
 public final class com/superwall/sdk/analytics/session/AppSessionManager : androidx/lifecycle/DefaultLifecycleObserver {
-	public fun <init> (Lcom/superwall/sdk/config/ConfigManager;Lcom/superwall/sdk/storage/LocalStorage;Lcom/superwall/sdk/analytics/session/AppSessionManager$Factory;Lcom/superwall/sdk/misc/IOScope;)V
 	public final fun getAppSession ()Lcom/superwall/sdk/analytics/session/AppSession;
 	public final fun getAppSessionTimeout ()Ljava/lang/Long;
 	public final fun listenForAppSessionTimeout ()V
@@ -3543,7 +3542,6 @@ public abstract interface class com/superwall/sdk/debug/AppCompatActivityEncapsu
 
 public final class com/superwall/sdk/debug/DebugManager {
 	public static final field Companion Lcom/superwall/sdk/debug/DebugManager$Companion;
-	public fun <init> (Landroid/content/Context;Lcom/superwall/sdk/storage/LocalStorage;Lcom/superwall/sdk/dependencies/ViewFactory;)V
 	public final fun closeDebugger (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getView ()Lcom/superwall/sdk/debug/DebugView;
 	public final fun handle (Landroid/net/Uri;)Z
@@ -3574,7 +3572,6 @@ public final class com/superwall/sdk/debug/DebugManager$DeepLinkOutcome {
 }
 
 public final class com/superwall/sdk/debug/DebugView : androidx/constraintlayout/widget/ConstraintLayout, com/superwall/sdk/debug/AppCompatActivityEncapsulatable {
-	public fun <init> (Landroid/content/Context;Lcom/superwall/sdk/store/StoreManager;Lcom/superwall/sdk/network/Network;Lcom/superwall/sdk/paywall/request/PaywallRequestManager;Lcom/superwall/sdk/paywall/manager/PaywallManager;Lcom/superwall/sdk/debug/DebugManager;Lcom/superwall/sdk/debug/DebugView$Factory;)V
 	public final fun addPaywallPreview (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun addSubviews ()V
 	public final fun dpToPx (I)I
@@ -3746,8 +3743,6 @@ public final class com/superwall/sdk/debug/localizations/SWLocalizationActivity$
 
 public final class com/superwall/sdk/deeplinks/DeepLinkRouter {
 	public static final field Companion Lcom/superwall/sdk/deeplinks/DeepLinkRouter$Companion;
-	public fun <init> (Lcom/superwall/sdk/web/WebPaywallRedeemer;Lcom/superwall/sdk/misc/IOScope;Lcom/superwall/sdk/debug/DebugManager;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun <init> (Lcom/superwall/sdk/web/WebPaywallRedeemer;Lcom/superwall/sdk/misc/IOScope;Lcom/superwall/sdk/debug/DebugManager;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getDebugManager ()Lcom/superwall/sdk/debug/DebugManager;
 	public final fun getIoScope ()Lcom/superwall/sdk/misc/IOScope;
 	public final fun getRedeemer ()Lcom/superwall/sdk/web/WebPaywallRedeemer;
@@ -3992,7 +3987,6 @@ public abstract interface class com/superwall/sdk/dependencies/ApiFactory : com/
 
 public final class com/superwall/sdk/dependencies/ApiFactory$DefaultImpls {
 	public static fun json (Lcom/superwall/sdk/dependencies/ApiFactory;)Lkotlinx/serialization/json/Json;
-	public static fun track (Lcom/superwall/sdk/dependencies/ApiFactory;Lcom/superwall/sdk/analytics/internal/trackable/Trackable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class com/superwall/sdk/dependencies/AttributesFactory {
@@ -4502,8 +4496,6 @@ public final class com/superwall/sdk/identity/IdentityLogic$IdentityConfiguratio
 }
 
 public final class com/superwall/sdk/identity/IdentityManager : com/superwall/sdk/identity/IdentityContext {
-	public fun <init> (Lcom/superwall/sdk/storage/Storage;Lcom/superwall/sdk/misc/IOScope;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lcom/superwall/sdk/misc/primitives/StateActor;Lcom/superwall/sdk/SdkContext;)V
-	public synthetic fun <init> (Lcom/superwall/sdk/storage/Storage;Lcom/superwall/sdk/misc/IOScope;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lcom/superwall/sdk/misc/primitives/StateActor;Lcom/superwall/sdk/SdkContext;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun awaitLatestIdentity (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun configure (Z)V
 	public fun delete (Lcom/superwall/sdk/storage/Storable;)V
@@ -9718,8 +9710,6 @@ public final class com/superwall/sdk/network/URLQueryItem {
 }
 
 public final class com/superwall/sdk/network/device/DeviceHelper {
-	public fun <init> (Landroid/content/Context;Lcom/superwall/sdk/storage/LocalStorage;Lcom/superwall/sdk/network/SuperwallAPI;Lcom/superwall/sdk/network/device/DeviceHelper$Factory;Lcom/superwall/sdk/analytics/DeviceClassifier;Lkotlin/jvm/functions/Function0;Lcom/superwall/sdk/network/device/DeviceIpCollector;)V
-	public synthetic fun <init> (Landroid/content/Context;Lcom/superwall/sdk/storage/LocalStorage;Lcom/superwall/sdk/network/SuperwallAPI;Lcom/superwall/sdk/network/device/DeviceHelper$Factory;Lcom/superwall/sdk/analytics/DeviceClassifier;Lkotlin/jvm/functions/Function0;Lcom/superwall/sdk/network/device/DeviceIpCollector;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun daysSince (Ljava/util/Date;)I
 	public final fun getAppBuildString ()Ljava/lang/String;
 	public final fun getAppInstallDateValue ()Ljava/util/Date;
@@ -11377,8 +11367,6 @@ public final class com/superwall/sdk/paywall/request/PaywallRequest$Overrides {
 }
 
 public final class com/superwall/sdk/paywall/request/PaywallRequestManager {
-	public fun <init> (Lcom/superwall/sdk/store/StoreManager;Lcom/superwall/sdk/network/Network;Lcom/superwall/sdk/paywall/request/PaywallRequestManagerDepFactory;Lcom/superwall/sdk/misc/IOScope;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Lkotlinx/coroutines/CoroutineScope;)V
-	public synthetic fun <init> (Lcom/superwall/sdk/store/StoreManager;Lcom/superwall/sdk/network/Network;Lcom/superwall/sdk/paywall/request/PaywallRequestManagerDepFactory;Lcom/superwall/sdk/misc/IOScope;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Lkotlinx/coroutines/CoroutineScope;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun addProducts (Lcom/superwall/sdk/models/paywall/Paywall;Lcom/superwall/sdk/paywall/request/PaywallRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getPaywall (Lcom/superwall/sdk/paywall/request/PaywallRequest;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun getPaywall$default (Lcom/superwall/sdk/paywall/request/PaywallRequestManager;Lcom/superwall/sdk/paywall/request/PaywallRequest;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
@@ -11871,7 +11859,6 @@ public abstract interface class com/superwall/sdk/paywall/view/delegate/PaywallV
 
 public final class com/superwall/sdk/paywall/view/survey/SurveyManager {
 	public static final field INSTANCE Lcom/superwall/sdk/paywall/view/survey/SurveyManager;
-	public final fun presentSurveyIfAvailable (Ljava/util/List;Lcom/superwall/sdk/paywall/presentation/internal/state/PaywallResult;Lcom/superwall/sdk/paywall/presentation/PaywallCloseReason;Landroid/app/Activity;Lcom/superwall/sdk/paywall/view/PaywallView;Lcom/superwall/sdk/paywall/view/delegate/PaywallLoadingState;ZLcom/superwall/sdk/paywall/presentation/PaywallInfo;Lcom/superwall/sdk/storage/LocalStorage;Lcom/superwall/sdk/dependencies/TriggerFactory;Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class com/superwall/sdk/paywall/view/survey/SurveyPresentationResult : java/lang/Enum {
@@ -11952,8 +11939,6 @@ public abstract interface class com/superwall/sdk/paywall/view/webview/PaywallWe
 
 public final class com/superwall/sdk/paywall/view/webview/SWWebView : android/webkit/WebView, com/superwall/sdk/paywall/view/webview/PaywallWebUI {
 	public static final field MAX_LOAD_RETRIES I
-	public fun <init> (Landroid/content/Context;Lcom/superwall/sdk/paywall/view/webview/messaging/PaywallMessageHandler;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun <init> (Landroid/content/Context;Lcom/superwall/sdk/paywall/view/webview/messaging/PaywallMessageHandler;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun attach (Landroid/view/ViewGroup;)V
 	public fun destroy ()V
 	public fun destroyView ()V
@@ -13142,8 +13127,6 @@ public final class com/superwall/sdk/storage/LastPaywallView : com/superwall/sdk
 
 public class com/superwall/sdk/storage/LocalStorage : com/superwall/sdk/storage/Storage, kotlinx/coroutines/CoroutineScope {
 	public static final field Companion Lcom/superwall/sdk/storage/LocalStorage$Companion;
-	public fun <init> (Landroid/content/Context;Lkotlinx/serialization/json/Json;Ljava/lang/String;Lcom/superwall/sdk/storage/LocalStorage$Factory;Lcom/superwall/sdk/misc/IOScope;Lcom/superwall/sdk/storage/Cache;Lcom/superwall/sdk/storage/core_data/CoreDataManager;)V
-	public synthetic fun <init> (Landroid/content/Context;Lkotlinx/serialization/json/Json;Ljava/lang/String;Lcom/superwall/sdk/storage/LocalStorage$Factory;Lcom/superwall/sdk/misc/IOScope;Lcom/superwall/sdk/storage/Cache;Lcom/superwall/sdk/storage/core_data/CoreDataManager;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun clean ()V
 	public fun clearCachedSessionEvents ()V
 	public final fun configure (Ljava/lang/String;)V
@@ -13521,8 +13504,6 @@ public final class com/superwall/sdk/storage/memory/PerpetualCache : com/superwa
 
 public final class com/superwall/sdk/store/AutomaticPurchaseController : com/android/billingclient/api/PurchasesUpdatedListener, com/superwall/sdk/delegate/subscription_controller/PurchaseController {
 	public static final field Companion Lcom/superwall/sdk/store/AutomaticPurchaseController$Companion;
-	public fun <init> (Landroid/content/Context;Lcom/superwall/sdk/misc/IOScope;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun <init> (Landroid/content/Context;Lcom/superwall/sdk/misc/IOScope;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getContext ()Landroid/content/Context;
 	public final fun getDeviceEntitlementRecords ()Lkotlin/jvm/functions/Function0;
 	public final fun getEntitlementsInfo ()Lkotlin/jvm/functions/Function0;
@@ -13753,8 +13734,6 @@ public final class com/superwall/sdk/store/StoreKitManagerInterface$DefaultImpls
 }
 
 public final class com/superwall/sdk/store/StoreManager : com/superwall/sdk/store/StoreKit, com/superwall/sdk/store/coordinator/ProductsFetcher {
-	public fun <init> (Lcom/superwall/sdk/store/InternalPurchaseController;Lcom/superwall/sdk/billing/Billing;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lcom/superwall/sdk/store/testmode/TestMode;)V
-	public synthetic fun <init> (Lcom/superwall/sdk/store/InternalPurchaseController;Lcom/superwall/sdk/billing/Billing;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lcom/superwall/sdk/store/testmode/TestMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun cacheProduct (Ljava/lang/String;Lcom/superwall/sdk/store/abstractions/product/StoreProduct;)V
 	public fun consume-gIAlu-s (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun fetchAndCacheCustomProducts (Ljava/util/Set;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -14616,8 +14595,6 @@ public final class com/superwall/sdk/store/testmode/FreeTrialOverride$Companion 
 
 public final class com/superwall/sdk/store/testmode/TestMode : com/superwall/sdk/store/testmode/TestModeContext {
 	public static final field Companion Lcom/superwall/sdk/store/testmode/TestMode$Companion;
-	public fun <init> (Lcom/superwall/sdk/storage/Storage;ZLkotlin/jvm/functions/Function1;Lcom/superwall/sdk/store/Entitlements;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function8;Lkotlinx/coroutines/CoroutineScope;Lcom/superwall/sdk/misc/primitives/StateActor;)V
-	public synthetic fun <init> (Lcom/superwall/sdk/storage/Storage;ZLkotlin/jvm/functions/Function1;Lcom/superwall/sdk/store/Entitlements;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function8;Lkotlinx/coroutines/CoroutineScope;Lcom/superwall/sdk/misc/primitives/StateActor;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun activate (Lcom/superwall/sdk/models/config/Config;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun allEntitlements ()Ljava/util/Set;
 	public final fun awaitTestProducts-VtjQ1oo (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -15221,8 +15198,6 @@ public final class com/superwall/sdk/store/transactions/TransactionError$Pending
 
 public final class com/superwall/sdk/store/transactions/TransactionManager {
 	public static final field TRANSACTION_LOOKUP_TIMEOUT_MS J
-	public fun <init> (Lcom/superwall/sdk/store/StoreManager;Lcom/superwall/sdk/delegate/subscription_controller/PurchaseController;Lcom/superwall/sdk/storage/EventsQueue;Lcom/superwall/sdk/storage/Storage;Lcom/superwall/sdk/misc/ActivityProvider;Lcom/superwall/sdk/store/transactions/TransactionManager$Factory;Lcom/superwall/sdk/misc/IOScope;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function2;Lcom/superwall/sdk/store/testmode/TestMode;Lcom/superwall/sdk/store/testmode/TestModeTransactionHandler;Lkotlin/jvm/functions/Function1;)V
-	public synthetic fun <init> (Lcom/superwall/sdk/store/StoreManager;Lcom/superwall/sdk/delegate/subscription_controller/PurchaseController;Lcom/superwall/sdk/storage/EventsQueue;Lcom/superwall/sdk/storage/Storage;Lcom/superwall/sdk/misc/ActivityProvider;Lcom/superwall/sdk/store/transactions/TransactionManager$Factory;Lcom/superwall/sdk/misc/IOScope;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function2;Lcom/superwall/sdk/store/testmode/TestMode;Lcom/superwall/sdk/store/testmode/TestModeTransactionHandler;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun purchase (Lcom/superwall/sdk/store/transactions/TransactionManager$PurchaseSource;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun purchase$default (Lcom/superwall/sdk/store/transactions/TransactionManager;Lcom/superwall/sdk/store/transactions/TransactionManager$PurchaseSource;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun tryToRestorePurchases (Lcom/superwall/sdk/paywall/view/PaywallView;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;

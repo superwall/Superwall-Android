@@ -4,7 +4,6 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.dependencies.ConfigManagerFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -45,21 +44,13 @@ interface PaywallRequestManagerDepFactory :
     fun currentCustomerInfo(): CustomerInfo
 }
 
-class PaywallRequestManager(
+class PaywallRequestManager internal constructor(
     private val storeManager: StoreManager,
     private val network: Network,
     private val factory: PaywallRequestManagerDepFactory,
     private val ioScope: IOScope,
-    private val track: suspend (TrackableSuperwallEvent) -> Unit = {
-        SuperwallGraph.track(it)
-    },
-    private val getGlobalOverrides: () -> Map<String, String> = {
-        SuperwallGraph.container
-            ?.makeSuperwallOptions()
-            ?.paywalls
-            ?.overrideProductsByName
-            ?: emptyMap()
-    },
+    private val track: suspend (TrackableSuperwallEvent) -> Unit,
+    private val getGlobalOverrides: () -> Map<String, String>,
     // Single lane so paired lifecycle start/complete tracks reach the delegate
     // (and get Date()-stamped) in launch order; the multi-threaded IO dispatcher
     // could deliver them inverted when nothing separates the two launches.

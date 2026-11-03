@@ -16,6 +16,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
 - Deprecates the unused iOS-port types `com.superwall.sdk.billing.StoreProductType`, `StoreKit`, `StoreKitManagerInterface`, `ProductPurchaser`, `TransactionRestorer`, `Purchasing` and `TransactionVerifierFactory`. They will be removed in a future release. `GetProductsResponse` is unchanged.
 
+## Breaking changes
+- The constructors of SDK-internal classes are now `internal`, because `Superwall.configure` builds them: `AutomaticPurchaseController`, `TransactionManager`, `StoreManager`, `DeviceHelper`, `IdentityManager`, `LocalStorage`, `AppSessionManager`, `PaywallRequestManager`, `DeepLinkRouter`, `DebugManager`, `DebugView`, `TestMode` and `SWWebView`. The public overload of `SurveyManager.presentSurveyIfAvailable` is removed, and `ApiFactory.track` no longer has a default body. None of these were documented API; configure the SDK with `Superwall.configure` and use `Superwall.instance`.
+
 ## Fixes
 - Fix web checkout codes passed through the Play install referrer never being redeemed. A code is now redeemed once, on the first launch after install.
 - Fixes a band of the host window showing beside the display cutout around a Fullscreen, Push or no-animation paywall shown with `PresentationHost.IN_WINDOW`. The in-window host padded the paywall for the cutout as well as the system bars; it now pads for the system bars only, as `SuperwallPaywallActivity` does, and the paywall clears the cutout with its CSS safe-area insets.

@@ -4,7 +4,6 @@ import com.superwall.sdk.SdkContext
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.options.SuperwallOptions
-import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.network.device.DeviceHelper
@@ -22,18 +21,14 @@ import kotlinx.coroutines.flow.map
  * Implements [IdentityContext] directly — actions receive `this` as
  * their context, eliminating the intermediate object.
  */
-class IdentityManager(
+class IdentityManager internal constructor(
     override val storage: Storage,
     private val ioScope: IOScope,
     private val stringToSha: (String) -> String = { it },
     override val notifyUserChange: (change: Map<String, Any>) -> Unit,
-    override val completeReset: () -> Unit = {
-        SuperwallGraph.container?.sdkResetter?.completeReset()
-    },
+    override val completeReset: () -> Unit,
     override val installScopedAttributes: () -> Map<String, Any?> = { emptyMap() },
-    override val tracker: suspend (TrackableSuperwallEvent) -> Unit = {
-        SuperwallGraph.track(it)
-    },
+    override val tracker: suspend (TrackableSuperwallEvent) -> Unit,
     private val options: () -> SuperwallOptions,
     override val webPaywallRedeemer: () -> WebPaywallRedeemer,
     override val actor: StateActor<IdentityContext, IdentityState>,
