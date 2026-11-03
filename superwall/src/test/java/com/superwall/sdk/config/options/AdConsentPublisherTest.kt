@@ -235,4 +235,51 @@ class AdConsentPublisherTest {
                 }
             }
         }
+
+    @Test
+    fun `a changed ad consent is sent while tracking is on`() =
+        runTest {
+            Given("event tracking is ALL") {
+                val tracked = mutableListOf<Trackable>()
+                val publisher =
+                    publisher(
+                        scope = backgroundScope,
+                        track = { tracked += it },
+                        makeDeviceAttributes = { hashMapOf() },
+                    )
+
+                When("the app changes its ad consent") {
+                    publisher.adConsentChanged()
+                    runCurrent()
+
+                    Then("device and config attributes are sent") {
+                        assertEquals(2, tracked.size)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a changed ad consent is not sent while tracking is NONE`() =
+        runTest {
+            Given("event tracking is NONE") {
+                val tracked = mutableListOf<Trackable>()
+                val publisher =
+                    publisher(
+                        scope = backgroundScope,
+                        track = { tracked += it },
+                        makeDeviceAttributes = { hashMapOf() },
+                        eventTrackingBehavior = EventTrackingBehavior.NONE,
+                    )
+
+                When("the app changes its ad consent") {
+                    publisher.adConsentChanged()
+                    runCurrent()
+
+                    Then("nothing is sent") {
+                        assertEquals(0, tracked.size)
+                    }
+                }
+            }
+        }
 }

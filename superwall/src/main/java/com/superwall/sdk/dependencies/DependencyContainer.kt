@@ -7,6 +7,7 @@ import android.util.Base64
 import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
+import androidx.work.WorkManager
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.SdkContext
 import com.superwall.sdk.SdkContextImpl
@@ -27,7 +28,17 @@ import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
+import com.superwall.sdk.SdkBootstrapper
+import com.superwall.sdk.analytics.SuperwallEventBus
+import com.superwall.sdk.config.AppConfigChangeObserver
+import com.superwall.sdk.config.AssignmentService
 import com.superwall.sdk.config.Assignments
+import com.superwall.sdk.identity.SdkResetter
+import com.superwall.sdk.models.internal.RedemptionOwnershipType
+import com.superwall.sdk.network.device.DeviceOverrides
+import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
+import com.superwall.sdk.store.ObserverModeHandler
+import com.superwall.sdk.store.PurchaseFacade
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.ConfigState
@@ -93,13 +104,13 @@ import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.manager.PaywallViewRegistry
 import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.presentation.PresentationCoordinator
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.DefaultGetPaywallComponentsFactory
 import com.superwall.sdk.paywall.presentation.internal.GetPaywallComponentsFactory
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
-import com.superwall.sdk.paywall.presentation.internal.operators.storePresentationObjects
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
@@ -112,7 +123,9 @@ import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.view.PaywallNotifications
+import com.superwall.sdk.paywall.view.PaywallEventHandler
 import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.SuperwallStoreOwner
 import com.superwall.sdk.paywall.view.ViewModelFactory
@@ -129,12 +142,16 @@ import com.superwall.sdk.permissions.UserPermissionsImpl
 import com.superwall.sdk.review.MockReviewManager
 import com.superwall.sdk.review.ReviewManager
 import com.superwall.sdk.review.ReviewManagerImpl
+import com.superwall.sdk.storage.DidTrackAppInstall
 import com.superwall.sdk.storage.EventsQueue
+import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.AutomaticPurchaseController
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.SubscriptionStatusManager
+import com.superwall.sdk.store.SubscriptionStatusObserver
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -236,6 +253,40 @@ class DependencyContainer(
 
     /** Owns the Customer Center presentation. Built on first use, from the main thread. */
     internal val customerCenterManager: CustomerCenterManager by lazy { CustomerCenterManager(this) }
+
+    /** The activity provider the app passed in, before the container falls back to its own tracker. */
+    private val providedActivityProvider: ActivityProvider? = activityProvider
+
+    /** Owns the presented paywall, the last presentation items, the spinner, alerts and notifications. */
+    internal val presentationCoordinator: PresentationCoordinator by lazy {
+        PresentationCoordinator(
+            currentView = { paywallManager.currentView },
+            ioScope = ioScope(),
+            cancelNotifications = {
+                WorkManager
+                    .getInstance(context)
+                    .cancelAllWorkByTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
+            },
+        )
+    }
+
+    /** Handles the events paywall web views send. Every [PaywallView] made here gets it as its callback. */
+    internal val paywallEventHandler: PaywallEventHandler by lazy {
+        PaywallEventHandler(
+            mainScope = mainScope(),
+            ioScope = ioScope(),
+            transactionManager = transactionManager,
+            delegate = delegateAdapter,
+            track = { Superwall.instance.track(it) },
+            reviewManager = reviewManager,
+            deviceHelper = deviceHelper,
+            storage = storage,
+            notificationFactory = this,
+            recheckPreload = { configManager.recheckPreloadIfNeeded() },
+            currentActivity = { activityProvider?.getCurrentActivity() },
+            providedActivity = { providedActivityProvider?.getCurrentActivity() },
+        )
+    }
     lateinit var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()
@@ -280,6 +331,136 @@ class DependencyContainer(
             actor = SequentialActor(AdConsentState(), ioScope),
         )
     }
+
+    /** Sets the subscription status for the app and for the SDK's own purchase handling. */
+    internal val subscriptionStatusManager: SubscriptionStatusManager by lazy {
+        SubscriptionStatusManager(
+            entitlements = { entitlements },
+            isTestMode = { testMode.isTestMode },
+            hasExternalPurchaseController = { makeHasExternalPurchaseController() },
+        )
+    }
+
+    /** Tells the delegate, analytics and storage about subscription status and customer info changes. */
+    internal val subscriptionStatusObserver: SubscriptionStatusObserver by lazy {
+        SubscriptionStatusObserver(
+            scope = ioScope,
+            subscriptionStatus = entitlements.status,
+            customerInfo = customerInfoManager.customerInfo,
+            storage = storage,
+            delegate = { delegateAdapter },
+            track = { Superwall.instance.track(it) },
+            recheckPreload = { configManager.recheckPreloadIfNeeded() },
+        )
+    }
+
+    /** Rechecks the paywall preload when the app's locale, timezone or theme changes. */
+    internal val appConfigChangeObserver: AppConfigChangeObserver by lazy {
+        AppConfigChangeObserver(
+            context = context,
+            scope = ioScope,
+            onChange = { configManager.recheckPreloadIfNeeded() },
+        )
+    }
+
+    /** Starts the SDK: cached state, listeners, then config and identity. */
+    internal val sdkBootstrapper: SdkBootstrapper by lazy {
+        SdkBootstrapper(
+            scope = ioScope,
+            readCachedSubscriptionStatus = { storage.read(StoredSubscriptionStatus) },
+            restoreCachedCustomerInfo = { customerInfoManager.restoreCachedCustomerInfo() },
+            setSubscriptionStatus = { subscriptionStatusManager.setSubscriptionStatus(it) },
+            mergeCustomerInfo = { customerInfoManager.updateMergedCustomerInfo() },
+            startListeners = {
+                subscriptionStatusObserver.start()
+                appConfigChangeObserver.register()
+            },
+            observeAdConsent = {
+                tcfConsentReader.observeReportedChanges(
+                    options = { makeSuperwallOptions() },
+                    onChange = { adConsentPublisher.publish() },
+                )
+            },
+            shouldMatchInstall = {
+                storage.shouldAttemptInitialMMPInstallAttributionMatch(
+                    hadTrackedAppInstallBeforeConfigure = storage.read(DidTrackAppInstall) ?: false,
+                    appInstalledAtMillis = deviceHelper.appInstalledAtMillis,
+                )
+            },
+            markInstallMatchPending = { mmpAttributionManager.markMatchPending() },
+            recordAppInstall = { storage.recordAppInstall { Superwall.instance.track(it) } },
+            fetchConfiguration = { configManager.fetchConfiguration() },
+            configureIdentity = {
+                identityManager.configure(neverCalledStaticConfig = storage.neverCalledStaticConfig)
+            },
+            matchInstall = { mmpAttributionManager.matchInstallOnceEnabled() },
+        )
+    }
+
+    /** Clears the current user's data on reset and user switches; the identity actor calls it. */
+    internal val sdkResetter: SdkResetter by lazy {
+        SdkResetter(
+            scope = ioScope,
+            clearStorage = { storage.reset() },
+            clearPaywallCache = { paywallManager.resetCache() },
+            clearPresentationItems = { presentationCoordinator.presentationItems.reset() },
+            resetConfig = { configManager.reset() },
+            clearAppUserRedemptions = { reedemer.clear(RedemptionOwnershipType.AppUser) },
+            track = { Superwall.instance.track(it) },
+        )
+    }
+
+    /** Reads and confirms experiment assignments. */
+    internal val assignmentService: AssignmentService by lazy {
+        AssignmentService(
+            track = { Superwall.instance.track(it) },
+            triggers = { configManager.config?.triggers },
+            storedAssignments = { storage.getConfirmedAssignments() },
+            confirm = { eventData ->
+                val request =
+                    makePresentationRequest(
+                        presentationInfo = PresentationInfo.ExplicitTrigger(eventData),
+                        paywallOverrides = null,
+                        isPaywallPresented = false,
+                        type = PresentationRequestType.ConfirmAllAssignments,
+                    )
+                confirmAssignment(getPaywallComponentsFactory, request)
+            },
+        )
+    }
+
+    /** Tracks purchases the app makes itself, when observer mode is on. */
+    internal val observerModeHandler: ObserverModeHandler by lazy {
+        ObserverModeHandler(
+            scope = ioScope,
+            shouldObservePurchases = { makeSuperwallOptions().shouldObservePurchases },
+            transactionManager = { transactionManager },
+        )
+    }
+
+    /** Purchase, product, consume and restore calls made outside a paywall. */
+    internal val purchaseFacade: PurchaseFacade by lazy {
+        PurchaseFacade(
+            transactionManager = { transactionManager },
+            storeManager = { storeManager },
+            hasInternalPurchaseController = { makeHasInternalPurchaseController() },
+        )
+    }
+
+    /** The platform wrapper and interface style overrides the app sets. */
+    internal val deviceOverrides: DeviceOverrides by lazy {
+        DeviceOverrides(
+            deviceHelper = deviceHelper,
+            scope = ioScope,
+            trackDeviceAttributes = {
+                Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(makeSessionDeviceAttributes()))
+            },
+            recheckPreload = { configManager.recheckPreloadIfNeeded() },
+        )
+    }
+
+    /** The flow behind `Superwall.placements`. */
+    internal val superwallEventBus: SuperwallEventBus by lazy { SuperwallEventBus(ioScope) }
 
     /** Ad consent stored by the app's IAB TCF consent banner, in its default SharedPreferences. */
     internal val tcfConsentReader: TcfConsentReader by lazy {
@@ -349,7 +530,8 @@ class DependencyContainer(
         customerInfoManager =
             CustomerInfoManager(
                 storage = storage,
-                updateCustomerInfo = { Superwall.instance._customerInfo.value = it },
+                // The manager holds the merged value itself; nothing else needs telling.
+                updateCustomerInfo = {},
                 ioScope = ioScope,
                 hasExternalPurchaseController = { storeManager.purchaseController.hasExternalPurchaseController },
                 getSubscriptionStatus = { entitlements.status.value },
@@ -588,6 +770,7 @@ class DependencyContainer(
                     delegate().userAttributesDidChange(it)
                 },
                 webPaywallRedeemer = { reedemer },
+                completeReset = { sdkResetter.completeReset() },
                 installScopedAttributes = { mmpAttributionManager.cachedAcquisitionAttributes() },
                 actor = identityActor,
                 sdkContext = sdkContext,
@@ -664,7 +847,7 @@ class DependencyContainer(
                     val paywallView =
                         resolvePaywallViewForKey(
                             makeViewStore(),
-                            Superwall.instance.paywallView,
+                            presentationCoordinator.paywallView,
                             key,
                         )
                     if (paywallView == null) {
@@ -692,7 +875,7 @@ class DependencyContainer(
                     storeManager.refreshReceipt()
                 },
                 showAlert = {
-                    Superwall.instance.paywallView?.showAlert(
+                    presentationCoordinator.paywallView?.showAlert(
                         it.title,
                         it.message,
                         it.actionTitle,
@@ -705,7 +888,7 @@ class DependencyContainer(
                     val paywallView =
                         resolvePaywallViewForKey(
                             makeViewStore(),
-                            Superwall.instance.paywallView,
+                            presentationCoordinator.paywallView,
                             key,
                         )
                     if (paywallView == null) {
@@ -717,7 +900,7 @@ class DependencyContainer(
                     val paywallView =
                         resolvePaywallViewForKey(
                             makeViewStore(),
-                            Superwall.instance.paywallView,
+                            presentationCoordinator.paywallView,
                             key,
                         )
                     if (paywallView == null) {
@@ -729,7 +912,7 @@ class DependencyContainer(
                     val paywallView =
                         resolvePaywallViewForKey(
                             makeViewStore(),
-                            Superwall.instance.paywallView,
+                            presentationCoordinator.paywallView,
                             key,
                         )
                     if (paywallView == null) {
@@ -928,7 +1111,7 @@ class DependencyContainer(
             PaywallMessageHandler(
                 factory = this@DependencyContainer,
                 options = this,
-                getView = { Superwall.instance.paywallView },
+                getView = { presentationCoordinator.paywallView },
                 track = {
                     Superwall.instance.track(it)
                 },
@@ -976,7 +1159,7 @@ class DependencyContainer(
                             deviceHelper = deviceHelper,
                             storage = storage,
                             webView = webView,
-                            eventCallback = Superwall.instance,
+                            eventCallback = paywallEventHandler,
                             controller = controller,
                             sendMessages = messageHandler,
                             redeemer = reedemer,
@@ -1246,7 +1429,7 @@ class DependencyContainer(
     }
 
     private fun showWebRestoreSuccesful() {
-        val paywallView: PaywallView? = Superwall.instance.paywallView
+        val paywallView: PaywallView? = presentationCoordinator.paywallView
 
         if (paywallView != null) {
             ioScope.launch {
@@ -1267,7 +1450,7 @@ class DependencyContainer(
     }
 
     private fun trackRestorationFailure(message: String) {
-        val paywallView: PaywallView? = Superwall.instance.paywallView
+        val paywallView: PaywallView? = presentationCoordinator.paywallView
         val options = makeSuperwallOptions()
 
         if (paywallView != null) {
@@ -1309,14 +1492,14 @@ class DependencyContainer(
     override fun storefrontCountryCode(): String? = storeManager.storefrontCountryCode
 
     override fun updatePaywallInfo(paywallInfo: PaywallInfo) {
-        Superwall.instance.presentationItems.paywallInfo = paywallInfo
+        presentationCoordinator.updatePaywallInfo(paywallInfo)
     }
 
     override suspend fun storePresentationObject(
         request: PresentationRequest?,
         publisher: MutableSharedFlow<PaywallState>,
     ) {
-        Superwall.instance.storePresentationObjects(request, publisher)
+        presentationCoordinator.storePresentationObjects(request, publisher)
     }
 
     override suspend fun internallyGetPresentationResult(
@@ -1367,24 +1550,24 @@ class DependencyContainer(
     }
 
     override fun internallySetSubscriptionStatus(status: SubscriptionStatus) {
-        Superwall.instance.internallySetSubscriptionStatus(status)
+        subscriptionStatusManager.internallySetSubscriptionStatus(status)
     }
 
-    override suspend fun isPaywallVisible(): Boolean = Superwall.instance.isPaywallPresented
+    override suspend fun isPaywallVisible(): Boolean = presentationCoordinator.isPaywallPresented
 
     override suspend fun triggerRestoreInPaywall() {
         showWebRestoreSuccesful()
     }
 
     override fun currentPaywallEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
-        Superwall.instance.paywallView
+        presentationCoordinator.paywallView
             ?.state
             ?.paywall
             ?.productIds
             ?.flatMap { entitlements.byProductId(it) }
             ?.toSet() ?: emptySet()
 
-    override fun getPaywallInfo(): PaywallInfo = Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
+    override fun getPaywallInfo(): PaywallInfo = presentationCoordinator.paywallView?.info ?: PaywallInfo.empty()
 
     override fun trackRestorationFailed(message: String) {
         trackRestorationFailure(message)
@@ -1423,7 +1606,7 @@ class DependencyContainer(
 
     override suspend fun scheduleTrialNotifications(notifications: List<LocalNotification>) {
         withContext(Dispatchers.Main.immediate) {
-            val paywallView = Superwall.instance.paywallView ?: return@withContext
+            val paywallView = presentationCoordinator.paywallView ?: return@withContext
             val paywallNotifications =
                 PaywallNotifications.forPaywall(paywallView, activityProvider?.getCurrentActivity())
                     ?: return@withContext
