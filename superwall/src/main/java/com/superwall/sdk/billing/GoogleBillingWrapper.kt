@@ -20,6 +20,8 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.primitives.SequentialActor
+import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -31,8 +33,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -47,7 +49,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-import kotlin.math.min
 
 internal const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
 internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
@@ -80,12 +81,13 @@ class GoogleBillingWrapper internal constructor(
     val factory: Factory,
     val createBillingClient: (PurchasesUpdatedListener) -> BillingClient,
     private val productDetails: ProductDetailsRepository,
+    connectionActor: StateActor<BillingConnectionContext, ConnectionState>,
 ) : PurchasesUpdatedListener,
     BillingClientStateListener,
     Billing {
     /**
-     * Builds a wrapper with its own product cache. The SDK builds its wrapper through the
-     * internal constructor, from `DependencyContainer`.
+     * Builds a wrapper with its own product cache and billing connection. The SDK builds its
+     * wrapper through the internal constructor, from `DependencyContainer`.
      */
     constructor(
         context: Context,
@@ -100,6 +102,7 @@ class GoogleBillingWrapper internal constructor(
         factory = factory,
         createBillingClient = createBillingClient,
         productDetails = ProductDetailsRepository(),
+        connectionActor = SequentialActor(ConnectionState(), ioScope),
     )
 
     companion object {
@@ -123,37 +126,30 @@ class GoogleBillingWrapper internal constructor(
     private val shouldFinishTransactions: Boolean
         get() = !factory.makeSuperwallOptions().shouldObservePurchases
 
-    @get:Synchronized
-    @set:Synchronized
-    @Volatile
-    var billingClient: BillingClient? = null
+    /** The Play connection: client, availability, reconnect backoff and waiting requests. */
+    private val connection =
+        BillingConnection(
+            scope = ioScope,
+            createBillingClient = createBillingClient,
+            purchasesListener = this,
+            stateListener = this,
+            actor = connectionActor,
+        )
 
-    private val serviceRequests =
-        ConcurrentLinkedQueue<Pair<(connectionError: BillingError?) -> Unit, Long?>>()
-
-    // how long before the data source tries to reconnect to Google play
-    private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
-
-    @get:Synchronized
-    @set:Synchronized
-    private var reconnectionAlreadyScheduled = false
-
-    private val transientSetupFailures = AtomicInteger(0)
-
-    private val _availability = MutableStateFlow<BillingAvailability>(BillingAvailability.Unknown)
+    /** The billing client, once created. Setting `null` makes the next connection create a new one. */
+    var billingClient: BillingClient?
+        get() = connection.client
+        set(value) = connection.setClient(value)
 
     /**
      * Whether Play Billing can be used on this device. Once [BillingAvailability.Unavailable],
      * requests fail straight away instead of reconnecting, until the app next returns to
      * the foreground and billing is probed again.
      */
-    internal val availability = _availability.asStateFlow()
+    internal val availability: StateFlow<BillingAvailability> = connection.availability
 
     // Setup mutable state flow for purchase results
     override val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
-
-    internal val IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE =
-        "Google Play In-app Billing API version is less than 3"
 
     init {
         startConnectionOnMainThread()
@@ -163,13 +159,7 @@ class GoogleBillingWrapper internal constructor(
             appLifecycleObserver.isInBackground
                 .drop(1)
                 .filter { inBackground -> !inBackground }
-                .collect {
-                    if (availability.value is BillingAvailability.Unavailable) {
-                        _availability.value = BillingAvailability.Unknown
-                        transientSetupFailures.set(0)
-                        startConnection()
-                    }
-                }
+                .collect { connection.reprobe() }
         }
     }
 
@@ -179,33 +169,6 @@ class GoogleBillingWrapper internal constructor(
         fun post(action: () -> Unit) {
             scope.launch {
                 action()
-            }
-        }
-
-        fun postDelayed(
-            action: () -> Unit,
-            delayMilliseconds: Long,
-        ) {
-            scope.launch {
-                delay(delayMilliseconds)
-                action()
-            }
-        }
-    }
-
-    private fun executePendingRequests() {
-        synchronized(this@GoogleBillingWrapper) {
-            while (billingClient?.isReady == true) {
-                serviceRequests.poll()?.let { (request, delayMilliseconds) ->
-                    if (delayMilliseconds != null) {
-                        threadHandler.postDelayed(
-                            { request(null) },
-                            delayMilliseconds,
-                        )
-                    } else {
-                        threadHandler.post { request(null) }
-                    }
-                } ?: break
             }
         }
     }
@@ -233,23 +196,7 @@ class GoogleBillingWrapper internal constructor(
             ?: Result.failure(BillingError.UnknownError)
     }
 
-    private suspend fun awaitConnection(): Result<Unit> {
-        if (billingClient?.isReady == true) return Result.success(Unit)
-        val connected = CompletableDeferred<BillingError?>()
-        synchronized(this) {
-            serviceRequests.add(
-                { error: BillingError? ->
-                    connected.complete(error)
-                    Unit
-                } to null,
-            )
-        }
-        startConnectionOnMainThread()
-        val error =
-            withTimeoutOrNull(CONNECT_TIMEOUT_MS) { connected.await() }
-                ?: return Result.failure(Throwable("Billing connection timed out"))
-        return error?.let { Result.failure(it) } ?: Result.success(Unit)
-    }
+    private suspend fun awaitConnection(): Result<Unit> = connection.awaitConnection(CONNECT_TIMEOUT_MS)
 
     override suspend fun consume(purchaseToken: String): Result<String> =
         suspendCoroutine { cont ->
@@ -272,56 +219,11 @@ class GoogleBillingWrapper internal constructor(
         }
 
     fun startConnectionOnMainThread(delayMilliseconds: Long = 0) {
-        threadHandler.postDelayed(
-            { startConnection() },
-            delayMilliseconds,
-        )
+        connection.connect(delayMilliseconds)
     }
 
     fun startConnection() {
-        synchronized(this@GoogleBillingWrapper) {
-            if (billingClient == null) {
-                billingClient =
-                    try {
-                        createBillingClient(this)
-                    } catch (e: Throwable) {
-                        markUnavailable(
-                            BillingError.BillingNotAvailable(
-                                "Billing is not available in this device. " +
-                                    "The billing client could not be created: ${e.message}",
-                            ),
-                        )
-                        return
-                    }
-            }
-
-            reconnectionAlreadyScheduled = false
-
-            billingClient?.let {
-                // A second startConnection while one is in flight is answered with
-                // DEVELOPER_ERROR and does nothing; the in-flight one still calls back.
-                if (it.connectionState == BillingClient.ConnectionState.CONNECTING) {
-                    return
-                }
-                if (!it.isReady) {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.productsManager,
-                        "Starting billing client",
-                    )
-                    try {
-                        it.startConnection(this)
-                    } catch (e: IllegalStateException) {
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.productsManager,
-                            "IllegalStateException when connecting to billing client: ${e.message}",
-                        )
-                        sendErrorsToAllPendingRequests(BillingError.IllegalStateException)
-                    }
-                }
-            }
-        }
+        connection.connect()
     }
 
     /**
@@ -495,63 +397,15 @@ class GoogleBillingWrapper internal constructor(
         useCase.run()
     }
 
-    @Synchronized
     private fun executeRequestOnUIThread(
         delayMilliseconds: Long? = null,
         request: (BillingError?) -> Unit,
     ) {
-        (availability.value as? BillingAvailability.Unavailable)?.let { unavailable ->
-            threadHandler.post { request(unavailable.error) }
-            return
-        }
-        serviceRequests.add(request to delayMilliseconds)
-        if (billingClient?.isReady == false) {
-            startConnectionOnMainThread()
-        } else {
-            executePendingRequests()
-        }
-    }
-
-    /**
-     * Retries the billing service connection with exponential backoff, maxing out at the time
-     * specified by RECONNECT_TIMER_MAX_TIME_MILLISECONDS.
-     *
-     * This prevents ANRs, see https://github.com/android/play-billing-samples/issues/310
-     */
-    private fun retryBillingServiceConnectionWithExponentialBackoff() {
-        if (reconnectionAlreadyScheduled) {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Billing client retry already scheduled.",
-            )
-        } else {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Billing client disconnected, retrying in $reconnectMilliseconds milliseconds",
-            )
-            reconnectionAlreadyScheduled = true
-            startConnectionOnMainThread(reconnectMilliseconds)
-            reconnectMilliseconds =
-                min(
-                    reconnectMilliseconds * 2,
-                    RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
-                )
-        }
+        connection.request(delayMilliseconds, request)
     }
 
     override fun onBillingServiceDisconnected() {
-        Logger.debug(
-            LogLevel.debug,
-            LogScope.productsManager,
-            "Billing client disconnected",
-        )
-        // Requests already on the queue only run from a setup callback, and a request that
-        // finds the client disconnected re-queues itself, so reconnect for either to finish.
-        if (serviceRequests.isNotEmpty()) {
-            retryBillingServiceConnectionWithExponentialBackoff()
-        }
+        connection.disconnected()
     }
 
     /**
@@ -598,122 +452,7 @@ class GoogleBillingWrapper internal constructor(
     }
 
     override fun onBillingSetupFinished(billingResult: BillingResult) {
-        threadHandler.post {
-            when (billingResult.responseCode) {
-                BillingClient.BillingResponseCode.OK -> {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.productsManager,
-                        "Billing client connected",
-                    )
-                    _availability.value = BillingAvailability.Available
-                    executePendingRequests()
-                    reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
-                    transientSetupFailures.set(0)
-                    trackProductDetailsNotSupportedIfNeeded()
-                }
-
-                BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
-                BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-                -> {
-                    val originalErrorMessage =
-                        "DebugMessage: ${billingResult.debugMessage} " +
-                            "ErrorCode: ${billingResult.responseCode}."
-
-                    /**
-                     * We check for cases when Google sends Google Play In-app Billing API version is less than 3
-                     * as a debug message. Version 3 is from 2012, so the message is a bit useless.
-                     * We have detected this message in several cases:
-                     *
-                     * - When there's no Google account configured in the device
-                     * - When there's no Play Store (this happens in incorrectly configured emulators)
-                     * - When language is changed in the device and Play Store caches get corrupted. Opening the
-                     * Play Store or clearing its caches would fix this case.
-                     * See https://github.com/RevenueCat/purchases-android/issues/1288
-                     */
-                    val error =
-                        if (billingResult.debugMessage == IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE) {
-                            val message =
-                                "Billing is not available in this device. Make sure there's an " +
-                                    "account configured in Play Store. Reopen the Play Store or clean its caches if this " +
-                                    "keeps happening. " +
-                                    "Original error message: $originalErrorMessage"
-                            BillingError.BillingNotAvailable(message)
-                        } else {
-                            val message =
-                                "Billing is not available in this device. " +
-                                    "Original error message: $originalErrorMessage"
-                            BillingError.BillingNotAvailable(message)
-                        }
-
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.productsManager,
-                        error.message
-                            ?: "Billing is not available in this device. ${billingResult.debugMessage}",
-                    )
-                    // The calls will fail with an error that will be surfaced. We want to surface these errors
-                    // Can't call executePendingRequests because it will not do anything since it checks for isReady()
-                    markUnavailable(error)
-                }
-
-                BillingClient.BillingResponseCode.ERROR,
-                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
-                BillingClient.BillingResponseCode.USER_CANCELED,
-                BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
-                BillingClient.BillingResponseCode.NETWORK_ERROR,
-                -> {
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.productsManager,
-                        "Billing client error, retrying: ${billingResult.responseCode}",
-                    )
-                    val failures = transientSetupFailures.incrementAndGet()
-                    if (failures >= MAX_TRANSIENT_SETUP_FAILURES &&
-                        availability.value !is BillingAvailability.Unavailable
-                    ) {
-                        markUnavailable(
-                            BillingError.BillingNotAvailable(
-                                "Billing is not available in this device. Setup failed $failures " +
-                                    "times in a row. Last error: ${billingResult.debugMessage} " +
-                                    "ErrorCode: ${billingResult.responseCode}.",
-                            ),
-                        )
-                    }
-                    retryBillingServiceConnectionWithExponentialBackoff()
-                }
-
-                BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
-                BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
-                BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
-                -> {
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.productsManager,
-                        "Billing client error, item not supported or unavailable: ${billingResult.responseCode}",
-                    )
-                }
-
-                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
-                    // Reported when startConnection is called while a connection is already in
-                    // flight. That connection delivers its own result, so there's nothing to do
-                    // while it's still connecting (or already connected). If it has since
-                    // dropped, no callback is coming for the queued requests, so reconnect.
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.productsManager,
-                        "Billing client error, developer error: ${billingResult.responseCode}",
-                    )
-                    val connectionState = billingClient?.connectionState
-                    if (connectionState != BillingClient.ConnectionState.CONNECTING &&
-                        connectionState != BillingClient.ConnectionState.CONNECTED &&
-                        serviceRequests.isNotEmpty()
-                    ) {
-                        retryBillingServiceConnectionWithExponentialBackoff()
-                    }
-                }
-            }
-        }
+        connection.setupFinished(billingResult)
     }
 
     fun withConnectedClient(receivingFunction: BillingClient.() -> Unit): Unit? {
@@ -802,37 +541,6 @@ class GoogleBillingWrapper internal constructor(
                     }
                 }
             }
-    }
-
-    private fun markUnavailable(error: BillingError.BillingNotAvailable) {
-        _availability.value = BillingAvailability.Unavailable(error)
-        sendErrorsToAllPendingRequests(error)
-    }
-
-    @Synchronized
-    private fun sendErrorsToAllPendingRequests(error: BillingError) {
-        while (true) {
-            serviceRequests.poll()?.let { (serviceRequest, _) ->
-                threadHandler.post {
-                    serviceRequest(error)
-                }
-            } ?: break
-        }
-    }
-
-    private fun trackProductDetailsNotSupportedIfNeeded() {
-        val billingResult =
-            billingClient?.isFeatureSupported(BillingClient.FeatureType.PRODUCT_DETAILS)
-        if (
-            billingResult != null &&
-            billingResult.responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED
-        ) {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Product details not supported: ${billingResult.responseCode} ${billingResult.debugMessage}",
-            )
-        }
     }
 
     internal suspend fun latestPurchase() =

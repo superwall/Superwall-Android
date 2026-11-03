@@ -28,6 +28,7 @@ import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
+import com.superwall.sdk.billing.ConnectionState
 import com.superwall.sdk.billing.ProductDetailsRepository
 import com.superwall.sdk.billing.playBillingClient
 import com.superwall.sdk.SdkBootstrapper
@@ -555,6 +556,7 @@ class DependencyContainer internal constructor(
                 factory = this,
                 createBillingClient = playBillingClient(context),
                 productDetails = ProductDetailsRepository(),
+                connectionActor = SequentialActor(ConnectionState(), ioScope),
             )
         storage =
             LocalStorage(

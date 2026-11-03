@@ -48,6 +48,9 @@ internal data class ConnectionState(
             val client: BillingClient,
         ) : Updates({ it.copy(client = client) })
 
+        /** The billing client was dropped, so the next connection attempt creates a new one. */
+        object ClientCleared : Updates({ it.copy(client = null) })
+
         /** A connection attempt starts, so a scheduled reconnect has now run. */
         object ConnectionStarted : Updates({ it.copy(retry = ReconnectSchedule.Idle) })
 
