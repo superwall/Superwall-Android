@@ -9,7 +9,7 @@ import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.*
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.config.ConfigState
+import com.superwall.sdk.config.toConfigurationStatus
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.AdConsent
 import com.superwall.sdk.config.options.AdConsentPublisher
@@ -418,23 +418,12 @@ class Superwall(
      */
     val configurationState: ConfigurationStatus
         get() =
-            dependencyContainer.configManager.configState.value.let {
-                when (it) {
-                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
-                    is ConfigState.Failed -> ConfigurationStatus.Failed
-                    else -> ConfigurationStatus.Pending
-                }
-            }
+            dependencyContainer.configManager.configState.value
+                .toConfigurationStatus()
 
     val configurationStateListener: Flow<ConfigurationStatus>
         get() =
-            dependencyContainer.configManager.configState.map {
-                when (it) {
-                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
-                    is ConfigState.Failed -> ConfigurationStatus.Failed
-                    else -> ConfigurationStatus.Pending
-                }
-            }
+            dependencyContainer.configManager.configState.map { it.toConfigurationStatus() }
 
     companion object {
         /** A variable that is only `true` if ``instance`` is available for use.

@@ -76,6 +76,9 @@ jobs:
     - name: Change wrapper permissions
       run: chmod +x ./gradlew
 
+    - name: No internal Superwall.instance reads
+      run: ./scripts/check-no-superwall-instance.sh
+
     - name: Run unit tests with coverage
       run: ./gradlew :superwall:testDebugUnitTest -x lint -x lintDebug -x lintVitalRelease
 

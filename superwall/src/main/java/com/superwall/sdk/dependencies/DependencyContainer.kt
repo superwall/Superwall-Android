@@ -245,10 +245,6 @@ class DependencyContainer internal constructor(
     @Volatile
     internal var localResources: Map<String, PaywallResource> = emptyMap()
 
-    /**
-     * Tracks [event] through the owning [Superwall]. Every class the container builds gets this
-     * function (or a lambda over it) as its `track` dependency.
-     */
     /** Sets the locale used for paywalls and tracks the changed config attributes. */
     internal fun setLocaleIdentifier(value: String?) {
         configManager.options.localeIdentifier = value
@@ -273,9 +269,15 @@ class DependencyContainer internal constructor(
     internal fun requireOwner(): Superwall =
         superwall ?: throw IllegalStateException("This DependencyContainer is not owned by a configured Superwall.")
 
+    /**
+     * Tracks [event] through the owning [Superwall]. Every class the container builds gets this
+     * function (or a lambda over it) as its `track` dependency.
+     *
+     * A container without an owner cannot track: it logs the dropped event, so a wiring miss
+     * shows up in the logs instead of only as missing analytics.
+     */
     internal suspend fun trackEvent(event: Trackable): Result<TrackingResult> =
-        superwall?.track(event)
-            ?: Result.failure(IllegalStateException("This DependencyContainer is not owned by a configured Superwall."))
+        trackThroughOwner(event, superwall?.let { owner -> { owner.track(it) } })
 
     internal val getPaywallComponentsFactory: GetPaywallComponentsFactory by lazy {
         DefaultGetPaywallComponentsFactory(requireOwner())
@@ -1738,4 +1740,22 @@ class DependencyContainer internal constructor(
         // TODO: Track payment sheet state
         return false
     }
+}
+
+/**
+ * Tracks [event] with [track], the owning Superwall's tracker. When there is none, the event is
+ * dropped and [logDropped] reports it, so a container that lost its owner shows up in the logs.
+ */
+internal suspend fun trackThroughOwner(
+    event: Trackable,
+    track: (suspend (Trackable) -> Result<TrackingResult>)?,
+    logDropped: (String) -> Unit = { message ->
+        Logger.debug(logLevel = LogLevel.error, scope = LogScope.superwallCore, message = message)
+    },
+): Result<TrackingResult> {
+    if (track == null) {
+        logDropped("Dropped event ${event.rawName}: this DependencyContainer has no Superwall owner.")
+        return Result.failure(IllegalStateException("This DependencyContainer is not owned by a configured Superwall."))
+    }
+    return track(event)
 }
