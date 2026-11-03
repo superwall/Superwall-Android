@@ -1,7 +1,6 @@
 package com.superwall.sdk.paywall.view
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -87,8 +86,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 import java.lang.ref.WeakReference
-import java.net.MalformedURLException
-import java.net.URI
 import java.util.Date
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
@@ -325,6 +322,51 @@ class PaywallView internal constructor(
             applyPaywallUpdate = { controller.updateState(it) },
             views = { PaywallLoadingOverlay.OverlayViews(shimmer = shimmerView, spinner = loadingView) },
         )
+
+    /** Web checkout, browsers and deep links: everything that sends the user out of the paywall. */
+    private val externalNavigator: PaywallExternalNavigator =
+        PaywallExternalNavigator(
+            scope = mainScope,
+            storage = storage,
+            tracker = { factory.track(it) },
+            checkoutLauncher = ::launchCheckout,
+            customTab = { url ->
+                val customTabsIntent = CustomTabsIntent.Builder().build()
+                customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                customTabsIntent.launchUrl(context, url.toUri())
+            },
+            externalBrowser = { url ->
+                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            },
+            deepLink = { url ->
+                val activityContext = encapsulatingActivity?.get()
+                val deepLinkIntent =
+                    Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+                        if (activityContext == null) {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    }
+                (activityContext ?: context).startActivity(deepLinkIntent)
+            },
+            onDeepLinkOpened = { url -> eventDidOccur(PaywallWebEvent.OpenedDeepLink(url.toUri())) },
+            applyPaywallUpdate = { controller.updateState(it) },
+        )
+
+    /**
+     * Hands web checkout to the in-window host, which never registers the activity launcher
+     * (registering one with a lifecycle on an already started host throws), or to the launcher.
+     */
+    private fun launchCheckout(url: String): CheckoutLaunch {
+        inWindowHost?.let {
+            it.launchCheckout(url)
+            return CheckoutLaunch.Launched
+        }
+        val launcher = activityResultLauncher ?: return CheckoutLaunch.NoLauncher
+        launcher.launch(url)
+        return CheckoutLaunch.Launched
+    }
 
     init {
         id = View.generateViewId()
@@ -703,7 +745,7 @@ class PaywallView internal constructor(
         if (isPaymentSheetPresented) {
             beforeOnDestroy()
             cleanup()
-            isPaymentSheetPresented = false
+            paymentSheetNotOpened()
         }
 
         SurveyManager.presentSurveyIfAvailable(
@@ -1007,98 +1049,22 @@ class PaywallView internal constructor(
 //endregion
 
     //region Deep linking
-    internal var isPaymentSheetPresented = false
 
-    override fun presentPaymentSheet(url: String) {
-        try {
-            isPaymentSheetPresented = true
-            presentCheckoutBottomSheet(url)
-        } catch (e: MalformedURLException) {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallView,
-                message = "Invalid URL provided for \"Open In-App URL\" click behavior.",
-                error = e,
-            )
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallView,
-                message = "Exception thrown for \"Open In-App URL\" click behavior.",
-                error = e,
-            )
-        }
-    }
+    /** Whether the web checkout sheet opened from this paywall is still open. */
+    internal val isPaymentSheetPresented: Boolean
+        get() = externalNavigator.isPaymentSheetOpen
 
-    override fun presentBrowserInApp(url: String) {
-        try {
-            val parsedUrl = URI(url)
-            val customTabsIntent = CustomTabsIntent.Builder().build()
-            customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
-            controller.updateState(SetBrowserPresented(true))
-        } catch (e: MalformedURLException) {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallView,
-                message = "Invalid URL provided for \"Open In-App URL\" click behavior.",
-            )
-        } catch (e: Throwable) {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallView,
-                message = "Exception thrown for \"Open In-App URL\" click behavior.",
-            )
-        }
-    }
+    /** Web checkout couldn't be opened or won't report back, so the sheet counts as closed. */
+    internal fun paymentSheetNotOpened() = externalNavigator.sheetClosed()
 
-    private fun presentCheckoutBottomSheet(url: String) {
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.paywallView,
-            message = "Opening checkout URL in Chrome Custom Tab: $url",
-        )
+    override fun presentPaymentSheet(url: String) =
+        externalNavigator.dispatch(ExternalNavigationState.Actions.OpenPaymentSheet(url))
 
-        // An in-window host never registers the launcher below (registering one with a
-        // lifecycle on an already started host throws), so it launches checkout itself.
-        inWindowHost?.let {
-            it.launchCheckout(url)
-            return
-        }
+    override fun presentBrowserInApp(url: String) =
+        externalNavigator.dispatch(ExternalNavigationState.Actions.OpenInAppBrowser(url))
 
-        // Launch Chrome Custom Tab using activity result launcher
-        activityResultLauncher?.launch(url) ?: run {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.paywallView,
-                message = "Activity result launcher not initialized - cannot present Chrome Custom Tab",
-            )
-            isPaymentSheetPresented = false
-        }
-    }
-
-    override fun presentBrowserExternal(url: String) {
-        try {
-            val parsedUrl = URI(url)
-            val intent = Intent(Intent.ACTION_VIEW, parsedUrl.toString().toUri())
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            controller.updateState(SetBrowserPresented(true))
-            context.startActivity(intent)
-        } catch (e: MalformedURLException) {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallView,
-                message = "Invalid URL provided for \"Open External URL\" click behavior.",
-            )
-        } catch (e: Throwable) {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallView,
-                message = "Exception thrown for \"Open External URL\" click behavior.",
-            )
-        }
-    }
+    override fun presentBrowserExternal(url: String) =
+        externalNavigator.dispatch(ExternalNavigationState.Actions.OpenExternalBrowser(url))
 
     override fun evaluate(
         code: String,
@@ -1107,26 +1073,8 @@ class PaywallView internal constructor(
         webView.evaluate(code, resultCallback)
     }
 
-    override fun openDeepLink(url: String) {
-        val uri = url.toUri()
-        eventDidOccur(PaywallWebEvent.OpenedDeepLink(uri))
-        val activityContext = encapsulatingActivity?.get()
-        val deepLinkIntent =
-            Intent(Intent.ACTION_VIEW, uri).apply {
-                if (activityContext == null) {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            }
-        try {
-            (activityContext ?: context).startActivity(deepLinkIntent)
-        } catch (e: ActivityNotFoundException) {
-            Logger.debug(
-                logLevel = LogLevel.warn,
-                scope = LogScope.paywallView,
-                message = "No activity found to handle deep link: $url",
-            )
-        }
-    }
+    override fun openDeepLink(url: String) =
+        externalNavigator.dispatch(ExternalNavigationState.Actions.OpenDeepLink(url))
 
     //region GameController
     override fun gameControllerEventOccured(event: GameControllerEvent) {
@@ -1266,14 +1214,7 @@ class PaywallView internal constructor(
 
     /** The web checkout Custom Tab closed. */
     internal fun onCheckoutClosed(statusCode: Int) {
-        // Handle Chrome Custom Tab closure
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.paywallView,
-            message = "Chrome Custom Tab closed with status code: $statusCode",
-        )
-        isPaymentSheetPresented = false
-        controller.updateState(PaywallViewState.Updates.SetBrowserPresented(false))
+        externalNavigator.dispatch(ExternalNavigationState.Actions.CheckoutClosed(statusCode))
     }
 
 //endregion
