@@ -74,13 +74,14 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
+import com.superwall.sdk.misc.primitives.StateActor
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -88,7 +89,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.timeout
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -100,10 +100,10 @@ import java.util.Date
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 
-class PaywallView(
+class PaywallView internal constructor(
     context: Context,
-    val eventCallback: PaywallViewEventCallback? = null,
-    var callback: PaywallViewDelegateAdapter? = null,
+    val eventCallback: PaywallViewEventCallback?,
+    var callback: PaywallViewDelegateAdapter?,
     val deviceHelper: DeviceHelper,
     val factory: Factory,
     val storage: LocalStorage,
@@ -112,6 +112,8 @@ class PaywallView(
     val controller: PaywallController,
     val sendMessages: SendPaywallMessages,
     private val redeemer: WebPaywallRedeemer,
+    private val mainScope: MainScope,
+    private val ioScope: IOScope,
 ) : FrameLayout(context),
     PaywallMessageHandlerDelegate,
     PaywallUIDelegate,
@@ -119,26 +121,65 @@ class PaywallView(
     ActivityEncapsulatable,
     GameControllerDelegate,
     SendPaywallMessages by sendMessages {
-    class PaywallController(
+    /**
+     * Public signature kept for compatibility. The SDK builds views through the internal
+     * constructor with its own scopes; this one gives the view scopes of its own and never
+     * reads the SDK's graph.
+     */
+    constructor(
+        context: Context,
+        eventCallback: PaywallViewEventCallback? = null,
+        callback: PaywallViewDelegateAdapter? = null,
+        deviceHelper: DeviceHelper,
+        factory: Factory,
+        storage: LocalStorage,
+        webView: PaywallWebUI,
+        cache: PaywallViewCache?,
+        controller: PaywallController,
+        sendMessages: SendPaywallMessages,
+        redeemer: WebPaywallRedeemer,
+    ) : this(
+        context = context,
+        eventCallback = eventCallback,
+        callback = callback,
+        deviceHelper = deviceHelper,
+        factory = factory,
+        storage = storage,
+        webView = webView,
+        cache = cache,
+        controller = controller,
+        sendMessages = sendMessages,
+        redeemer = redeemer,
+        mainScope = MainScope(),
+        ioScope = IOScope(),
+    )
+
+    /**
+     * Holds the paywall's [PaywallViewState] in a [StateActor]. Every [updateState] is applied
+     * through the actor as a [PaywallReducer], so state changes go through the same reducer
+     * pipeline (and interceptors) as the SDK's other actors.
+     */
+    class PaywallController internal constructor(
         initialState: PaywallViewState,
+        scope: CoroutineScope,
     ) : PaywallStateDelegate {
-        private var _state = MutableStateFlow(initialState)
-        val currentState = _state.asStateFlow()
+        /** Public signature kept for compatibility; the controller gets a scope of its own. */
+        constructor(initialState: PaywallViewState) : this(initialState, IOScope())
+
+        internal val actor: StateActor<PaywallContext, PaywallViewState> =
+            StateActor(initialState, scope)
+
+        val currentState: StateFlow<PaywallViewState> = actor.state
+
         override val state: PaywallViewState
-            get() = _state.value
+            get() = actor.state.value
 
         override fun updateState(update: PaywallViewState.Updates) {
-            _state.update { currentState ->
-                // Apply the transform to get new state
-                val newState = update.transform(currentState)
-                newState
-            }
+            actor.update(PaywallReducer(update))
         }
     }
 
     private companion object {
-        private val mainScope: MainScope = MainScope()
-        private val ioScope: IOScope = IOScope()
         private val gameControllerJson by lazy {
             Json {
                 encodeDefaults = true
@@ -249,11 +290,19 @@ class PaywallView(
             }
         customerInfoListener =
             ioScope.launch {
-                factory.customerInfoFlow().collect {
-                    controller.updateState(PaywallViewState.Updates.SetCustomerInfo(it))
-                }
+                controller.actor.immediate(paywallContext, PaywallActions.ObserveCustomerInfo)
             }
     }
+
+    /** The context the paywall's actions run in, over [controller]'s actor. */
+    private val paywallContext: PaywallContext =
+        PaywallContextImpl(
+            actor = controller.actor,
+            scope = ioScope,
+            storage = storage,
+            tracker = { factory.track(it) },
+            customerInfo = { factory.customerInfoFlow() },
+        )
 
     init {
         id = View.generateViewId()

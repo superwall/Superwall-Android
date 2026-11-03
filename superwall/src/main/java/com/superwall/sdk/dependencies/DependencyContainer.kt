@@ -1248,7 +1248,7 @@ class DependencyContainer internal constructor(
                     configManager.config?.featureFlags?.enableMultiplePaywallUrls
                         ?: false,
             )
-        val controller = PaywallView.PaywallController(state)
+        val controller = PaywallView.PaywallController(state, ioScope)
         val paywallView =
             uiScope
                 .async {
@@ -1275,6 +1275,8 @@ class DependencyContainer internal constructor(
                             controller = controller,
                             sendMessages = messageHandler,
                             redeemer = reedemer,
+                            mainScope = mainScope(),
+                            ioScope = ioScope,
                         )
                     webView.delegate = paywallView
                     messageHandler.messageHandler = paywallView
