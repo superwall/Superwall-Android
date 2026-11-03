@@ -5,7 +5,7 @@ import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.misc.primitives.BaseContext
 import com.superwall.sdk.misc.primitives.Reducer
-import com.superwall.sdk.misc.primitives.SequentialActor
+import com.superwall.sdk.misc.primitives.OnDemandSequentialActor
 import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.misc.primitives.TypedAction
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
@@ -231,7 +231,7 @@ internal interface LoadingOverlayContext : BaseContext<LoadingOverlayState, Load
 }
 
 /**
- * Drives the shimmer and purchase spinner of one [PaywallView] on a [SequentialActor], so loading
+ * Drives the shimmer and purchase spinner of one [PaywallView] on an [OnDemandSequentialActor], so loading
  * states apply in the order they arrive and a later one cancels a reveal still waiting.
  */
 internal class PaywallLoadingOverlay(
@@ -245,7 +245,7 @@ internal class PaywallLoadingOverlay(
     private val applyPaywallUpdate: (PaywallViewState.Updates) -> Unit,
     private val views: () -> OverlayViews,
     override val actor: StateActor<LoadingOverlayContext, LoadingOverlayState> =
-        SequentialActor(LoadingOverlayState(), scope),
+        OnDemandSequentialActor(LoadingOverlayState(), scope),
 ) : LoadingOverlayContext {
     /** The shimmer and spinner views the paywall currently holds, if any. */
     data class OverlayViews(

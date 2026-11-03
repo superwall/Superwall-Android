@@ -7,7 +7,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.primitives.BaseContext
 import com.superwall.sdk.misc.primitives.Reducer
-import com.superwall.sdk.misc.primitives.SequentialActor
+import com.superwall.sdk.misc.primitives.OnDemandSequentialActor
 import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.misc.primitives.TypedAction
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
@@ -218,7 +218,7 @@ internal interface PresentationLifecycleContext :
 }
 
 /**
- * Runs the presentation lifecycle of one [PaywallView] on a [SequentialActor], so a failure, the
+ * Runs the presentation lifecycle of one [PaywallView] on an [OnDemandSequentialActor], so a failure, the
  * view's creation and a new presentation apply in the order they happen.
  */
 internal class PaywallPresentationLifecycle(
@@ -231,7 +231,7 @@ internal class PaywallPresentationLifecycle(
     private val applyPaywallUpdate: (PaywallViewState.Updates) -> Unit,
     private val dismiss: () -> Unit,
     override val actor: StateActor<PresentationLifecycleContext, PresentationLifecycleState> =
-        SequentialActor(PresentationLifecycleState(), scope),
+        OnDemandSequentialActor(PresentationLifecycleState(), scope),
 ) : PresentationLifecycleContext {
     override fun updatePaywall(update: PaywallViewState.Updates) = applyPaywallUpdate(update)
 
