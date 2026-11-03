@@ -19,8 +19,9 @@ internal class SdkResetter(
     private val clearAppUserRedemptions: () -> Unit,
     private val clearProductsCache: () -> Unit = {},
     private val track: suspend (Trackable) -> Unit,
+    private val reloadPurchases: suspend () -> Unit = {},
 ) {
-    /** Clears storage, cached store products, the paywall cache, presentation items, config and redemptions, then tracks `Reset`. */
+    /** Clears storage, cached store products, the paywall cache, presentation items, config and redemptions, then tracks `Reset` and rebuilds the new user's receipts from Play. */
     fun completeReset() {
         withErrorTracking {
             clearStorage()
@@ -31,6 +32,10 @@ internal class SdkResetter(
             clearAppUserRedemptions()
             scope.launch {
                 track(InternalSuperwallEvent.Reset)
+            }
+            // Storage for the old user is gone; rebuild the new user's receipts from Play.
+            scope.launch {
+                withErrorTracking { reloadPurchases() }
             }
         }
     }

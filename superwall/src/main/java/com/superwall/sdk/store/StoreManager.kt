@@ -451,6 +451,11 @@ class StoreManager internal constructor(
         receiptManager.loadPurchasedProducts(serverEntitlementsByProductId)
     }
 
+    /** See [ReceiptManager.reloadForNewUser]. */
+    suspend fun reloadPurchasesForNewUser(serverEntitlementsByProductId: Map<String, Set<Entitlement>>) {
+        receiptManager.reloadForNewUser(serverEntitlementsByProductId)
+    }
+
     override fun cacheProduct(
         fullProductIdentifier: String,
         storeProduct: StoreProduct,

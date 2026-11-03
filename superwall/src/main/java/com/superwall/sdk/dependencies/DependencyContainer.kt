@@ -472,6 +472,7 @@ class DependencyContainer internal constructor(
             clearAppUserRedemptions = { reedemer.clear(RedemptionOwnershipType.AppUser) },
             clearProductsCache = { googleBillingWrapper.clearProductsCache() },
             track = { trackEvent(it) },
+            reloadPurchases = { storeManager.reloadPurchasesForNewUser(entitlements.entitlementsByProductId) },
         )
     }
 

@@ -175,6 +175,8 @@ class GoogleBillingWrapper internal constructor(
 
     override suspend fun queryAllPurchases(): List<Purchase> = queries.allPurchases()
 
+    override suspend fun queryAllPurchasesResult(): Result<List<Purchase>> = queries.activePurchases()
+
     override suspend fun querySubscriptionPurchases(): Result<List<Purchase>> = queries.subscriptionPurchases()
 
     override suspend fun consume(purchaseToken: String): Result<String> = queries.consume(purchaseToken)

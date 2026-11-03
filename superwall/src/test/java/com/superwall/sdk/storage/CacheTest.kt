@@ -296,4 +296,35 @@ class CacheTest {
         keys.forEach { cache.write(it, 1) }
         keys.forEach { assertEquals(1, cache.read(it)) }
     }
+
+    @Test
+    fun `a disk read racing clearUserScope does not bring the old user's value back`() {
+        val user = storable("user_race_read", SearchPathDirectory.USER_SPECIFIC_DOCUMENTS, serializer<String>())
+        cache.write(user, "old-user")
+
+        val paused = kotlinx.coroutines.test.StandardTestDispatcher()
+        val racing = Cache(context, ioQueue = paused, json = json)
+        // The user scope is cleared after the file was read but before its value is kept.
+        racing.afterDiskRead = { racing.clearUserScope() }
+
+        assertNull(racing.read(user))
+        racing.afterDiskRead = {}
+        assertNull(racing.read(user))
+        paused.scheduler.advanceUntilIdle()
+        assertFalse(user.file(context).exists())
+    }
+
+    @Test
+    fun `a write and a clear land in memory and on disk in the same order`() {
+        val paused = kotlinx.coroutines.test.StandardTestDispatcher()
+        val ordered = Cache(context, ioQueue = paused, json = json)
+        val user = storable("user_race_write", SearchPathDirectory.USER_SPECIFIC_DOCUMENTS, serializer<String>())
+
+        ordered.write(user, "old-user")
+        ordered.clearUserScope()
+        paused.scheduler.advanceUntilIdle()
+
+        assertNull(ordered.read(user))
+        assertNull(freshCache().read(user))
+    }
 }

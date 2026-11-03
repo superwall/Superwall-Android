@@ -31,7 +31,8 @@ class PaywallComposableTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
-    private val requestedPlacements = mutableListOf<String>()
+    // Each paywall request fails with a new error, so each distinct error shown is one request.
+    private var paywallRequests = 0
 
     @Before
     fun setUp() {
@@ -64,17 +65,21 @@ class PaywallComposableTest {
                 placement = placement.value,
                 delegate = mockk(relaxed = true),
                 errorComposable = { error ->
-                    requestedPlacements += placement.value
-                    androidx.compose.material3.Text(error.message ?: "")
+                    androidx.compose.runtime.LaunchedEffect(error) { paywallRequests++ }
                 },
             )
         }
         composeRule.waitForIdle()
+        assertEquals(1, paywallRequests)
 
         placement.value = "second"
         composeRule.waitForIdle()
 
-        assertEquals(listOf("first", "second"), requestedPlacements.distinct())
+        assertEquals("a new placement requests a new paywall", 2, paywallRequests)
+
+        placement.value = "second"
+        composeRule.waitForIdle()
+        assertEquals("the same placement doesn't reload", 2, paywallRequests)
     }
 
     @Test

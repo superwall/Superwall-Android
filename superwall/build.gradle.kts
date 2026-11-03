@@ -97,14 +97,10 @@ android {
         disable.addAll(listOf("UnsafeOptInUsageError", "UnsafeOptInUsageWarning"))
     }
 
-    packaging {
-        resources {
-            excludes +=
-                listOf(
-                    "META-INF/LICENSE.md",
-                    "META-INF/LICENSE-notice.md",
-                )
-        }
+tasks.withType<AbstractArchiveTask> {
+    exclude("META-INF/LICENSE.md")
+    exclude("META-INF/LICENSE-notice.md")
+}
     }
 
     tasks.withType<AbstractArchiveTask> {

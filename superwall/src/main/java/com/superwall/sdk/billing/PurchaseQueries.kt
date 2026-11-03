@@ -208,6 +208,8 @@ internal class PurchaseQueries(
      */
     suspend fun activePurchases(): Result<List<Purchase>> {
         (connection.availability.value as? BillingAvailability.Unavailable)?.let { return Result.failure(it.error) }
+        // Queries fail straight away while the client is still connecting, so wait for it first.
+        awaitConnection().onFailure { return Result.failure(it) }
         return coroutineScope {
             val apps = async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.INAPP).getOrThrow() } }
             val subs = async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() } }

@@ -21,7 +21,6 @@ import com.superwall.sdk.models.customer.toSet
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.product.Store
-import com.superwall.sdk.storage.LatestDeviceCustomerInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
@@ -39,15 +38,13 @@ import com.superwall.sdk.billing.Store as BillingStore
 private const val BILLING_UNAVAILABLE_ERROR = "Google Play Billing is not available on this device."
 
 /**
- * Reads the entitlements of the last device CustomerInfo built from Play receipts, which keep
- * their expiry dates across launches. Empty when there is none or the read fails.
+ * Reads the entitlements of the last device CustomerInfo built from Play receipts, with Play's
+ * hold dates standing in for the expiry Play doesn't give (see [deviceRecordsForEmptyRead]).
+ * Empty when there is none or the read fails.
  */
 internal fun readDeviceEntitlementRecords(storage: Storage): Set<Entitlement> =
     try {
-        storage
-            .read(LatestDeviceCustomerInfo)
-            ?.entitlements
-            ?.toSet() ?: emptySet()
+        deviceRecordsForEmptyRead(storage)
     } catch (e: Throwable) {
         // Without the dates we can only fall back to demoting, which is
         // what this read would have done anyway.

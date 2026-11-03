@@ -1,6 +1,7 @@
 package com.superwall.sdk.storage
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.core.util.AtomicFile
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -43,6 +44,15 @@ class Cache(
     // missing from memCache is known to be absent, so we never read the stale file.
     private val clearedDirectories: MutableSet<SearchPathDirectory> = ConcurrentHashMap.newKeySet()
 
+    // Held while memory is updated and the matching disk work is queued, so a write, delete or
+    // clear lands in memory in the same order its disk work runs. Disk I/O never runs under it.
+    private val lock = Any()
+
+    // Runs between a disk read and storing its value in memory. Lets tests clear the user scope
+    // in that window.
+    @VisibleForTesting
+    internal var afterDiskRead: () -> Unit = {}
+
     fun <T> read(storable: Storable<T>): T? {
         when (val entry = memCache[storable.key]) {
             is Entry.Tombstone -> return null
@@ -56,11 +66,17 @@ class Cache(
         if (storable.directory in clearedDirectories) return null
 
         val data = readFromDisk(storable) ?: return null
-        // Don't clobber a value written (or deleted) while we were reading.
-        val existing = memCache.putIfAbsent(storable.key, Entry.Value(data, storable.directory))
-        if (existing != null) {
-            @Suppress("UNCHECKED_CAST")
-            return (existing as? Entry.Value)?.data as? T
+        afterDiskRead()
+        synchronized(lock) {
+            // The directory may have been cleared while we were reading the file: the value we
+            // read belongs to the previous user, so don't bring it back.
+            if (storable.directory in clearedDirectories) return null
+            // Don't clobber a value written (or deleted) while we were reading.
+            val existing = memCache.putIfAbsent(storable.key, Entry.Value(data, storable.directory))
+            if (existing != null) {
+                @Suppress("UNCHECKED_CAST")
+                return (existing as? Entry.Value)?.data as? T
+            }
         }
         return data
     }
@@ -87,51 +103,59 @@ class Cache(
         storable: Storable<T>,
         data: T,
     ) {
-        memCache[storable.key] = Entry.Value(data, storable.directory)
+        synchronized(lock) {
+            memCache[storable.key] = Entry.Value(data, storable.directory)
+            launch { writeToDisk(storable, data) }
+        }
+    }
 
-        launch {
-            val file = AtomicFile(storable.file(context = context))
-            val bytes =
-                try {
-                    json.encodeToString(storable.serializer, data).toByteArray(Charsets.UTF_8)
-                } catch (e: Throwable) {
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        LogScope.cache,
-                        message = "Unable to encode key: ${storable.key}",
-                        error = e,
-                    )
-                    return@launch
-                }
-            var stream: java.io.FileOutputStream? = null
+    private fun <T : Any> writeToDisk(
+        storable: Storable<T>,
+        data: T,
+    ) {
+        val file = AtomicFile(storable.file(context = context))
+        val bytes =
             try {
-                stream = file.startWrite()
-                stream.write(bytes)
-                file.finishWrite(stream)
+                json.encodeToString(storable.serializer, data).toByteArray(Charsets.UTF_8)
             } catch (e: Throwable) {
-                stream?.let { file.failWrite(it) }
                 Logger.debug(
                     logLevel = LogLevel.error,
                     LogScope.cache,
-                    message = "Unable to write key: ${storable.key}",
+                    message = "Unable to encode key: ${storable.key}",
                     error = e,
                 )
+                return
             }
+        var stream: java.io.FileOutputStream? = null
+        try {
+            stream = file.startWrite()
+            stream.write(bytes)
+            file.finishWrite(stream)
+        } catch (e: Throwable) {
+            stream?.let { file.failWrite(it) }
+            Logger.debug(
+                logLevel = LogLevel.error,
+                LogScope.cache,
+                message = "Unable to write key: ${storable.key}",
+                error = e,
+            )
         }
     }
 
     fun <T : Any> delete(storable: Storable<T>) {
-        memCache[storable.key] = Entry.Tombstone
-        launch {
-            withErrorTracking {
-                AtomicFile(storable.file(context = context)).delete()
-            }.onError { error ->
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    LogScope.cache,
-                    message = "Unable to delete key: ${storable.key}",
-                    error = error,
-                )
+        synchronized(lock) {
+            memCache[storable.key] = Entry.Tombstone
+            launch {
+                withErrorTracking {
+                    AtomicFile(storable.file(context = context)).delete()
+                }.onError { error ->
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        LogScope.cache,
+                        message = "Unable to delete key: ${storable.key}",
+                        error = error,
+                    )
+                }
             }
         }
     }
@@ -150,23 +174,25 @@ class Cache(
      */
     fun clearUserScope() {
         val directory = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
-        clearedDirectories.add(directory)
-        memCache.entries.forEach { (key, entry) ->
-            if (entry is Entry.Value && entry.directory == directory) {
-                memCache.replace(key, entry, Entry.Tombstone)
+        synchronized(lock) {
+            clearedDirectories.add(directory)
+            memCache.entries.forEach { (key, entry) ->
+                if (entry is Entry.Value && entry.directory == directory) {
+                    memCache.replace(key, entry, Entry.Tombstone)
+                }
             }
-        }
 
-        launch {
-            withErrorTracking {
-                directory.fileDirectory(context).listFiles()?.forEach { it.delete() }
-            }.onError { error ->
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    LogScope.cache,
-                    message = "Unable to clear user-specific storage",
-                    error = error,
-                )
+            launch {
+                withErrorTracking {
+                    directory.fileDirectory(context).listFiles()?.forEach { it.delete() }
+                }.onError { error ->
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        LogScope.cache,
+                        message = "Unable to clear user-specific storage",
+                        error = error,
+                    )
+                }
             }
         }
     }
