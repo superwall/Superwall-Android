@@ -148,6 +148,22 @@ class ReceiptManagerSubscriptionStateTest {
         }
 
     @Test
+    fun `cancellation during the product lookup is not swallowed`() =
+        runTest {
+            Given("Play returns a purchase and the product lookup is cancelled") {
+                val purchase = purchasedSubscription(purchaseTime = System.currentTimeMillis())
+                coEvery { billing.queryAllPurchasesResult() } returns Result.success(listOf(purchase))
+                coEvery { billing.awaitGetProducts(any()) } throws kotlinx.coroutines.CancellationException("cancelled")
+
+                Then("the cancellation propagates instead of a computed state") {
+                    org.junit.Assert.assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+                        kotlinx.coroutines.runBlocking { manager().lastSubscriptionProperties() }
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `a renewed purchase is SUBSCRIBED even when its product can't be loaded`() =
         runTest {
             Given("Play returns a subscription first bought 3 months ago, and product lookup fails") {

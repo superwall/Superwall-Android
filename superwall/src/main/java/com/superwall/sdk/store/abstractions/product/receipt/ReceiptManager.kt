@@ -22,6 +22,7 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredTransactionHistory
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
@@ -470,7 +471,14 @@ class ReceiptManager internal constructor(
 
         // The state comes from the purchase alone; the product lookup is best-effort so a
         // lookup failure can't turn a paying subscriber into UNKNOWN.
-        val product = runCatching { store.products(purchase.productIds.toSet()).found.firstOrNull() }.getOrNull()
+        val product =
+            try {
+                store.products(purchase.productIds.toSet()).found.firstOrNull()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                null
+            }
         return subscriptionStatus.subscriptionState(purchase, product)
     }
 
