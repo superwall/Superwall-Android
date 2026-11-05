@@ -84,7 +84,11 @@ class Cache(
     private fun <T> readFromDisk(storable: Storable<T>): T? {
         var jsonString = ""
         return try {
-            jsonString = AtomicFile(storable.file(context)).readFully().toString(Charsets.UTF_8)
+            // Read the base file directly, not through AtomicFile.openRead(): that deletes a `.new`
+            // file whenever the base exists, which would discard a write the ioQueue is still
+            // making to this key. The base only ever changes by an atomic rename, so it always
+            // holds the last committed value.
+            jsonString = storable.file(context).readBytes().toString(Charsets.UTF_8)
             json.decodeFromString(storable.serializer, jsonString)
         } catch (e: FileNotFoundException) {
             null

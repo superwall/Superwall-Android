@@ -102,6 +102,31 @@ class CacheTest {
     }
 
     @Test
+    fun `a disk read does not discard a write in progress to the same key`() {
+        val storable =
+            object : Storable<TestData> {
+                override val key = "read_during_write"
+                override val directory = SearchPathDirectory.CACHE
+                override val serializer = serializer<TestData>()
+            }
+        cache.write(storable, TestData("old", 1))
+
+        // The ioQueue is halfway through writing a new value: it is in `.new`, not committed yet.
+        val file = AtomicFile(storable.file(context))
+        val stream = file.startWrite()
+        stream.write(json.encodeToString(storable.serializer, TestData("new", 2)).toByteArray())
+
+        // Another thread misses memory and reads the file meanwhile.
+        val reader = Cache(context, ioQueue = testDispatcher, json = json)
+        assertEquals(TestData("old", 1), reader.read(storable))
+
+        // The write still commits.
+        file.finishWrite(stream)
+        val afterRestart = Cache(context, ioQueue = testDispatcher, json = json)
+        assertEquals(TestData("new", 2), afterRestart.read(storable))
+    }
+
+    @Test
     fun `delete removes data from memory and disk`() {
         val storable =
             object : Storable<TestData> {
