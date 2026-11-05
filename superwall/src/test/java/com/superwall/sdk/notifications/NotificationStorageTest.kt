@@ -1,15 +1,14 @@
 package com.superwall.sdk.notifications
 
 import android.content.Context
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.PrivateSuperwallEvents
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.options.EventTrackingBehavior
-import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
-import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
+import com.superwall.sdk.dependencies.attachMockGraph
 import com.superwall.sdk.logger.LogQueue
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.config.Config
@@ -21,8 +20,6 @@ import com.superwall.sdk.storage.StoredNotificationTokenLastSent
 import com.superwall.sdk.storage.StoredNotificationTokenState
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -54,7 +51,7 @@ class NotificationStorageTest {
         context = RuntimeEnvironment.getApplication()
     }
 
-    private fun localStorage() =
+    private fun localStorage(track: suspend (Trackable) -> Unit = {}) =
         LocalStorage(
             context = context,
             json = json,
@@ -63,12 +60,15 @@ class NotificationStorageTest {
             ioScope = IOScope(UnconfinedTestDispatcher()),
             cache = Cache(context, ioQueue = UnconfinedTestDispatcher(), json = json),
             coreDataManager = mockk(relaxed = true),
+            track = track,
         )
 
     @Test
     fun `reset keeps the token and the opt-out, and the token still goes out disabled`() =
         runTest {
-            val storage = localStorage()
+            // Reset tracks first_seen on a background thread, so wait until it has.
+            val trackedFirstSeen = CountDownLatch(1)
+            val storage = localStorage(track = { trackedFirstSeen.countDown() })
             val tracked = mutableListOf<Trackable>()
             var identity = Identity(aliasId = "\$SuperwallAlias:alias-1", appUserId = null)
             val manager =
@@ -93,21 +93,8 @@ class NotificationStorageTest {
             runCurrent()
             val lastSent = storage.read(StoredNotificationTokenLastSent)
 
-            // Reset tracks first_seen through Superwall.instance on a background thread, so
-            // it's stubbed until that has happened.
-            val trackedFirstSeen = CountDownLatch(1)
-            val superwall = mockk<Superwall>(relaxed = true)
-            mockkObject(Superwall.Companion)
-            every { Superwall.instance } answers {
-                trackedFirstSeen.countDown()
-                superwall
-            }
-            try {
-                storage.reset()
-                assertTrue(trackedFirstSeen.await(5, TimeUnit.SECONDS))
-            } finally {
-                unmockkObject(Superwall.Companion)
-            }
+            storage.reset()
+            assertTrue(trackedFirstSeen.await(5, TimeUnit.SECONDS))
 
             assertEquals(
                 NotificationTokenState(TOKEN, false, NotificationPermissionStatus.AUTHORIZED),
@@ -147,14 +134,8 @@ class NotificationStorageTest {
                     logs += "$message $info $error"
                 }
             }
-        val container = mockk<DependencyContainer>()
+        val container = attachMockGraph()
         every { container.delegateAdapter } returns adapter
-        val superwall = mockk<Superwall>()
-        every { superwall.dependencyContainer } returns container
-        every { superwall.options } returns SuperwallOptions()
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns superwall
-        Superwall.initialized = true
         LogQueue.synchronous = true
 
         try {
@@ -169,8 +150,7 @@ class NotificationStorageTest {
         } finally {
             StoredNotificationTokenState.file(context).delete()
             LogQueue.synchronous = false
-            Superwall.initialized = false
-            unmockkObject(Superwall.Companion)
+            SuperwallGraph.detach(container)
             SuperwallDelegateAdapter()
         }
     }

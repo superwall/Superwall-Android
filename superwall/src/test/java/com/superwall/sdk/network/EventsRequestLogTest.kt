@@ -1,11 +1,11 @@
 package com.superwall.sdk.network
 
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.PrivateSuperwallEvents
-import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
+import com.superwall.sdk.dependencies.attachMockGraph
 import com.superwall.sdk.logger.LogQueue
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.events.EventData
@@ -13,8 +13,6 @@ import com.superwall.sdk.models.events.EventsRequest
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -36,6 +34,7 @@ class EventsRequestLogTest {
     )
 
     private val logs = mutableListOf<Log>()
+    private lateinit var container: DependencyContainer
     private val collectorService = mockk<CollectorService>()
 
     private val network =
@@ -64,20 +63,13 @@ class EventsRequestLogTest {
                     logs += Log(message, info, error)
                 }
             }
-        val container = mockk<DependencyContainer>()
+        container = attachMockGraph()
         every { container.delegateAdapter } returns adapter
-        val superwall = mockk<Superwall>()
-        every { superwall.dependencyContainer } returns container
-        every { superwall.options } returns SuperwallOptions()
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns superwall
-        Superwall.initialized = true
     }
 
     @After
     fun tearDown() {
-        Superwall.initialized = false
-        unmockkObject(Superwall.Companion)
+        SuperwallGraph.detach(container)
         LogQueue.synchronous = false
         SuperwallDelegateAdapter()
     }
