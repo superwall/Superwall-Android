@@ -3,8 +3,6 @@ package com.superwall.sdk.paywall.view.webview
 import android.app.Activity
 import android.os.Looper
 import android.view.View
-import com.superwall.sdk.config.options.PaywallOptions
-import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,7 +17,7 @@ class SWWebViewMediaLifecycleTest {
     fun `media follows host pause visibility and cached reattachment`() {
         val controller = Robolectric.buildActivity(Activity::class.java).setup()
         val activity = controller.get()
-        val webView = SWWebView(activity, mockk(relaxed = true), options = { PaywallOptions() })
+        val webView = testSWWebView(activity)
         try {
             // A preload must remain paused even if its host resumes.
             webView.onResume()

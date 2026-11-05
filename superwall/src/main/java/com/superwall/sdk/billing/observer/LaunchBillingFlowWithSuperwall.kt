@@ -4,6 +4,7 @@ import android.app.Activity
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -40,10 +41,13 @@ fun BillingClient.launchBillingFlowWithSuperwall(
     activity: Activity,
     params: SuperwallBillingFlowParams,
 ): BillingResult {
-    if (Superwall.initialized.not()) {
-        throw IllegalStateException("Superwall SDK is not initialized")
-    }
-    if (Superwall.instance.options.shouldObservePurchases
+    // A static entry point the app calls itself, so it reaches the configured SDK through the graph.
+    val container =
+        SuperwallGraph.container
+            ?: throw IllegalStateException("Superwall SDK is not initialized")
+    if (container
+            .makeSuperwallOptions()
+            .shouldObservePurchases
             .not()
     ) {
         Logger.debug(
@@ -63,7 +67,7 @@ fun BillingClient.launchBillingFlowWithSuperwall(
 
     params.productDetailsParams.forEach {
         val product = RawStoreProduct.from(it.details)
-        Superwall.instance.observe(
+        container.observerModeHandler.observe(
             PurchasingObserverState.PurchaseWillBegin(product.underlyingProductDetails),
         )
     }

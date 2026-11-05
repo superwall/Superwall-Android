@@ -4,6 +4,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -149,6 +150,14 @@ class TransactionManagerTest {
                     transactionCompleteTrialFlags.add(didStartFreeTrial)
                     transactionCompleteProductIds.add(id)
                 },
+                currentCustomerInfo = { CustomerInfo.empty() },
+                notifyBackendOfReceipts = {},
+                notifyOfTransactionAbandon = {},
+                testMode = null,
+                testModeTransactionHandler = null,
+                setSubscriptionStatus = null,
+                activeDeviceEntitlements = { emptySet() },
+                openRestoreOnWeb = {},
             )
     }
 

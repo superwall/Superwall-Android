@@ -27,6 +27,7 @@ class SuperscriptEvaluatorTest {
             ioScope = IOScope(),
             storage = storage,
             factory = factory,
+            trackError = {},
         )
 
     private fun sharedAttributes(): PassableValue.MapValue =

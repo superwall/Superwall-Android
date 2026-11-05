@@ -14,7 +14,6 @@ import com.android.billingclient.api.PurchasesResponseListener
 import com.android.billingclient.api.QueryPurchasesParams
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.config.models.ConfigurationStatus
@@ -23,9 +22,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.slot
-import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,29 +30,12 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AutomaticPurchaseControllerTest {
-    @Before
-    fun setUp() {
-        // Lets a sync run to completion without a configured SDK
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns
-            mockk(relaxed = true) {
-                every { configurationStateListener } returns MutableStateFlow(ConfigurationStatus.Configured)
-            }
-    }
-
-    @After
-    fun tearDown() {
-        unmockkObject(Superwall.Companion)
-    }
-
     private val entitlements =
         mockk<Entitlements>(relaxed = true) {
             every { status } returns MutableStateFlow(SubscriptionStatus.Unknown)
@@ -69,6 +49,12 @@ class AutomaticPurchaseControllerTest {
             entitlementsInfo = { entitlements },
             deviceEntitlementRecords = { emptySet() },
             getBilling = { _, _ -> getBilling() },
+            passIdentifiersToPlayStore = { false },
+            userId = { "user" },
+            externalAccountId = { "external" },
+            // Lets a sync run to completion without a configured SDK
+            configurationState = { MutableStateFlow(ConfigurationStatus.Configured) },
+            setSubscriptionStatus = {},
         )
 
     private fun billingResult(code: Int): BillingResult =

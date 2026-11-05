@@ -1,5 +1,7 @@
 package com.superwall.sdk.analytics.internal
 
+import com.superwall.sdk.analytics.DeviceClassifier
+import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import android.app.Application
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.Purchase
@@ -80,6 +82,10 @@ class TrackingLogicTest {
 
                                 override fun storefrontCountryCode(): String? = null
                             },
+                        classifier = DeviceClassifier(DefaultClassifierDataFactory { ctx }),
+                        tcfAdConsent = { null },
+                        ipCollector = null,
+                        subscriptionStatus = { null },
                     ),
                 ) {
                     every { appVersion } returns "123"

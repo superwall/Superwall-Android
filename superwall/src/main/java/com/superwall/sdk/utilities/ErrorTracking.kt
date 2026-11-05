@@ -1,9 +1,10 @@
 package com.superwall.sdk.utilities
 
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.billing.BillingError
+import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.network.NetworkError
@@ -47,11 +48,7 @@ internal interface ErrorTracking {
 internal class ErrorTracker(
     scope: CoroutineScope,
     private val cache: LocalStorage,
-    private val track: suspend (InternalSuperwallEvent.ErrorThrown) -> Unit = {
-        Superwall.instance.track(
-            it,
-        )
-    },
+    private val track: suspend (InternalSuperwallEvent.ErrorThrown) -> Unit,
 ) : ErrorTracking {
     init {
         val exists = cache.read(ErrorLog)
@@ -119,9 +116,11 @@ internal fun Throwable.isFatal() =
 
 // Utility methods and closures for error tracking
 
-internal fun Superwall.trackError(e: Throwable) {
+internal fun Superwall.trackError(e: Throwable) = dependencyContainer.trackError(e)
+
+internal fun DependencyContainer.trackError(e: Throwable) {
     try {
-        dependencyContainer.errorTracker.trackError(e)
+        errorTracker.trackError(e)
     } catch (_e: Exception) {
         Logger.debug(
             com.superwall.sdk.logger.LogLevel.error,
@@ -136,9 +135,7 @@ internal inline fun <T> withErrorTracking(block: () -> T): Either<T, Throwable> 
         Either.Success(block())
     } catch (e: Throwable) {
         if (e.shouldLog()) {
-            if (Superwall.initialized) {
-                Superwall.instance.trackError(e)
-            }
+            SuperwallGraph.container?.trackError(e)
         }
         Either.Failure(e)
     }

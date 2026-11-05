@@ -25,20 +25,18 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import androidx.core.graphics.createBitmap
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
-import com.superwall.sdk.game.dispatchKeyEvent
-import com.superwall.sdk.game.dispatchMotionEvent
+import com.superwall.sdk.game.GameControllerManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.asEither
+import com.superwall.sdk.misc.runOnUiThread
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -66,21 +64,23 @@ interface SendPaywallMessages {
     fun handle(message: PaywallMessage)
 }
 
-class SWWebView(
+class SWWebView internal constructor(
     context: Context,
     override val messageHandler: PaywallMessageHandler,
     private val onFinishedLoading: ((url: String) -> Unit)? = null,
     private val options: () -> PaywallOptions,
-    private val track: suspend (TrackableSuperwallEvent) -> Unit = { Superwall.instance.track(it) },
+    private val track: suspend (TrackableSuperwallEvent) -> Unit,
+    private val currentActivity: () -> Activity?,
+    private val localResources: () -> Map<String, PaywallResource>,
+    private val deviceLocale: () -> String?,
+    private val gameControllerEnabled: () -> Boolean,
 ) : WebView(context),
     PaywallWebUI {
     override var delegate: PaywallUIDelegate? = null
     private val mainScope = MainScope()
     private val ioScope = IOScope()
     val activity: Activity?
-        get() =
-            Superwall.instance.dependencyContainer.activityProvider
-                ?.getCurrentActivity()
+        get() = currentActivity()
     private val gestureDetector: GestureDetector by lazy {
         GestureDetector(
             context,
@@ -90,7 +90,7 @@ class SWWebView(
     override var onScrollChangeListener: PaywallWebUI.OnScrollChangeListener? = null
 
     private val localResourceHandler by lazy {
-        LocalResourceHandler(context) { Superwall.instance.localResources }
+        LocalResourceHandler(context, localResources)
     }
 
     override fun detach(fromView: ViewGroup) {
@@ -237,11 +237,7 @@ class SWWebView(
     // runtime just falls back to waiting for `template_variables` as before.
     private fun currentDeviceLocale(): String? =
         delegate?.state?.locale
-            ?: if (Superwall.initialized) {
-                Superwall.instance.dependencyContainer.deviceHelper.locale
-            } else {
-                null
-            }
+            ?: deviceLocale()
 
     private val onPageStartedPreloadHook: (WebView) -> Unit = { view ->
         updateMediaPlayback()
@@ -328,25 +324,41 @@ class SWWebView(
     // Chromium's own InputConnection is required for the keyboard to commit text
     // (Cyrillic, Korean, emoji, etc.) into paywall inputs.
     override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection? =
-        if (Superwall.initialized && Superwall.instance.options.isGameControllerEnabled) {
+        if (isGameControllerEnabled()) {
             BaseInputConnection(this, false)
         } else {
             super.onCreateInputConnection(outAttrs)
         }
 
+    private fun isGameControllerEnabled(): Boolean = gameControllerEnabled()
+
+    /** A fresh web view with the same message handler and inputs, used after the renderer crashes. */
+    internal fun recreate(): SWWebView =
+        SWWebView(
+            context = context,
+            messageHandler = messageHandler,
+            onFinishedLoading = onFinishedLoading,
+            options = options,
+            track = track,
+            currentActivity = currentActivity,
+            localResources = localResources,
+            deviceLocale = deviceLocale,
+            gameControllerEnabled = gameControllerEnabled,
+        )
+
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
-        if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
+        if (event == null || !isGameControllerEnabled()) {
             return super.dispatchKeyEvent(event)
         }
-        Superwall.instance.dispatchKeyEvent(event)
+        runOnUiThread { GameControllerManager.shared.dispatchKeyEvent(event) }
         return true
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent?): Boolean {
-        if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
+        if (event == null || !isGameControllerEnabled()) {
             return super.dispatchGenericMotionEvent(event)
         }
-        Superwall.instance.dispatchMotionEvent(event)
+        runOnUiThread { GameControllerManager.shared.dispatchMotionEvent(event) }
         return true
     }
 

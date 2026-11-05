@@ -2,6 +2,7 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
+import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
@@ -31,6 +32,7 @@ import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.take
 
@@ -68,6 +70,10 @@ open class ConfigManager(
     override val scope: CoroutineScope get() = ioScope
 
     internal val configState: StateFlow<ConfigState> get() = actor.state
+
+    /** [configState] as the public [ConfigurationStatus]: configured, failed or still pending. */
+    internal val configurationStatus: Flow<ConfigurationStatus>
+        get() = configState.map { it.toConfigurationStatus() }
 
     val config: Config?
         get() {
@@ -179,3 +185,11 @@ open class ConfigManager(
         actor.update(ConfigState.Updates.Set(state))
     }
 }
+
+/** Maps the internal config state to the public [ConfigurationStatus]. */
+internal fun ConfigState.toConfigurationStatus(): ConfigurationStatus =
+    when (this) {
+        is ConfigState.Retrieved -> ConfigurationStatus.Configured
+        is ConfigState.Failed -> ConfigurationStatus.Failed
+        else -> ConfigurationStatus.Pending
+    }

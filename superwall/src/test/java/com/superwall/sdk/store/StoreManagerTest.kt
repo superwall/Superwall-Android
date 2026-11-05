@@ -1,5 +1,6 @@
 package com.superwall.sdk.store
 
+import com.superwall.sdk.store.testmode.noTestModeModal
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -591,7 +592,7 @@ class StoreManagerTest {
         }
 
     private fun makeActiveTestMode(): TestMode {
-        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false)
+        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false, showModal = noTestModeModal)
         testMode.evaluateTestMode(
             config = mockk(relaxed = true),
             bundleId = "com.app",

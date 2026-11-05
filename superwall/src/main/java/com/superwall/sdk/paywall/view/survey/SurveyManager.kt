@@ -13,10 +13,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.superwall.sdk.R
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingLogic
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.config.models.SurveyShowCondition
@@ -38,7 +37,7 @@ import kotlinx.coroutines.launch
 object SurveyManager {
     private var otherAlertDialog: AlertDialog? = null
 
-    fun presentSurveyIfAvailable(
+    internal fun presentSurveyIfAvailable(
         surveys: List<Survey>,
         paywallResult: PaywallResult,
         paywallCloseReason: PaywallCloseReason,
@@ -49,6 +48,7 @@ object SurveyManager {
         paywallInfo: PaywallInfo,
         storage: LocalStorage,
         factory: TriggerFactory,
+        track: suspend (TrackableSuperwallEvent) -> Unit,
         completion: (SurveyPresentationResult) -> Unit,
     ) {
         val activity =
@@ -135,6 +135,7 @@ object SurveyManager {
                         paywallInfo = paywallInfo,
                         factory = factory,
                         paywallView = paywallView,
+                        track = track,
                         completion = completion,
                     )
                 }
@@ -211,6 +212,7 @@ object SurveyManager {
                                 paywallInfo = paywallInfo,
                                 factory = factory,
                                 paywallView = paywallView,
+                                track = track,
                                 completion = completion,
                             )
                             otherDialog.dismiss()
@@ -222,7 +224,7 @@ object SurveyManager {
                 } else if (selectedItem == "Close") {
                     CoroutineScope(Dispatchers.IO).launch {
                         val event = InternalSuperwallEvent.SurveyClose()
-                        Superwall.instance.track(event)
+                        track(event)
                     }
                     dialog.dismiss()
                     completion(SurveyPresentationResult.SHOW)
@@ -257,6 +259,7 @@ object SurveyManager {
         paywallInfo: PaywallInfo,
         factory: TriggerFactory,
         paywallView: PaywallView,
+        track: suspend (TrackableSuperwallEvent) -> Unit,
         completion: (SurveyPresentationResult) -> Unit,
     ) {
         if (isDebuggerLaunched) {
@@ -280,7 +283,7 @@ object SurveyManager {
                     paywallView,
                 )
 
-            Superwall.instance.track(event)
+            track(event)
 
             if (outcome == TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall) {
                 completion(SurveyPresentationResult.SHOW)

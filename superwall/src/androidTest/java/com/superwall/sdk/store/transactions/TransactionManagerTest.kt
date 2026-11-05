@@ -9,6 +9,7 @@ import androidx.lifecycle.testing.TestLifecycleOwner
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
@@ -140,7 +141,7 @@ class TransactionManagerTest {
         mockk<ActivityProvider> {
             every { getCurrentActivity() } returns mockk()
         }
-    private val storeManager = spyk(StoreManager(purchaseController, billing, receiptManagerFactory = { mockk(relaxed = true) }))
+    private val storeManager = spyk(StoreManager(purchaseController, billing, receiptManagerFactory = { mockk(relaxed = true) }, track = {}))
 
     private var eventsQueue = mockk<EventsQueue>(relaxUnitFun = true)
     private var transactionManagerFactory =
@@ -217,6 +218,15 @@ class TransactionManagerTest {
             allEntitlementsByProductId = { emptyMap() },
             showRestoreDialogForWeb = showRestoreDialogForWeb,
             refreshReceipt = {},
+            webEntitlements = { emptySet() },
+            currentCustomerInfo = { CustomerInfo.empty() },
+            notifyBackendOfReceipts = {},
+            notifyOfTransactionAbandon = {},
+            testMode = null,
+            testModeTransactionHandler = null,
+            setSubscriptionStatus = null,
+            activeDeviceEntitlements = { emptySet() },
+            openRestoreOnWeb = {},
         )
     }
 

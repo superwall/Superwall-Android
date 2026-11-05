@@ -38,7 +38,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.superwall.sdk.R
-import com.superwall.sdk.Superwall
+import com.superwall.sdk.dependencies.SuperwallGraph
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 
@@ -801,7 +801,7 @@ class CustomerCenterActivity : AppCompatActivity() {
 
         /** Where the activity finds its presentation. Replaceable so tests can host one. */
         internal var sessionHost: () -> CustomerCenterSessionHost? = {
-            if (Superwall.initialized) Superwall.instance.dependencyContainer.customerCenterManager else null
+            SuperwallGraph.container?.customerCenterManager
         }
     }
 }

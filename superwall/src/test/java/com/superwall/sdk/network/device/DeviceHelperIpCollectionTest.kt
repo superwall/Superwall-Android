@@ -3,7 +3,6 @@ package com.superwall.sdk.network.device
 import android.content.Context
 import android.provider.Settings
 import com.superwall.sdk.Given
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.analytics.DeviceClassifier
@@ -25,19 +24,14 @@ import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.TotalPaywallViews
-import com.superwall.sdk.store.Entitlements
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -59,7 +53,6 @@ class DeviceHelperIpCollectionTest {
     private val storage = mockk<LocalStorage>()
     private val factory = mockk<DeviceHelper.Factory>(relaxed = true)
     private val classifier = mockk<DeviceClassifier>()
-    private val superwall = mockk<Superwall>()
     private val options = SuperwallOptions()
     private var integrationAttributes: Map<AttributionProvider, String>? = null
 
@@ -86,13 +79,6 @@ class DeviceHelperIpCollectionTest {
         every { factory.experimentalProperties() } returns emptyMap()
         every { classifier.deviceTier() } returns Tier.MID
 
-        val entitlements = mockk<Entitlements>()
-        every { entitlements.active } returns emptySet()
-        every { superwall.entitlements } returns entitlements
-        every { superwall.subscriptionStatus } returns
-            MutableStateFlow<SubscriptionStatus>(SubscriptionStatus.Inactive)
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns superwall
 
         val scope = CoroutineScope(Dispatchers.Unconfined)
         collector = DeviceIpCollector(emptyList(), scope, actor = SequentialActor(DeviceIpState(), scope))
@@ -112,13 +98,10 @@ class DeviceHelperIpCollectionTest {
                 network = mockk<SuperwallAPI>(relaxed = true),
                 factory = factory,
                 classifier = classifier,
+                tcfAdConsent = { null },
                 ipCollector = collector,
+                subscriptionStatus = { SubscriptionStatus.Inactive },
             )
-    }
-
-    @After
-    fun tearDown() {
-        unmockkObject(Superwall.Companion)
     }
 
     private fun mmpConfig(enabled: Boolean) =

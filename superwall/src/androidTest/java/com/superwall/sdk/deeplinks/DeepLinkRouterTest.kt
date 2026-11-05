@@ -1,5 +1,7 @@
 package com.superwall.sdk.deeplinks
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import com.superwall.sdk.config.models.ConfigurationStatus
 import Given
 import Then
 import When
@@ -46,12 +48,12 @@ class DeepLinkRouterTest {
 
         router =
             DeepLinkRouter(
-                redeemer,
-                ioScope,
-                debugManager,
-            ) { event ->
-                trackedEvents.add(event)
-            }
+                redeemer = redeemer,
+                ioScope = ioScope,
+                debugManager = debugManager,
+                track = { event -> trackedEvents.add(event) },
+                configurationState = { MutableStateFlow(ConfigurationStatus.Configured) },
+            )
     }
 
     @Test

@@ -9,7 +9,7 @@ import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.*
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.config.ConfigState
+import com.superwall.sdk.config.toConfigurationStatus
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.AdConsent
 import com.superwall.sdk.config.options.AdConsentPublisher
@@ -24,6 +24,7 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -98,10 +99,7 @@ class Superwall(
     var localeIdentifier: String?
         get() = dependencyContainer.configManager.options.localeIdentifier
         set(value) {
-            dependencyContainer.configManager.options.localeIdentifier = value
-            ioScope.launch {
-                track(dependencyContainer.makeConfigAttributes())
-            }
+            dependencyContainer.setLocaleIdentifier(value)
         }
 
     /**
@@ -254,7 +252,11 @@ class Superwall(
      *
      * Paywall HTML usage: `<video src="swlocal://hero-video" autoplay></video>`
      */
-    var localResources: Map<String, PaywallResource> = emptyMap()
+    var localResources: Map<String, PaywallResource>
+        get() = dependencyContainer.localResources
+        set(value) {
+            dependencyContainer.localResources = value
+        }
 
     /**
      * Exposes customer info as a stateflow.
@@ -416,23 +418,12 @@ class Superwall(
      */
     val configurationState: ConfigurationStatus
         get() =
-            dependencyContainer.configManager.configState.value.let {
-                when (it) {
-                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
-                    is ConfigState.Failed -> ConfigurationStatus.Failed
-                    else -> ConfigurationStatus.Pending
-                }
-            }
+            dependencyContainer.configManager.configState.value
+                .toConfigurationStatus()
 
     val configurationStateListener: Flow<ConfigurationStatus>
         get() =
-            dependencyContainer.configManager.configState.map {
-                when (it) {
-                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
-                    is ConfigState.Failed -> ConfigurationStatus.Failed
-                    else -> ConfigurationStatus.Pending
-                }
-            }
+            dependencyContainer.configManager.configState.map { it.toConfigurationStatus() }
 
     companion object {
         /** A variable that is only `true` if ``instance`` is available for use.
@@ -584,6 +575,7 @@ class Superwall(
                 // Retain the activity provider for reuse in next configure call
                 retainedActivityProvider = _instance?.dependencyContainer?.activityProvider
                 _instance?.teardown()
+                SuperwallGraph.detach(_instance?.dependencyContainer)
                 _instance = null
                 initialized = false
                 _hasInitialized.update { false }
@@ -611,7 +603,9 @@ class Superwall(
                             options = _options,
                             activityProvider = activityProvider,
                             apiKey = apiKey,
+                            superwall = this,
                         )
+                    SuperwallGraph.attach(dependencyContainer)
                     dependencyContainer.storage.configure(apiKey = apiKey)
                 } catch (e: Exception) {
                     e.printStackTrace()
