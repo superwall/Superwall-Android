@@ -97,7 +97,7 @@ class GoogleBillingWrapper internal constructor(
     )
 
     // Kept for binary compatibility; the query constants now live in [PurchaseQueries].
-    companion object
+    companion object {}
 
     /** Forgets every product this wrapper fetched (and every miss), so the next request asks Play again. */
     internal fun clearProductsCache() {

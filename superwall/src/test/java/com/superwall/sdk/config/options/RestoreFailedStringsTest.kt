@@ -66,6 +66,28 @@ class RestoreFailedStringsTest {
     }
 
     @Test
+    @Config(qualifiers = "de")
+    fun `text set by the app is kept even when it matches the English default`() {
+        Given("an app that explicitly sets the English default texts") {
+            val options =
+                PaywallOptions.RestoreFailed {
+                    title = PaywallOptions.RestoreFailed.DEFAULT_TITLE
+                    closeButtonTitle = PaywallOptions.RestoreFailed.DEFAULT_CLOSE_BUTTON_TITLE
+                }
+
+            When("the alert is built on a German device") {
+                val alert = options.localized(context)
+
+                Then("the app's explicit texts are not translated") {
+                    assertEquals("No Subscription Found", alert.title)
+                    assertEquals("Okay", alert.closeButtonTitle)
+                    assertEquals("Wir konnten kein aktives Abonnement für Ihr Konto finden.", alert.message)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `every locale translates every paywall string`() {
         val resDir = listOf(File("src/main/res"), File("superwall/src/main/res")).first { it.isDirectory }
         fun keys(file: File) =

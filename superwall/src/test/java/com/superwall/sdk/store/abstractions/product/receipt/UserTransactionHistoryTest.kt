@@ -511,4 +511,49 @@ class UserTransactionHistoryTest {
             }
         }
     }
+
+    @Test
+    fun `mergeWith drops expiry dates inferred by older versions`() {
+        Given("a stored, no longer returned subscription with an inferred past expiry") {
+            val stored =
+                StoredEntitlementTransaction.from(
+                    createMockTransaction(
+                        transactionId = "txn_old",
+                        expirationDate = Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000L),
+                    ),
+                )
+            val history = UserTransactionHistory(transactions = mapOf("txn_old" to stored))
+
+            When("merging with a resubscription Play returns without an expiry") {
+                val updated =
+                    history.mergeWith(
+                        listOf(createMockTransaction(transactionId = "txn_new", expirationDate = null)),
+                    )
+
+                Then("the old transaction no longer carries an expiry") {
+                    assertNull(updated.transactions["txn_old"]!!.expirationDate)
+                    assertFalse(updated.transactions["txn_old"]!!.isActive)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `mergeWith drops a pending purchase that Play no longer returns`() {
+        Given("a stored pending purchase") {
+            val pending =
+                StoredEntitlementTransaction
+                    .from(createMockTransaction(transactionId = "txn_pending", isActive = false))
+                    .copy(isPending = true)
+            val history = UserTransactionHistory(transactions = mapOf("txn_pending" to pending))
+
+            When("Play stops returning it because the payment was cancelled") {
+                val updated = history.mergeWith(emptyList())
+
+                Then("it is removed from history") {
+                    assertFalse(updated.transactions.containsKey("txn_pending"))
+                }
+            }
+        }
+    }
 }

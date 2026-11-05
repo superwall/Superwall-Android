@@ -36,19 +36,40 @@ class PaywallOptions() {
          * The title of the alert presented to the user when restoring a transaction fails. Defaults to
          * a localized `No Subscription Found`.
          */
-        var title: String = DEFAULT_TITLE
+        var title: String
+            get() = customTitle ?: DEFAULT_TITLE
+            set(value) {
+                customTitle = value
+            }
 
         /**
          * Defines the message of the alert presented to the user when restoring a transaction fails.
          * Defaults to a localized `We couldn't find an active subscription for your account.`
          */
-        var message: String = DEFAULT_MESSAGE
+        var message: String
+            get() = customMessage ?: DEFAULT_MESSAGE
+            set(value) {
+                customMessage = value
+            }
 
         /**
          * Defines the title of the close button in the alert presented to the user when restoring a
          * transaction fails. Defaults to a localized `Okay`.
          */
-        var closeButtonTitle: String = DEFAULT_CLOSE_BUTTON_TITLE
+        var closeButtonTitle: String
+            get() = customCloseButtonTitle ?: DEFAULT_CLOSE_BUTTON_TITLE
+            set(value) {
+                customCloseButtonTitle = value
+            }
+
+        // Set only when the app assigns a value, so an explicit value equal to the
+        // English default is still shown as is instead of being localized.
+        internal var customTitle: String? = null
+            private set
+        internal var customMessage: String? = null
+            private set
+        internal var customCloseButtonTitle: String? = null
+            private set
 
         internal companion object {
             const val DEFAULT_TITLE = "No Subscription Found"
@@ -235,17 +256,12 @@ internal data class RestoreFailedAlert(
 )
 
 internal fun PaywallOptions.RestoreFailed.localized(context: Context): RestoreFailedAlert {
-    fun String.orLocalized(
-        default: String,
+    fun String?.orLocalized(
         @StringRes resource: Int,
-    ) = if (this == default) context.getString(resource) else this
+    ) = this ?: context.getString(resource)
     return RestoreFailedAlert(
-        title = title.orLocalized(PaywallOptions.RestoreFailed.DEFAULT_TITLE, R.string.superwall_restore_failed_title),
-        message = message.orLocalized(PaywallOptions.RestoreFailed.DEFAULT_MESSAGE, R.string.superwall_restore_failed_message),
-        closeButtonTitle =
-            closeButtonTitle.orLocalized(
-                PaywallOptions.RestoreFailed.DEFAULT_CLOSE_BUTTON_TITLE,
-                R.string.superwall_restore_failed_close,
-            ),
+        title = customTitle.orLocalized(R.string.superwall_restore_failed_title),
+        message = customMessage.orLocalized(R.string.superwall_restore_failed_message),
+        closeButtonTitle = customCloseButtonTitle.orLocalized(R.string.superwall_restore_failed_close),
     )
 }

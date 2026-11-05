@@ -2163,23 +2163,33 @@ class EntitlementProcessorTest {
     }
 
     @Test
-    fun `pending subscription is not reported as revoked`() {
-        Given("a pending subscription purchase") {
-            val processor = EntitlementProcessor()
+    fun `pending purchases are left out of published purchase history`() {
+        Given("a paid and a pending one-time purchase") {
+            val paid =
+                createMockTransaction(
+                    productId = "lifetime",
+                    transactionId = "paid",
+                    productType = EntitlementTransactionType.NON_CONSUMABLE,
+                )
             val pending =
                 createMockTransaction(
+                    productId = "lifetime_2",
+                    transactionId = "pending",
+                    productType = EntitlementTransactionType.NON_CONSUMABLE,
+                ).copy(isPending = true)
+            val pendingSub =
+                createMockTransaction(
+                    productId = "monthly",
+                    transactionId = "pending_sub",
                     productType = EntitlementTransactionType.AUTO_RENEWABLE,
-                    isActive = false,
-                    willRenew = true,
                 ).copy(isPending = true)
 
-            When("processing transactions") {
-                val subscription = processor.processTransactions(listOf(pending)).subscriptions.single()
+            When("the transactions are processed") {
+                val processed = processor.processTransactions(listOf(paid, pending, pendingSub))
 
-                Then("it is inactive but not revoked, and not in a grace period") {
-                    assertFalse(subscription.isActive)
-                    assertFalse(subscription.isRevoked)
-                    assertFalse(subscription.isInGracePeriod)
+                Then("only the paid purchase is published") {
+                    assertEquals(listOf("paid"), processed.nonSubscriptions.map { it.transactionId })
+                    assertTrue(processed.subscriptions.isEmpty())
                 }
             }
         }
