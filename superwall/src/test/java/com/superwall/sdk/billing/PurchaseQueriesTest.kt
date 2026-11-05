@@ -196,6 +196,41 @@ class PurchaseQueriesTest {
         }
 
     @Test
+    fun `an OK answer after the other type failed doesn't throw in Play's listener`() =
+        runTest {
+            Given("a product request") {
+                val fake = FakeClient()
+                val (queries) = queries(fake)
+                val job = backgroundScope.async { runCatching { queries.products(setOf(productId)) } }
+                runCurrent()
+                val (subs, inApp) = fake.productListeners.toList()
+
+                When("subscriptions fail and one-time products then answer OK") {
+                    subs.onProductDetailsResponse(
+                        result(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE),
+                        mockk(relaxed = true),
+                    )
+                    val thrown =
+                        runCatching {
+                            inApp.onProductDetailsResponse(
+                                result(BillingClient.BillingResponseCode.OK),
+                                mockk<QueryProductDetailsResult>(relaxed = true),
+                            )
+                        }.exceptionOrNull()
+                    runCurrent()
+
+                    Then("the OK callback returns normally") {
+                        assertEquals(null, thrown)
+                    }
+
+                    And("the request fails with the subscription error") {
+                        assertTrue(job.await().exceptionOrNull() is BillingError.WithCode)
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `queryType returns Play's purchases and fails when the client isn't ready`() =
         runTest {
             Given("connected queries") {

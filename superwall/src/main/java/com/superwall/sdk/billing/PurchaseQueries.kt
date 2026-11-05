@@ -100,9 +100,12 @@ internal class PurchaseQueries(
         val byType = listOf(ProductType.SUBS, ProductType.INAPP).associateWith { CompletableDeferred<List<StoreProduct>>() }
 
         // Runs after each type answers. Both may see the other complete and run it twice; storing
-        // is idempotent and the second complete() is a no-op.
+        // is idempotent and the second complete() is a no-op. It runs inside Play's listener, so
+        // it must never throw: once a type failed, the request has already failed and a later
+        // answer from the other type is dropped.
         fun finishWhenAllAnswered() {
-            if (byType.values.any { !it.isCompleted }) return
+            if (result.isCompleted) return
+            if (byType.values.any { !it.isCompleted || it.getCompletionExceptionOrNull() != null }) return
             val products = byType.values.flatMap { it.getCompleted() }.toSet()
             productDetails.store(fullProductIds, products)
             result.complete(products)
