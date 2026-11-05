@@ -28,7 +28,6 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.Internal
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -72,10 +71,6 @@ internal class PaywallEventHandler(
             ) != null
         },
 ) : PaywallViewEventCallback {
-    /** The purchase in progress. A second purchase is ignored while it runs. */
-    internal var purchaseTask: Job? = null
-        private set
-
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
         paywallView: PaywallView,
@@ -98,29 +93,23 @@ internal class PaywallEventHandler(
                 }
 
                 is PaywallWebEvent.InitiatePurchase -> {
-                    if (purchaseTask != null) {
-                        // If a purchase is already in progress, do not start another
-                        return@launchWithTracking
-                    }
-                    paywallView.updateState(
-                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase),
-                    )
-                    purchaseTask =
-                        launch {
-                            try {
-                                transactionManager.purchase(
-                                    Internal(
-                                        paywallEvent.productId,
-                                        paywallView.controller.state,
-                                        replacementMode = paywallEvent.replacementMode,
-                                    ),
-                                    shouldDismiss = paywallEvent.shouldDismiss,
+                    // The transaction manager turns this purchase away while another paywall
+                    // purchase runs; the loading state is shown only when it starts.
+                    launch {
+                        transactionManager.purchase(
+                            Internal(
+                                paywallEvent.productId,
+                                paywallView.controller.state,
+                                replacementMode = paywallEvent.replacementMode,
+                            ),
+                            shouldDismiss = paywallEvent.shouldDismiss,
+                            onAdmitted = {
+                                paywallView.updateState(
+                                    PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase),
                                 )
-                            } finally {
-                                // Ensure the task is cleared once the purchase is complete or if an error occurs
-                                purchaseTask = null
-                            }
-                        }
+                            },
+                        )
+                    }
                 }
 
                 is PaywallWebEvent.InitiateRestore -> {

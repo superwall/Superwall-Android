@@ -56,7 +56,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.Date
-import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManagerTest {
     @MockK(relaxed = true)
@@ -128,36 +127,38 @@ class TransactionManagerTest {
 
         transactionManager =
             TransactionManager(
-                storeManager = storeManager,
-                purchaseController = purchaseController,
-                eventsQueue = eventsQueue,
-                storage = storage,
-                activityProvider = activityProvider,
-                factory = factory,
-                ioScope = ioScope,
-                track = { trackedEvents.add(it) },
-                dismiss = { id, result -> dismissCalls.add(id to result) },
-                showAlert = { alertCalls.add(it) },
-                subscriptionStatus = { subscriptionStatusValue },
-                entitlementsById = { entitlementsMap[it] ?: emptySet() },
-                allEntitlementsByProductId = { entitlementsMap },
-                webEntitlements = { webEntitlementsValue },
-                showRestoreDialogForWeb = { showRestoreDialogCalled = true },
-                refreshReceipt = { refreshReceiptCalled = true },
-                updateState = { key, update -> stateUpdates.add(key to update) },
-                notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
-                    transactionCompleteCalls.add(cacheKey to trialEndDate)
-                    transactionCompleteTrialFlags.add(didStartFreeTrial)
-                    transactionCompleteProductIds.add(id)
-                },
-                currentCustomerInfo = { CustomerInfo.empty() },
-                notifyBackendOfReceipts = {},
-                notifyOfTransactionAbandon = {},
-                testMode = null,
-                testModeTransactionHandler = null,
-                setSubscriptionStatus = null,
-                activeDeviceEntitlements = { emptySet() },
-                openRestoreOnWeb = {},
+                TransactionDependencies(
+                    storeManager = storeManager,
+                    purchaseController = purchaseController,
+                    eventsQueue = eventsQueue,
+                    storage = storage,
+                    activityProvider = activityProvider,
+                    factory = factory,
+                    ioScope = ioScope,
+                    track = { trackedEvents.add(it) },
+                    dismiss = { id, result -> dismissCalls.add(id to result) },
+                    showAlert = { alertCalls.add(it) },
+                    subscriptionStatus = { subscriptionStatusValue },
+                    entitlementsById = { entitlementsMap[it] ?: emptySet() },
+                    allEntitlementsByProductId = { entitlementsMap },
+                    webEntitlements = { webEntitlementsValue },
+                    showRestoreDialogForWeb = { showRestoreDialogCalled = true },
+                    refreshReceipt = { refreshReceiptCalled = true },
+                    updateState = { key, update -> stateUpdates.add(key to update) },
+                    notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
+                        transactionCompleteCalls.add(cacheKey to trialEndDate)
+                        transactionCompleteTrialFlags.add(didStartFreeTrial)
+                        transactionCompleteProductIds.add(id)
+                    },
+                    currentCustomerInfo = { CustomerInfo.empty() },
+                    notifyBackendOfReceipts = {},
+                    notifyOfTransactionAbandon = {},
+                    testMode = null,
+                    testModeTransactionHandler = null,
+                    setSubscriptionStatus = null,
+                    activeDeviceEntitlements = { emptySet() },
+                    openRestoreOnWeb = {},
+                ),
             )
     }
 
@@ -936,19 +937,9 @@ class TransactionManagerTest {
     private fun addTransactionInProgress(
         productId: String,
         productDetails: ProductDetails,
-    ) {
-        val field = TransactionManager::class.java.getDeclaredField("transactionsInProgress")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val map = field.get(transactionManager) as ConcurrentHashMap<String, ProductDetails>
-        map[productId] = productDetails
-    }
+    ) = transactionManager.observerModeTracker.begin(ObservedPurchase(productId, productDetails))
 
-    private fun hasTransactionInProgress(productId: String): Boolean {
-        val field = TransactionManager::class.java.getDeclaredField("transactionsInProgress")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val map = field.get(transactionManager) as ConcurrentHashMap<String, ProductDetails>
-        return map.containsKey(productId)
-    }
+    private fun hasTransactionInProgress(productId: String): Boolean =
+        transactionManager.observerModeTracker.state.value.observed
+            .any { it.productId == productId }
 }

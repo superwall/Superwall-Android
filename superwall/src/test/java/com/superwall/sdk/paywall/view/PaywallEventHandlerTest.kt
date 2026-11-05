@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.view
 import android.app.Activity
 import android.net.Uri
 import com.google.android.play.core.review.ReviewInfo
+import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -20,6 +21,7 @@ import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.review.ReviewManager
 import com.superwall.sdk.storage.ReviewCount
@@ -30,6 +32,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -93,52 +96,43 @@ class PaywallEventHandlerTest {
         )
 
     @Test
-    fun `second purchase tap is ignored while the first purchase runs`() =
+    fun `purchase shows the loading state only once the transaction manager admits it`() =
         runTest(dispatcher) {
-            Given("a purchase that has not finished") {
-                val gate = CompletableDeferred<PurchaseResult>()
-                coEvery { transactionManager.purchase(any(), any()) } coAnswers { gate.await() }
-                val handler = handler()
-                val event = PaywallWebEvent.InitiatePurchase("product", shouldDismiss = true)
-
-                When("the paywall sends InitiatePurchase twice") {
-                    handler.eventDidOccur(event, paywallView)
-                    advanceUntilIdle()
-                    handler.eventDidOccur(event, paywallView)
-                    advanceUntilIdle()
-
-                    Then("only one purchase starts") {
-                        coVerify(exactly = 1) { transactionManager.purchase(any(), true) }
-                    }
+            Given("a transaction manager that admits the purchase") {
+                val admitted = slot<() -> Unit>()
+                coEvery { transactionManager.purchase(any(), any(), capture(admitted)) } coAnswers {
+                    PurchaseResult.Cancelled()
                 }
-
-                When("the first purchase completes and the user taps again") {
-                    gate.complete(PurchaseResult.Cancelled())
-                    advanceUntilIdle()
-                    assertNull(handler.purchaseTask)
-                    handler.eventDidOccur(event, paywallView)
-                    advanceUntilIdle()
-
-                    Then("a new purchase starts") {
-                        coVerify(exactly = 2) { transactionManager.purchase(any(), true) }
-                    }
-                }
-            }
-        }
-
-    @Test
-    fun `purchase failure clears the in-flight purchase`() =
-        runTest(dispatcher) {
-            Given("a purchase that throws") {
-                coEvery { transactionManager.purchase(any(), any()) } throws IllegalStateException("boom")
                 val handler = handler()
 
                 When("the paywall sends InitiatePurchase") {
-                    handler.eventDidOccur(PaywallWebEvent.InitiatePurchase("p", false), paywallView)
+                    handler.eventDidOccur(PaywallWebEvent.InitiatePurchase("product", shouldDismiss = true), paywallView)
                     advanceUntilIdle()
 
-                    Then("the next tap can start a purchase") {
-                        assertNull(handler.purchaseTask)
+                    Then("it purchases the product from the paywall and shows no loading state yet") {
+                        coVerify(exactly = 1) {
+                            transactionManager.purchase(
+                                match { it is TransactionManager.PurchaseSource.Internal && it.productId == "product" },
+                                true,
+                                any(),
+                            )
+                        }
+                        verify(exactly = 0) { paywallView.updateState(any()) }
+                    }
+
+                    And("the transaction manager admits it") {
+                        admitted.captured()
+
+                        Then("the paywall shows it is purchasing") {
+                            verify(exactly = 1) {
+                                paywallView.updateState(
+                                    match {
+                                        it is PaywallViewState.Updates.SetLoadingState &&
+                                            it.newState == PaywallLoadingState.LoadingPurchase
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
