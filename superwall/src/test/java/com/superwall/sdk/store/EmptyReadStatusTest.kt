@@ -490,4 +490,97 @@ class EmptyReadStatusTest {
             }
         }
     }
+
+    private class MapStorage : com.superwall.sdk.storage.Storage {
+        val values = mutableMapOf<String, Any>()
+
+        @Suppress("UNCHECKED_CAST")
+        override fun <T> read(storable: com.superwall.sdk.storage.Storable<T>): T? = values[storable.key] as T?
+
+        override fun <T : Any> write(
+            storable: com.superwall.sdk.storage.Storable<T>,
+            data: T,
+        ) {
+            values[storable.key] = data
+        }
+
+        override fun clean() = values.clear()
+    }
+
+    private fun storedDeviceRecords(
+        record: Entitlement,
+        holdUntil: Date?,
+    ): Set<Entitlement> {
+        val storage = MapStorage()
+        storage.write(
+            com.superwall.sdk.storage.LatestDeviceCustomerInfo,
+            com.superwall.sdk.models.customer.CustomerInfo(
+                subscriptions = emptyList(),
+                nonSubscriptions = emptyList(),
+                userId = "",
+                entitlements = listOf(record),
+            ),
+        )
+        holdUntil?.let { storage.write(com.superwall.sdk.storage.PlayEntitlementHoldDates, mapOf(record.id to it.time)) }
+        return deviceRecordsForEmptyRead(storage)
+    }
+
+    @Test
+    fun `a failed read keeps a Play subscriber active through their hold date`() {
+        Given("a Play subscriber whose device record has no expiry (Play gives none) but a hold date of tomorrow") {
+            val records = storedDeviceRecords(entitlement("pro", expiresAt = null), holdUntil = tomorrow)
+            val current = SubscriptionStatus.Active(setOf(entitlement("pro", store = null, expiresAt = null, productIds = emptySet())))
+
+            When("both purchase queries fail") {
+                val result =
+                    resolveStatusForEmptyRead(
+                        currentStatus = current,
+                        deviceRecords = records,
+                        activeProductIds = emptySet(),
+                        readReturnedPurchases = false,
+                        readFailed = true,
+                        now = now,
+                    )
+
+                Then("they stay active") {
+                    assertEquals(setOf("pro"), activeIds(result))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a Play subscriber whose hold date has passed is demoted by a failed read`() {
+        Given("a Play subscriber whose hold date was yesterday") {
+            val records = storedDeviceRecords(entitlement("pro", expiresAt = null), holdUntil = yesterday)
+            val current = SubscriptionStatus.Active(setOf(entitlement("pro", store = null, expiresAt = null, productIds = emptySet())))
+
+            When("both purchase queries fail") {
+                val result =
+                    resolveStatusForEmptyRead(
+                        currentStatus = current,
+                        deviceRecords = records,
+                        activeProductIds = emptySet(),
+                        readReturnedPurchases = false,
+                        readFailed = true,
+                        now = now,
+                    )
+
+                Then("they are demoted") {
+                    assertEquals(SubscriptionStatus.Inactive, result)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `the hold date never replaces a real expiry date`() {
+        Given("a device record that has its own expiry date") {
+            val records = storedDeviceRecords(entitlement("pro", expiresAt = yesterday), holdUntil = tomorrow)
+
+            Then("the record keeps its own date") {
+                assertEquals(yesterday, records.single().expiresAt)
+            }
+        }
+    }
 }

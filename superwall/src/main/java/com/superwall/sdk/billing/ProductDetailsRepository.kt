@@ -7,20 +7,40 @@ import java.util.concurrent.ConcurrentHashMap
  * The products one [GoogleBillingWrapper] has fetched from Google Play, keyed by full product id.
  *
  * It belongs to that wrapper instance, so a second configure (or a test) starts with an empty
- * cache instead of seeing another instance's products. A product Play didn't return is cached
- * as missing, so asking for it again fails fast without another query.
+ * cache instead of seeing another instance's products. A product Play didn't return is
+ * remembered as missing for [MISSING_PRODUCT_TTL_MS]: until then it is left out of requests
+ * instead of being queried again, and after that it is asked for again, so a product that goes
+ * live is picked up. A missing product never fails a request for other products.
  */
-internal class ProductDetailsRepository {
+// How long a product id that Play didn't return is skipped before we ask for it again.
+// Short enough that a product going live is picked up quickly, long enough that a
+// paywall referencing a stale id doesn't re-query it on every load.
+internal const val MISSING_PRODUCT_TTL_MS = 5L * 60L * 1000L
+
+internal class ProductDetailsRepository(
+    private val now: () -> Long = System::currentTimeMillis,
+) {
     private val cache = ConcurrentHashMap<String, CachedProduct>()
+
+    /** The cached entry for [id], forgetting a missing one that is due to be asked for again. */
+    private fun entry(id: String): CachedProduct? {
+        val cached = cache[id]
+        if (cached is CachedProduct.NotFound && now() - cached.missedAt >= MISSING_PRODUCT_TTL_MS) {
+            cache.remove(id, cached)
+            return null
+        }
+        return cached
+    }
 
     /** What a request for [fullProductIds] can be answered with from the cache. */
     fun lookup(fullProductIds: Set<String>): ProductLookup {
         val found = mutableSetOf<StoreProduct>()
         val missing = mutableSetOf<String>()
         for (id in fullProductIds) {
-            when (val cached = cache[id]) {
+            when (val cached = entry(id)) {
                 is CachedProduct.Found -> found += cached.product
-                is CachedProduct.NotFound -> return ProductLookup.KnownMissing(cached.error)
+                // Skipped, not failed, so a missing id never breaks the other ids' load.
+                is CachedProduct.NotFound -> Unit
                 null -> missing += id
             }
         }
@@ -31,9 +51,9 @@ internal class ProductDetailsRepository {
         }
     }
 
-    /** The ids among [fullProductIds] that Play was already asked for and didn't return. */
+    /** The ids among [fullProductIds] that Play recently didn't return. */
     fun knownMissing(fullProductIds: Set<String>): Set<String> =
-        fullProductIds.filterTo(mutableSetOf()) { cache[it] is CachedProduct.NotFound }
+        fullProductIds.filterTo(mutableSetOf()) { entry(it) is CachedProduct.NotFound }
 
     /**
      * Caches the result of a query for [requestedIds]: each of [products] as found, and every
@@ -45,10 +65,8 @@ internal class ProductDetailsRepository {
     ) {
         val foundIds = products.map { it.fullIdentifier }.toSet()
         products.forEach { cache[it.fullIdentifier] = CachedProduct.Found(it) }
-        (requestedIds - foundIds).forEach { id ->
-            cache[id] =
-                CachedProduct.NotFound(Exception("Failed to query product details for $id"))
-        }
+        val missedAt = now()
+        (requestedIds - foundIds).forEach { id -> cache[id] = CachedProduct.NotFound(missedAt) }
     }
 
     fun clear() {
@@ -62,8 +80,9 @@ internal sealed interface CachedProduct {
         val product: StoreProduct,
     ) : CachedProduct
 
+    /** Play didn't return the id when asked at [missedAt]. */
     data class NotFound(
-        val error: Throwable,
+        val missedAt: Long,
     ) : CachedProduct
 }
 
@@ -78,10 +97,5 @@ internal sealed interface ProductLookup {
     data class Partial(
         val cached: Set<StoreProduct>,
         val missingIds: Set<String>,
-    ) : ProductLookup
-
-    /** An id was already queried and Play didn't return it. */
-    data class KnownMissing(
-        val error: Throwable,
     ) : ProductLookup
 }

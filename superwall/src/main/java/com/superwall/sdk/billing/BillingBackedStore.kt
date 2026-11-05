@@ -40,7 +40,7 @@ internal class BillingBackedStore(
         options: PurchaseOptions,
     ): StorePurchaseResult = StorePurchaseResult.Failed(UnsupportedOperationException("This Billing can't launch purchases"))
 
-    override suspend fun activePurchases(): Result<List<StorePurchase>> = runCatching { ownedPurchases() }
+    override suspend fun activePurchases(): Result<List<StorePurchase>> = billing.queryAllPurchasesResult().map(purchases::record)
 
     override suspend fun ownedPurchases(): List<StorePurchase> = purchases.record(billing.queryAllPurchases())
 

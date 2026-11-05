@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Abonelik Bulunamadı</string>
+    <string name="superwall_restore_failed_message">Hesabınız için etkin bir abonelik bulamadık.</string>
+    <string name="superwall_restore_failed_close">Tamam</string>
+    <string name="superwall_paywall_unavailable">Gösterilecek ödeme ekranı yok</string>
+</resources>

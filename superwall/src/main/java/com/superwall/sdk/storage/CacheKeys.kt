@@ -452,6 +452,22 @@ internal object StoredTestModeSettings : Storable<TestModeSettings> {
         get() = TestModeSettings.serializer()
 }
 
+/**
+ * For each Play entitlement Play last reported as active: the latest time it can still be
+ * active without Play saying so again (when Play last confirmed it, plus one subscription period).
+ *
+ * Play gives the client no expiry date, so this only bounds how long a subscriber stays active
+ * through a failed read. It is never shown as the entitlement's expiry.
+ */
+internal object PlayEntitlementHoldDates : Storable<Map<String, Long>> {
+    override val key: String
+        get() = "store.playEntitlementHoldDates"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Map<String, Long>>
+        get() = MapSerializer(String.serializer(), Long.serializer())
+}
+
 internal object LastWebEntitlementsFetchDate : Storable<Long> {
     override val key: String
         get() = "store.lastWebEntitlementsFetchDate"

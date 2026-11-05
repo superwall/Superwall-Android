@@ -61,6 +61,9 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 mavenPublishing {
@@ -118,6 +121,11 @@ dependencies {
     implementation(project(":superwall"))
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.mockk.core)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.ui.test.junit4)
+    debugImplementation(libs.ui.test.manifest)
     androidTestImplementation(libs.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
 }

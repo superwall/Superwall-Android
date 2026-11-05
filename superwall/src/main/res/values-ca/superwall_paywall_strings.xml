@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">No s\'ha trobat cap subscripció</string>
+    <string name="superwall_restore_failed_message">No hem trobat cap subscripció activa per al vostre compte.</string>
+    <string name="superwall_restore_failed_close">D\'acord</string>
+    <string name="superwall_paywall_unavailable">No hi ha cap pantalla de pagament per mostrar</string>
+</resources>
