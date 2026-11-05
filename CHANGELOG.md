@@ -12,8 +12,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fixes observer-mode purchases going untracked when `SuperwallOptions.shouldObservePurchases` is on and only one purchase is in progress. A completed purchase now tracks `transaction_complete` and refreshes the receipt, and a cancelled one tracks `transaction_abandon`; before, both were dropped with an error log. Observer-mode charts can show more transactions after this release.
-- Fixes the Play purchase listener crashing when a pending or restored result arrived while purchases were being observed. Those results are now ignored by the observer, as they are when nothing is observed.
-- Fixes a cancelled paywall purchase that was cancelled while it was still starting blocking every later paywall purchase with "A purchase is already in progress."
+- Fixes observer-mode tracking stopping for the rest of the session when `SuperwallOptions.shouldObservePurchases` is on and Play reported a cancelled or failed purchase while no purchase was being observed. The purchase listener crashed on it; such results are now ignored.
 
 ## Deprecations
 - Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
