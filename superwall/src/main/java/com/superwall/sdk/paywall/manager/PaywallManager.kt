@@ -38,13 +38,16 @@ class PaywallManager(
             return _cache!!
         }
 
+    /** Narrow view of the cache for Activities and debug UI. */
+    internal val viewRegistry: PaywallViewRegistry by lazy { cache.asRegistry() }
+
     private fun createCache(): PaywallViewCache {
         val cache: PaywallViewCache = factory.makeCache()
         _cache = cache
         return cache
     }
 
-    fun removePaywallView(identifier: PaywallIdentifier) {
+    suspend fun removePaywallView(identifier: PaywallIdentifier) {
         cache.removePaywallView(identifier)
     }
 
@@ -90,6 +93,9 @@ class PaywallManager(
                             // isForPresentation because getPresentationResult() (a pure query API)
                             // also fetches through here — a result check while this paywall is
                             // on screen mid-purchase must not wipe its live spinner or prepare flags.
+                            // A getPaywall() for a paywall that is currently on screen also lands
+                            // here: it takes the view over (prepareToDisplay() detaches it from
+                            // its current parent), so it is a new presentation like any other.
                             if (isForPresentation) {
                                 view.resetTransientPresentationState()
                             }

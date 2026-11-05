@@ -1,9 +1,7 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -49,11 +47,8 @@ internal suspend fun StateFlow<ConfigState>.configOrThrow(retriesLeft: Int = 1) 
 internal suspend fun waitForEntitlementsAndConfig(
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
-    dependencyContainer: DependencyContainer? = null,
+    dependencyContainer: DependencyContainer,
 ) {
-    @Suppress("NAME_SHADOWING")
-    val dependencyContainer = dependencyContainer ?: Superwall.instance.dependencyContainer
-
     val configState = dependencyContainer.configManager.configState
 
     // In-flight states get one retry (1s initial window, then 5s fallback).
@@ -192,4 +187,10 @@ internal suspend fun waitForEntitlementsAndConfig(
                     "Proceeding with current identity state.",
         )
     }
+
+    val trigger =
+        request.presentationInfo.eventName?.let {
+            dependencyContainer.configManager.triggersByEventName[it]
+        }
+    dependencyContainer.mmpAttributionManager.waitForPendingMatch(trigger)
 }

@@ -65,6 +65,14 @@ class JsonElementToPassableValueTest {
     }
 
     @Test
+    fun `test JsonNull conversion to PassableValue`() {
+        // JsonNull is a JsonPrimitive, so without an explicit branch it falls past
+        // every primitive check and comes out as the string "null". An audience
+        // filter asking `field == null` would then never match.
+        assertTrue(JsonNull.toPassableValue() is PassableValue.NullValue)
+    }
+
+    @Test
     fun `test JsonObject conversion to PassableValue`() {
         val jsonObject =
             buildJsonObject {
@@ -94,8 +102,7 @@ class JsonElementToPassableValueTest {
         assertTrue(resultMap["boolean"] is PassableValue.BoolValue)
         assertEquals(true, (resultMap["boolean"] as PassableValue.BoolValue).value)
 
-        assertTrue(resultMap["null"] is PassableValue.StringValue)
-        assertEquals("null", (resultMap["null"] as PassableValue.StringValue).value)
+        assertTrue(resultMap["null"] is PassableValue.NullValue)
     }
 
     @Test
@@ -128,8 +135,7 @@ class JsonElementToPassableValueTest {
         assertTrue(resultList[3] is PassableValue.BoolValue)
         assertEquals(true, (resultList[3] as PassableValue.BoolValue).value)
 
-        assertTrue(resultList[4] is PassableValue.StringValue)
-        assertEquals("null", (resultList[4] as PassableValue.StringValue).value)
+        assertTrue(resultList[4] is PassableValue.NullValue)
     }
 
     @Test

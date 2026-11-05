@@ -1,7 +1,5 @@
 package com.superwall.sdk.store
 
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.billing.BillingError
@@ -29,13 +27,13 @@ import kotlinx.coroutines.awaitAll
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 
-class StoreManager(
+// StoreKit is deprecated for SDK consumers; StoreManager keeps implementing it until it is removed.
+@Suppress("DEPRECATION")
+class StoreManager internal constructor(
     val purchaseController: InternalPurchaseController,
     val billing: Billing,
     receiptManagerFactory: () -> ReceiptManager,
-    private val track: suspend (InternalSuperwallEvent) -> Unit = {
-        Superwall.instance.track(it)
-    },
+    private val track: suspend (InternalSuperwallEvent) -> Unit,
     private val getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError> = {
         Either.Success(SuperwallProductsResponse(emptyList()))
     },
@@ -67,6 +65,13 @@ class StoreManager(
         val fullProductIdsToLoad: Set<String>,
         val substituteProductsById: Map<String, StoreProduct>,
         val productItems: List<ProductItem>,
+    )
+
+    private class FetchedProducts(
+        val products: Map<String, StoreProduct>,
+        // Set when Play Billing can't be used on this device. [products] then holds
+        // whatever resolved without it.
+        val billingUnavailable: BillingError.BillingNotAvailable? = null,
     )
 
     override suspend fun getProductVariables(
@@ -115,10 +120,9 @@ class StoreManager(
         // Try Play Billing first so Play-only lookups never pay for a /products round-trip.
         val billingError =
             try {
-                for ((id, product) in fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)) {
-                    productsById[id] = product
-                }
-                null
+                val fetched = fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)
+                productsById.putAll(fetched.products)
+                fetched.billingUnavailable
             } catch (e: Throwable) {
                 e
             }
@@ -208,9 +212,26 @@ class StoreManager(
         val productsById = processingResult.substituteProductsById.toMutableMap()
 
         try {
-            val fetchResult = fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)
-            for ((id, product) in fetchResult) {
-                productsById[id] = product
+            val fetched = fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)
+            productsById.putAll(fetched.products)
+
+            // Without Play Billing a paywall can still present whatever resolved elsewhere
+            // (test, custom and substitute products). Only fail when there's nothing to
+            // show, and never in test mode.
+            fetched.billingUnavailable?.let { error ->
+                if (productsById.isEmpty() && testMode?.isTestMode != true) throw error
+                val unresolved = processingResult.fullProductIdsToLoad - productsById.keys
+                if (unresolved.isNotEmpty()) {
+                    // Mark the load as failed so a cached paywall reloads its products on the
+                    // next request, picking them up once billing is available again.
+                    paywall.productsLoadingInfo.failAt = Date()
+                    Logger.debug(
+                        LogLevel.warn,
+                        LogScope.productsManager,
+                        "Google Play Billing is not available, presenting the paywall without " +
+                            "products: ${unresolved.joinToString()}",
+                    )
+                }
             }
         } catch (error: Throwable) {
             paywall.productsLoadingInfo.failAt = Date()
@@ -223,8 +244,8 @@ class StoreManager(
                 )
             track(productLoadEvent)
 
-            // If billing isn't available, make it call the onError handler when requesting
-            // a paywall.
+            // If billing isn't available and nothing resolved, make it call the onError
+            // handler when requesting a paywall.
             if (error is BillingError.BillingNotAvailable) {
                 throw error
             }
@@ -237,7 +258,7 @@ class StoreManager(
         )
     }
 
-    private suspend fun fetchOrAwaitProducts(fullProductIds: Set<String>): Map<String, StoreProduct> {
+    private suspend fun fetchOrAwaitProducts(fullProductIds: Set<String>): FetchedProducts {
         val activeTestMode = testMode?.takeIf { it.isTestMode }
         activeTestMode?.awaitTestProducts()
         val testProducts = activeTestMode?.testProductsByFullId.orEmpty()
@@ -248,7 +269,7 @@ class StoreManager(
                 fullProductIds.mapNotNull { id -> testProducts[id]?.let { id to it } }.toMap()
             }
         val remainingIds = fullProductIds - testHits.keys
-        if (remainingIds.isEmpty()) return testHits
+        if (remainingIds.isEmpty()) return FetchedProducts(testHits)
 
         val cached = mutableMapOf<String, StoreProduct>()
         val loading = mutableListOf<CompletableDeferred<StoreProduct>>()
@@ -293,8 +314,8 @@ class StoreManager(
                     productsByFullId[id] = ProductState.Error(e)
                     deferred.completeExceptionally(e)
                 }
-                if (activeTestMode != null && e is BillingError.BillingNotAvailable) {
-                    return testHits + cached
+                if (e is BillingError.BillingNotAvailable) {
+                    return FetchedProducts(testHits + cached, billingUnavailable = e)
                 }
                 throw e
             }
@@ -302,15 +323,11 @@ class StoreManager(
         val fetched =
             try {
                 fetchNewProducts(newDeferreds)
-            } catch (e: Throwable) {
-                if (activeTestMode != null && e is BillingError.BillingNotAvailable) {
-                    emptyMap()
-                } else {
-                    throw e
-                }
+            } catch (e: BillingError.BillingNotAvailable) {
+                return FetchedProducts(testHits + cached + awaited, billingUnavailable = e)
             }
 
-        return testHits + cached + awaited + fetched
+        return FetchedProducts(testHits + cached + awaited + fetched)
     }
 
     private suspend fun fetchNewProducts(deferreds: Map<String, CompletableDeferred<StoreProduct>>): Map<String, StoreProduct> {
@@ -419,7 +436,7 @@ class StoreManager(
     override fun refreshReceipt() {
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
+            scope = LogScope.billing,
             message = "Refreshing Google Play receipt.",
         )
         receiptManager.refreshReceipt()
@@ -428,7 +445,7 @@ class StoreManager(
     override suspend fun loadPurchasedProducts(serverEntitlementsByProductId: Map<String, Set<Entitlement>>) {
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
+            scope = LogScope.billing,
             message = "Loading purchased products from the Google Play receipt.",
         )
         receiptManager.loadPurchasedProducts(serverEntitlementsByProductId)

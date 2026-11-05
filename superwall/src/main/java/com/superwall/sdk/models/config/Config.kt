@@ -30,10 +30,15 @@ data class Config(
     @SerialName("bundle_id_config") val bundleIdConfig: String? = null,
     @SerialName("test_mode_user_ids") val testModeUserIds: List<TestStoreUser>? = null,
     @SerialName("prioritized_campaign_id") val prioritizedCampaignId: String? = null,
+    @SerialName("attribution_options") val attributionOptions: AttributionOptions? = null,
 ) : SerializableEntity {
     init {
         locales = localizationConfig.locales.map { it.locale }.toSet()
     }
+
+    /** Whether the backend has turned on Superwall's install attribution (MMP) for this app. */
+    val isMmpEnabled: Boolean
+        get() = attributionOptions?.mmp?.enabled == true
 
     val allComputedProperties: List<ComputedPropertyRequest>
         get() =

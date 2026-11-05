@@ -13,6 +13,7 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import io.mockk.Runs
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -70,14 +71,15 @@ class PaywallManagerTest {
     }
 
     @Test
-    fun test_removePaywallView_callsCacheRemove() {
-        val identifier: PaywallIdentifier = "test_paywall"
-        every { cache.removePaywallView(any()) } just Runs
+    fun test_removePaywallView_callsCacheRemove() =
+        runTest {
+            val identifier: PaywallIdentifier = "test_paywall"
+            coEvery { cache.removePaywallView(any()) } just Runs
 
-        paywallManager.removePaywallView(identifier)
+            paywallManager.removePaywallView(identifier)
 
-        verify { cache.removePaywallView(identifier) }
-    }
+            coVerify { cache.removePaywallView(identifier) }
+        }
 
     @Test
     fun test_resetCache_destroysWebviewsAndClearsCache() =
@@ -89,13 +91,13 @@ class PaywallManagerTest {
             every { mockView2.destroyWebview() } just Runs
             every { cache.getAllPaywallViews() } returns listOf(mockView1, mockView2)
             every { cache.activePaywallVcKey } returns null
-            every { cache.removeAll() } just Runs
+            coEvery { cache.removeAll() } just Runs
 
             paywallManager.resetCache()
 
             verify { mockView1.destroyWebview() }
             verify { mockView2.destroyWebview() }
-            verify { cache.removeAll() }
+            coVerify { cache.removeAll() }
         }
 
     @Test
@@ -119,13 +121,13 @@ class PaywallManagerTest {
             coEvery { paywallRequestManager.getPaywall(any(), any()) } returns Either.Success(paywall)
             every { cache.getPaywallView(any()) } returns null
             coEvery { factory.makePaywallView(any(), any(), any()) } returns mockView
-            every { cache.save(any(), any()) } just Runs
+            coEvery { cache.save(any(), any()) } just Runs
 
             val result = paywallManager.getPaywallView(request, true, false, null)
 
             assertTrue(result is Either.Success)
             assertEquals(mockView, (result as Either.Success).value)
-            verify { cache.save(mockView, "test_paywall") }
+            coVerify { cache.save(mockView, "test_paywall") }
         }
 
     @Test
@@ -260,7 +262,7 @@ class PaywallManagerTest {
 
             coEvery { paywallRequestManager.getPaywall(any(), any()) } returns Either.Success(paywall)
             coEvery { factory.makePaywallView(any(), any(), any()) } returns mockView
-            every { cache.save(any(), any()) } just Runs
+            coEvery { cache.save(any(), any()) } just Runs
 
             val result = paywallManager.getPaywallView(request, true, false, null)
 
@@ -288,7 +290,7 @@ class PaywallManagerTest {
             coEvery { paywallRequestManager.getPaywall(any(), any()) } returns Either.Success(paywall)
             every { cache.getPaywallView(any()) } returns null
             coEvery { factory.makePaywallView(any(), any(), any()) } returns mockView
-            every { cache.save(any(), any()) } just Runs
+            coEvery { cache.save(any(), any()) } just Runs
 
             paywallManager.getPaywallView(request, isForPresentation = true, isPreloading = false, null)
 
@@ -314,7 +316,7 @@ class PaywallManagerTest {
             coEvery { paywallRequestManager.getPaywall(any(), any()) } returns Either.Success(paywall)
             every { cache.getPaywallView(any()) } returns null
             coEvery { factory.makePaywallView(any(), any(), any()) } returns mockView
-            every { cache.save(any(), any()) } just Runs
+            coEvery { cache.save(any(), any()) } just Runs
 
             paywallManager.getPaywallView(request, isForPresentation = false, isPreloading = false, null)
 

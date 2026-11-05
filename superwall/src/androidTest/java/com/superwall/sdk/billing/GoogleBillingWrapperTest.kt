@@ -25,14 +25,13 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.coroutines.CoroutineContext
@@ -87,16 +86,6 @@ class GoogleBillingWrapperTest {
                 mockBillingClient
             },
         )
-    }
-
-    @Before
-    fun setup() {
-        GoogleBillingWrapper.clearProductsCache()
-    }
-
-    @After
-    fun tearDown() {
-        GoogleBillingWrapper.clearProductsCache()
     }
 
     // ========================================================================
@@ -229,8 +218,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
@@ -257,8 +247,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED),
@@ -387,11 +378,11 @@ class GoogleBillingWrapperTest {
         }
 
     // ========================================================================
-    // Region: Products cache — transient errors are not cached
+    // Region: Billing unavailable — later requests fail fast
     // ========================================================================
 
     @Test
-    fun test_billing_not_available_is_cached() =
+    fun test_billing_not_available_fails_later_requests_fast() =
         runTest {
             Given("a wrapper where billing is unavailable") {
                 val wrapper = createWrapper(clientReady = false)
@@ -402,8 +393,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
@@ -416,11 +408,11 @@ class GoogleBillingWrapperTest {
                         outcome1.exceptionOrNull() is BillingError.BillingNotAvailable,
                     )
 
-                    Then("a second call should fail immediately from cache without hitting billing") {
+                    Then("a second call should fail immediately without reconnecting") {
                         val outcome2 = runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         assertTrue("Second call should also fail", outcome2.isFailure)
                         assertTrue(
-                            "Should be BillingNotAvailable from cache",
+                            "Should be BillingNotAvailable",
                             outcome2.exceptionOrNull() is BillingError.BillingNotAvailable,
                         )
                     }
@@ -429,7 +421,7 @@ class GoogleBillingWrapperTest {
         }
 
     @Test
-    fun test_multiple_products_cached_on_billing_not_available() =
+    fun test_billing_not_available_fails_later_requests_for_any_product() =
         runTest {
             Given("multiple products that fail due to billing unavailable") {
                 val wrapper = createWrapper(clientReady = false)
@@ -442,8 +434,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(ids) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
@@ -451,11 +444,11 @@ class GoogleBillingWrapperTest {
 
                     assertTrue(result1.await().isFailure)
 
-                    Then("retrying any single product should fail from cache immediately") {
+                    Then("retrying any single product should fail immediately") {
                         val outcome = runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         assertTrue(outcome.isFailure)
                         assertTrue(
-                            "Should be a cached BillingNotAvailable error",
+                            "Should be BillingNotAvailable",
                             outcome.exceptionOrNull() is BillingError.BillingNotAvailable,
                         )
                     }
@@ -475,8 +468,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    // Advance so the async block runs and adds its request to the queue
-                    advanceUntilIdle()
+                    // runCurrent, not advanceUntilIdle: idling would run the product query timeout
+                    // before the setup result below is delivered.
+                    runCurrent()
 
                     // SERVICE_UNAVAILABLE retries connection but does NOT drain requests
                     capturedStateListener?.onBillingSetupFinished(
@@ -495,11 +489,11 @@ class GoogleBillingWrapperTest {
                         outcome1.exceptionOrNull() is BillingError.BillingNotAvailable,
                     )
 
-                    Then("product is cached as BillingNotAvailable, second call fails from cache") {
+                    Then("billing is known to be unavailable, so a second call fails immediately") {
                         val outcome2 = runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         assertTrue("Second call should also fail", outcome2.isFailure)
                         assertTrue(
-                            "Should be BillingNotAvailable from cache",
+                            "Should be BillingNotAvailable",
                             outcome2.exceptionOrNull() is BillingError.BillingNotAvailable,
                         )
                     }
@@ -529,7 +523,7 @@ class GoogleBillingWrapperTest {
                         every { fullIdentifier } returns "p1:base:sw-auto"
                     }
                 // Use awaitGetProducts internal caching by simulating a previously cached product
-                GoogleBillingWrapper.clearProductsCache()
+                wrapper.clearProductsCache()
 
                 When("the cache has a product") {
                     // We can't easily mock the full product query flow through BillingClient v8,
@@ -777,7 +771,7 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
-                    advanceUntilIdle()
+                    runCurrent()
 
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(
@@ -811,7 +805,7 @@ class GoogleBillingWrapperTest {
                         runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                     }
 
-                advanceUntilIdle()
+                runCurrent()
 
                 When("SERVICE_UNAVAILABLE occurs (requests stay in queue)") {
                     capturedStateListener?.onBillingSetupFinished(

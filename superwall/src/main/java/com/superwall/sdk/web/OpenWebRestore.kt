@@ -7,11 +7,23 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.models.config.Config
 
 fun Superwall.openRestoreOnWeb() {
-    val config =
-        Superwall.instance.dependencyContainer.configManager.config
-            ?.webToAppConfig ?: run {
+    openRestoreOnWeb(
+        config = dependencyContainer.configManager.config,
+        activityProvider = dependencyContainer.activityProvider,
+    )
+}
+
+/** Opens the web restore page from [config] in the current activity, if both exist. */
+internal fun openRestoreOnWeb(
+    config: Config?,
+    activityProvider: ActivityProvider?,
+) {
+    val webToAppConfig =
+        config?.webToAppConfig ?: run {
             Logger.debug(
                 LogLevel.error,
                 LogScope.webEntitlements,
@@ -20,12 +32,12 @@ fun Superwall.openRestoreOnWeb() {
             return
         }
 
-    Superwall.instance.dependencyContainer.activityProvider?.getCurrentActivity()?.let {
+    activityProvider?.getCurrentActivity()?.let {
         it.startActivity(
             Intent(
                 ACTION_VIEW,
                 Uri.parse(
-                    config.restoreAccesUrl,
+                    webToAppConfig.restoreAccesUrl,
                 ),
             ),
         )

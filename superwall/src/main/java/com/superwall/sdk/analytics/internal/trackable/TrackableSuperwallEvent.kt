@@ -1,5 +1,6 @@
 package com.superwall.sdk.analytics.internal.trackable
 
+import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.paywall.view.webview.messaging.PageViewData
 import com.superwall.sdk.analytics.superwall.TransactionProduct
@@ -7,6 +8,9 @@ import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.config.options.toMap
+import com.superwall.sdk.customercenter.CustomerCenterRefundStatus
+import com.superwall.sdk.customercenter.CustomerCenterScreenType
+import com.superwall.sdk.customercenter.CustomerCenterUrls
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
@@ -142,6 +146,25 @@ sealed class InternalSuperwallEvent(
             hashMapOf(
                 "application_installed_at" to appInstalledAtString,
             )
+    }
+
+    class AttributionMatch(
+        val info: AttributionMatchInfo,
+    ) : InternalSuperwallEvent(SuperwallEvent.AttributionMatch(info)) {
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+
+        // Audience filter params rather than Superwall params, so they're sent without a
+        // `$` prefix, matching iOS.
+        override val audienceFilterParams: Map<String, Any>
+            get() =
+                listOfNotNull(
+                    "provider" to info.provider.rawName,
+                    "matched" to info.matched,
+                    info.source?.let { "source" to it },
+                    info.confidence?.let { "confidence" to it.rawName },
+                    info.matchScore?.let { "match_score" to it },
+                    info.reason?.let { "reason" to it },
+                ).toMap()
     }
 
     class IdentityAlias(
@@ -1317,6 +1340,82 @@ sealed class InternalSuperwallEvent(
         override suspend fun getSuperwallParameters(): Map<String, Any> =
             mapOf(
                 "paywall_count" to paywallCount,
+            )
+    }
+
+    data class CustomerCenterOpen(
+        val screen: CustomerCenterScreenType,
+    ) : InternalSuperwallEvent(SuperwallEvent.CustomerCenterOpen(screen)) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "screen" to screen.analyticsName,
+                // The Customer Center always presents as its own screen on Android. Kept for
+                // parity with iOS, where it can also be embedded.
+                "presentation" to "sheet",
+            )
+    }
+
+    class CustomerCenterClose : InternalSuperwallEvent(SuperwallEvent.CustomerCenterClose()) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+    }
+
+    data class CustomerCenterAction(
+        val action: com.superwall.sdk.customercenter.CustomerCenterAction,
+        val pathId: String,
+        val productId: String?,
+    ) : InternalSuperwallEvent(SuperwallEvent.CustomerCenterAction(action, pathId, productId)) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            buildMap {
+                put("action", action.analyticsName)
+                put("path_id", pathId)
+                productId?.let { put("product_id", it) }
+                when (action) {
+                    is com.superwall.sdk.customercenter.CustomerCenterAction.Url ->
+                        put("url", CustomerCenterUrls.withoutQueryOrFragment(action.url))
+                    is com.superwall.sdk.customercenter.CustomerCenterAction.Custom ->
+                        put("custom_identifier", action.identifier)
+                    else -> Unit
+                }
+            }
+    }
+
+    data class CustomerCenterSurveyResponse(
+        val surveyId: String,
+        val optionId: String,
+        val action: com.superwall.sdk.customercenter.CustomerCenterAction,
+        val pathId: String,
+        val productId: String?,
+    ) : InternalSuperwallEvent(
+            SuperwallEvent.CustomerCenterSurveyResponse(surveyId, optionId, action, pathId, productId),
+        ) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            buildMap {
+                put("survey_id", surveyId)
+                put("option_id", optionId)
+                put("action", action.analyticsName)
+                put("path_id", pathId)
+                productId?.let { put("product_id", it) }
+            }
+    }
+
+    data class CustomerCenterRefundRequest(
+        val productId: String,
+        val status: CustomerCenterRefundStatus,
+    ) : InternalSuperwallEvent(SuperwallEvent.CustomerCenterRefundRequest(productId, status)) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "product_id" to productId,
+                "status" to status.analyticsName,
             )
     }
 

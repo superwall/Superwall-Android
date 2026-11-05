@@ -1,6 +1,5 @@
 package com.superwall.sdk.config
 
-import And
 import Given
 import Then
 import When
@@ -10,7 +9,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.Tier
-import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.Either

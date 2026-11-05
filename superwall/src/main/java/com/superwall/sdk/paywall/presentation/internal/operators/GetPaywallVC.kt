@@ -31,6 +31,9 @@ internal suspend fun getPaywallView(
             debugInfo = debugInfo,
             paywallStatePublisher = paywallStatePublisher,
             storage = dependencyContainer.storage,
+            activateSession = { sessionRequest, outcome ->
+                dependencyContainer.requireOwner().activateSession(sessionRequest, outcome)
+            },
         )
 
     val responseIdentifiers =

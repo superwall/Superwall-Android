@@ -1,8 +1,10 @@
 package com.superwall.sdk.paywall.view.survey
 
 import android.app.Activity
+import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -11,10 +13,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.superwall.sdk.R
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingLogic
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.config.models.SurveyShowCondition
@@ -36,7 +37,7 @@ import kotlinx.coroutines.launch
 object SurveyManager {
     private var otherAlertDialog: AlertDialog? = null
 
-    fun presentSurveyIfAvailable(
+    internal fun presentSurveyIfAvailable(
         surveys: List<Survey>,
         paywallResult: PaywallResult,
         paywallCloseReason: PaywallCloseReason,
@@ -47,6 +48,7 @@ object SurveyManager {
         paywallInfo: PaywallInfo,
         storage: LocalStorage,
         factory: TriggerFactory,
+        track: suspend (TrackableSuperwallEvent) -> Unit,
         completion: (SurveyPresentationResult) -> Unit,
     ) {
         val activity =
@@ -88,10 +90,11 @@ object SurveyManager {
             return
         }
 
-        val dialog = BottomSheetDialog(activity)
+        val context = activity.withAppCompatTheme()
+        val dialog = BottomSheetDialog(context)
         dialog.setCanceledOnTouchOutside(false)
         dialog.setCancelable(false)
-        val surveyView = LayoutInflater.from(activity).inflate(R.layout.survey_bottom_sheet, null)
+        val surveyView = LayoutInflater.from(context).inflate(R.layout.survey_bottom_sheet, null)
         dialog.setContentView(surveyView)
 
         val optionsToShow = mutableListOf<String>()
@@ -114,7 +117,7 @@ object SurveyManager {
         val listView: ListView = surveyView.findViewById(R.id.surveyListView)
         val surveyOptionsAdapter =
             ArrayAdapter(
-                activity,
+                context,
                 R.layout.list_item,
                 optionsToShow,
             )
@@ -132,6 +135,7 @@ object SurveyManager {
                         paywallInfo = paywallInfo,
                         factory = factory,
                         paywallView = paywallView,
+                        track = track,
                         completion = completion,
                     )
                 }
@@ -140,9 +144,9 @@ object SurveyManager {
                 // Special case for 'Other' or 'Close'
                 val selectedItem = optionsToShow[position]
                 if (selectedItem == "Other") {
-                    val customAlertView = LayoutInflater.from(activity).inflate(R.layout.custom_alert_dialog_layout, null)
+                    val customAlertView = LayoutInflater.from(context).inflate(R.layout.custom_alert_dialog_layout, null)
 
-                    val otherBuilder = AlertDialog.Builder(activity)
+                    val otherBuilder = AlertDialog.Builder(context)
                     otherBuilder.setCancelable(false)
                     otherBuilder.setView(customAlertView)
 
@@ -208,6 +212,7 @@ object SurveyManager {
                                 paywallInfo = paywallInfo,
                                 factory = factory,
                                 paywallView = paywallView,
+                                track = track,
                                 completion = completion,
                             )
                             otherDialog.dismiss()
@@ -219,7 +224,7 @@ object SurveyManager {
                 } else if (selectedItem == "Close") {
                     CoroutineScope(Dispatchers.IO).launch {
                         val event = InternalSuperwallEvent.SurveyClose()
-                        Superwall.instance.track(event)
+                        track(event)
                     }
                     dialog.dismiss()
                     completion(SurveyPresentationResult.SHOW)
@@ -230,6 +235,22 @@ object SurveyManager {
         dialog.show()
     }
 
+    /**
+     * The dialogs above need an AppCompat theme. An Activity without one (e.g. a game engine's
+     * Activity hosting an in-window paywall) gets the SDK's Material theme instead of a crash;
+     * an AppCompat-themed Activity is used as is.
+     */
+    private fun Activity.withAppCompatTheme(): Context {
+        val attrs = obtainStyledAttributes(intArrayOf(androidx.appcompat.R.attr.windowActionBar))
+        val isAppCompatThemed =
+            try {
+                attrs.hasValue(0)
+            } finally {
+                attrs.recycle()
+            }
+        return if (isAppCompatThemed) this else ContextThemeWrapper(this, R.style.Theme_Superwall_InWindow)
+    }
+
     private fun handleDialogDismissal(
         isDebuggerLaunched: Boolean,
         survey: Survey,
@@ -238,6 +259,7 @@ object SurveyManager {
         paywallInfo: PaywallInfo,
         factory: TriggerFactory,
         paywallView: PaywallView,
+        track: suspend (TrackableSuperwallEvent) -> Unit,
         completion: (SurveyPresentationResult) -> Unit,
     ) {
         if (isDebuggerLaunched) {
@@ -261,7 +283,7 @@ object SurveyManager {
                     paywallView,
                 )
 
-            Superwall.instance.track(event)
+            track(event)
 
             if (outcome == TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall) {
                 completion(SurveyPresentationResult.SHOW)

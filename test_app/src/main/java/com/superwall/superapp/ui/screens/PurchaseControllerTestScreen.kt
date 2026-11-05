@@ -17,6 +17,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.register
+import com.superwall.sdk.store.testmode.TestModeBehavior
 import com.superwall.superapp.BuildConfig
 import com.superwall.superapp.purchase.TestingPurchaseController
 import kotlinx.coroutines.launch
@@ -87,6 +88,22 @@ fun PurchaseControllerTestScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Configure without PC")
+            }
+
+            ElevatedButton(
+                onClick = {
+                    scope.launch {
+                        try {
+                            configureWithoutPC(context, apiKey, testMode = true)
+                            isConfigured = true
+                        } catch (e: Exception) {
+                            // Handle configuration error
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Configure with test mode")
             }
 
             if (isConfigured) {
@@ -244,12 +261,14 @@ private suspend fun configureWithPC(
 private suspend fun configureWithoutPC(
     context: Context,
     apiKey: String,
+    testMode: Boolean = false,
 ) {
     val application = context.applicationContext as Application
     val options =
         SuperwallOptions().apply {
             logging.level = LogLevel.debug
             networkEnvironment = getNetworkEnvironment()
+            if (testMode) testModeBehavior = TestModeBehavior.ALWAYS
         }
     val activityProvider =
         object : ActivityProvider {

@@ -1,32 +1,30 @@
 package com.superwall.sdk
 
 import android.app.Application
-import android.content.ComponentCallbacks2
 import android.content.Context
-import android.content.Intent
-import android.content.res.Configuration
 import android.net.Uri
-import androidx.work.WorkManager
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.track
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.*
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.billing.toInternalResult
-import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.toConfigurationStatus
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.config.options.AdConsent
+import com.superwall.sdk.config.options.AdConsentPublisher
 import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.customercenter.CustomerCenterConfiguration
+import com.superwall.sdk.customercenter.CustomerCenterDelegate
 import com.superwall.sdk.deeplinks.DeepLinkRouter
-import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -41,72 +39,33 @@ import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.models.customer.CustomerInfo
-import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
-import com.superwall.sdk.models.events.EventData
-import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.device.InterfaceStyle
-import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.presentation.PresentationCoordinator
 import com.superwall.sdk.paywall.presentation.PresentationItems
-import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
-import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
-import com.superwall.sdk.paywall.presentation.internal.dismiss
-import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.*
 import com.superwall.sdk.paywall.view.PaywallView
-import com.superwall.sdk.paywall.view.PaywallViewState
-import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
-import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.webview.PaywallResource
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Closed
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Custom
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.InitiatePurchase
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.InitiateRestore
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
-import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.RequestPermission
-import com.superwall.sdk.storage.LatestCustomerInfo
-import com.superwall.sdk.storage.ReviewCount
-import com.superwall.sdk.storage.ReviewData
-import com.superwall.sdk.storage.StoredSubscriptionStatus
-import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
-import com.superwall.sdk.utilities.flatten
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Date
 import kotlin.collections.map
 
 class Superwall(
@@ -124,31 +83,24 @@ class Superwall(
         get() = dependencyContainer.mainScope()
     internal var context: Context = context.applicationContext
 
-    private var purchaseTask: Job? = null
+    internal val presentationItems: PresentationItems
+        get() = presentationCoordinator.presentationItems
 
-    internal val presentationItems: PresentationItems = PresentationItems()
-
-    private val _placements: MutableSharedFlow<SuperwallEventInfo> =
-        MutableSharedFlow(
-            0,
-            extraBufferCapacity = 64 * 4,
-            onBufferOverflow = BufferOverflow.SUSPEND,
-        )
+    private val presentationCoordinator: PresentationCoordinator
+        get() = dependencyContainer.presentationCoordinator
 
     /**
      * A flow emitting all Superwall placements as an alternative to delegate.
      * @see SuperwallEventInfo for more information and possible placements
      * */
 
-    val placements: SharedFlow<SuperwallEventInfo> = _placements
+    val placements: SharedFlow<SuperwallEventInfo>
+        get() = dependencyContainer.superwallEventBus.placements
 
     var localeIdentifier: String?
         get() = dependencyContainer.configManager.options.localeIdentifier
         set(value) {
-            dependencyContainer.configManager.options.localeIdentifier = value
-            ioScope.launch {
-                track(dependencyContainer.makeConfigAttributes())
-            }
+            dependencyContainer.setLocaleIdentifier(value)
         }
 
     /**
@@ -165,30 +117,66 @@ class Superwall(
     var eventTrackingBehavior: EventTrackingBehavior
         get() = options.eventTrackingBehavior
         set(newValue) {
+            val previous = options.eventTrackingBehavior
             options.eventTrackingBehavior = newValue
-
-            dependencyContainer.eventsQueue.setTrackingBehavior(newValue)
 
             mainScope.launch {
                 paywallView?.webView?.messageHandler?.passEventTrackingBehaviorToWebView(newValue)
             }
 
-            // When opting out entirely, don't emit the config-attributes event —
-            // it would otherwise transmit attributes right after the opt-out.
-            if (newValue == EventTrackingBehavior.NONE) {
-                return
+            if (newValue != EventTrackingBehavior.NONE) {
+                dependencyContainer.mmpAttributionManager.startMatchIfEnabled()
             }
 
-            ioScope.launch {
-                track(dependencyContainer.makeConfigAttributes())
-            }
+            adConsentPublisher.trackingBehaviorChanged(previous, newValue)
         }
+
+    /**
+     * The user's consent for how their data is used for advertising, which Superwall
+     * passes on with the conversions it uploads to Google Ads and Meta.
+     *
+     * While `adConsent` is [AdConsent.Unspecified], the default, the SDK uses the consent
+     * stored by an IAB TCF consent banner when GDPR applies, and otherwise defaults to
+     * granted; apps with users in the EEA, UK or Switzerland that don't use a TCF banner
+     * should set an [AdConsent.Custom] from their consent flow. Where the values came from
+     * is reported in the `adConsentSource` device attribute (`developer`, `tcf` or `default`).
+     *
+     * Both are reported as denied while [eventTrackingBehavior] is [EventTrackingBehavior.NONE].
+     *
+     * You can also set the initial value via [SuperwallOptions.adConsent] before calling
+     * [configure].
+     */
+    var adConsent: AdConsent
+        get() = options.adConsent
+        set(newValue) {
+            options.adConsent = newValue
+            adConsentPublisher.adConsentChanged()
+        }
+
+    /**
+     * Re-sends device attributes when the ad consent [sent] carried differs from the current
+     * consent. Called after every device attributes send.
+     */
+    internal fun reconcileAdConsentAfterPublish(sent: Map<String, Any>) {
+        adConsentPublisher.reconcileAfterSend(sent)
+    }
+
+    /**
+     * Re-sends device attributes when the current ad consent differs from the last one sent.
+     * Called when the app comes to the foreground, like iOS.
+     */
+    internal fun republishAdConsentIfChanged() {
+        adConsentPublisher.republishIfChanged()
+    }
+
+    private val adConsentPublisher: AdConsentPublisher
+        get() = dependencyContainer.adConsentPublisher
 
     /**
      * The presented paywall view.
      */
     val paywallView: PaywallView?
-        get() = dependencyContainer.paywallManager.currentView
+        get() = presentationCoordinator.paywallView
 
     /**
      * A convenience variable to access and change the paywall options that you passed
@@ -213,7 +201,7 @@ class Superwall(
      * Determines whether a paywall is being presented.
      */
     val isPaywallPresented: Boolean
-        get() = paywallView != null
+        get() = presentationCoordinator.isPaywallPresented
 
     /**
      * The delegate that handles Superwall lifecycle events.
@@ -265,23 +253,24 @@ class Superwall(
      *
      * Paywall HTML usage: `<video src="swlocal://hero-video" autoplay></video>`
      */
-    var localResources: Map<String, PaywallResource> = emptyMap()
-
-    internal val _customerInfo: MutableStateFlow<CustomerInfo> =
-        MutableStateFlow(CustomerInfo.empty())
+    var localResources: Map<String, PaywallResource>
+        get() = dependencyContainer.localResources
+        set(value) {
+            dependencyContainer.localResources = value
+        }
 
     /**
      * Exposes customer info as a stateflow.
      */
 
-    val customerInfo: StateFlow<CustomerInfo> get() = _customerInfo
+    val customerInfo: StateFlow<CustomerInfo> get() = dependencyContainer.customerInfoManager.customerInfo
 
     /**
      * Gets the current CustomerInfo synchronously.
      *
      * @return The current CustomerInfo containing purchase and subscription data.
      */
-    fun getCustomerInfo(): CustomerInfo = _customerInfo.value
+    fun getCustomerInfo(): CustomerInfo = customerInfo.value
 
     /**
      * Sets the Java delegate that handles Superwall lifecycle events.
@@ -293,12 +282,6 @@ class Superwall(
             ioScope.launch {
                 track(dependencyContainer.makeConfigAttributes())
             }
-        }
-    }
-
-    internal fun emitSuperwallEvent(info: SuperwallEventInfo) {
-        ioScope.launch {
-            _placements.emit(info)
         }
     }
 
@@ -334,15 +317,7 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        if (dependencyContainer.testMode.isTestMode) {
-            Logger.debug(
-                LogLevel.warn,
-                LogScope.superwallCore,
-                "setSubscriptionStatus ignored: test mode is active",
-            )
-            return
-        }
-        entitlements.setSubscriptionStatus(subscriptionStatus)
+        dependencyContainer.subscriptionStatusManager.setSubscriptionStatus(subscriptionStatus)
     }
 
     /**
@@ -356,59 +331,11 @@ class Superwall(
      * @param entitlements A list of entitlements.
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
-        if (dependencyContainer.testMode.isTestMode) {
-            Logger.debug(
-                LogLevel.warn,
-                LogScope.superwallCore,
-                "setSubscriptionStatus ignored: test mode is active",
-            )
-            return
-        }
-        if (entitlements.isEmpty()) {
-            this@Superwall.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
-        } else {
-            this@Superwall.entitlements.setSubscriptionStatus(
-                SubscriptionStatus.Active(
-                    entitlements
-                        .map {
-                            Entitlement(
-                                it,
-                            )
-                        }.toSet(),
-                ),
-            )
-        }
+        dependencyContainer.subscriptionStatusManager.setSubscriptionStatus(entitlements)
     }
 
     internal fun internallySetSubscriptionStatus(toStatus: SubscriptionStatus) {
-        if (dependencyContainer.makeHasExternalPurchaseController()) {
-            return
-        }
-        if (dependencyContainer.testMode.isTestMode) {
-            return
-        }
-        val webEntitlements = dependencyContainer.entitlements.web
-        when (toStatus) {
-            is SubscriptionStatus.Active -> {
-                val allEntitlements = toStatus.entitlements.plus(webEntitlements)
-                if (allEntitlements.isEmpty()) {
-                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
-                } else {
-                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(allEntitlements))
-                }
-            }
-
-            SubscriptionStatus.Inactive ->
-                if (webEntitlements.isEmpty()) {
-                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
-                } else {
-                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(webEntitlements))
-                }
-
-            SubscriptionStatus.Unknown -> {
-                entitlements.setSubscriptionStatus(SubscriptionStatus.Unknown)
-            }
-        }
+        dependencyContainer.subscriptionStatusManager.internallySetSubscriptionStatus(toStatus)
     }
 
     /**
@@ -420,8 +347,7 @@ class Superwall(
     /**
      * Properties stored about the device session, set internally by Superwall
      * */
-    suspend fun deviceAttributes(): Map<String, Any?> =
-        dependencyContainer.makeSessionDeviceAttributes()
+    suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
 
     /**
      * Gets the current integration identifiers as a map.
@@ -471,11 +397,7 @@ class Superwall(
      * The `PaywallInfo` object of the most recently presented view.
      */
     val latestPaywallInfo: PaywallInfo?
-        get() {
-            val presentedPaywallInfo =
-                dependencyContainer.paywallManager.currentView?.info
-            return presentedPaywallInfo ?: presentationItems.paywallInfo
-        }
+        get() = presentationCoordinator.latestPaywallInfo
 
     val entitlements: Entitlements by lazy {
         dependencyContainer.entitlements
@@ -497,23 +419,12 @@ class Superwall(
      */
     val configurationState: ConfigurationStatus
         get() =
-            dependencyContainer.configManager.configState.value.let {
-                when (it) {
-                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
-                    is ConfigState.Failed -> ConfigurationStatus.Failed
-                    else -> ConfigurationStatus.Pending
-                }
-            }
+            dependencyContainer.configManager.configState.value
+                .toConfigurationStatus()
 
     val configurationStateListener: Flow<ConfigurationStatus>
         get() =
-            dependencyContainer.configManager.configState.map {
-                when (it) {
-                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
-                    is ConfigState.Failed -> ConfigurationStatus.Failed
-                    else -> ConfigurationStatus.Pending
-                }
-            }
+            dependencyContainer.configManager.configState.map { it.toConfigurationStatus() }
 
     companion object {
         /** A variable that is only `true` if ``instance`` is available for use.
@@ -665,6 +576,7 @@ class Superwall(
                 // Retain the activity provider for reuse in next configure call
                 retainedActivityProvider = _instance?.dependencyContainer?.activityProvider
                 _instance?.teardown()
+                SuperwallGraph.detach(_instance?.dependencyContainer)
                 _instance = null
                 initialized = false
                 _hasInitialized.update { false }
@@ -677,7 +589,6 @@ class Superwall(
 
     internal val dependencyContainer: DependencyContainer
         get() = _dependencyContainer
-
 
     // / Used to serially execute register calls.
     internal val serialTaskManager = SerialTaskManager()
@@ -693,146 +604,18 @@ class Superwall(
                             options = _options,
                             activityProvider = activityProvider,
                             apiKey = apiKey,
+                            superwall = this,
                         )
+                    SuperwallGraph.attach(dependencyContainer)
                     dependencyContainer.storage.configure(apiKey = apiKey)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     throw e
                 }
 
-                val cachedSubscriptionStatus =
-                    dependencyContainer.storage.read(StoredSubscriptionStatus)
-                        ?: SubscriptionStatus.Unknown
-                _customerInfo.value =
-                    dependencyContainer.storage.read(LatestCustomerInfo) ?: CustomerInfo.empty()
-
-                setSubscriptionStatus(cachedSubscriptionStatus)
-
-                // Trigger initial CustomerInfo merge on startup
-                dependencyContainer.customerInfoManager.updateMergedCustomerInfo()
-
-                addListeners()
-
-                ioScope.launch {
-                    withErrorTracking {
-                        dependencyContainer.storage.recordAppInstall {
-                            track(event = it)
-                        }
-                        // Identity awaits config internally where it needs it, so both
-                        // can run concurrently. Implicitly wait for both.
-                        coroutineScope {
-                            listOf(
-                                async {
-                                    dependencyContainer.configManager.fetchConfiguration()
-                                },
-                                async {
-                                    dependencyContainer.identityManager.configure(
-                                        neverCalledStaticConfig = dependencyContainer.storage.neverCalledStaticConfig,
-                                    )
-                                },
-                            ).awaitAll()
-                        }
-                    }.toResult().fold({
-                        CoroutineScope(Dispatchers.Main).launch {
-                            completion?.invoke(Result.success(Unit))
-                        }
-                    }, {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            completion?.invoke(Result.failure(it))
-                        }
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.superwallCore,
-                            message = "Superwall SDK failed to initialize - ${it.message}",
-                            error = it,
-                        )
-                    })
-                }
+                dependencyContainer.sdkBootstrapper.start(completion)
             }
         }
-
-    // / Listens to config and the subscription status
-    private fun addListeners() {
-        ioScope.launchWithTracking {
-            entitlements.status
-                // Default StateFlow equality re-fires when entitlement product fields get
-                // enriched (productIds, latestProductId) even though the user-facing
-                // status is unchanged. Dedupe ignoring product identifiers — see
-                // Entitlement.isDistinct.
-                .distinctUntilChanged { old, new ->
-                    when {
-                        old === new -> true
-                        old is SubscriptionStatus.Active && new is SubscriptionStatus.Active -> {
-                            if (old.entitlements.size != new.entitlements.size) {
-                                false
-                            } else {
-                                val newById = new.entitlements.associateBy { it.id }
-                                old.entitlements.all { o ->
-                                    val n = newById[o.id] ?: return@all false
-                                    !o.isDistinct(n)
-                                }
-                            }
-                        }
-                        else -> old::class == new::class
-                    }
-                }
-                .drop(1) // Drops the cached/initial emission
-                .collect { newValue ->
-                    // Save and handle the new value
-                    val oldValue =
-                        dependencyContainer.storage.read(StoredSubscriptionStatus)
-                            ?: SubscriptionStatus.Unknown
-                    dependencyContainer.storage.write(StoredSubscriptionStatus, newValue)
-                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(
-                        oldValue,
-                        newValue,
-                    )
-                    val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
-                    track(event)
-                    dependencyContainer.configManager.recheckPreloadIfNeeded()
-                }
-        }
-        ioScope.launchWithTracking {
-            _customerInfo
-                .asSharedFlow()
-                .distinctUntilChanged()
-                .scan<CustomerInfo, Pair<CustomerInfo?, CustomerInfo>?>(null) { previousPair, newStatus ->
-                    Pair(previousPair?.second, newStatus)
-                }.filterNotNull()
-                .filter { it.first != null }
-                .collect {
-                    val (old, new) = it
-                    dependencyContainer.storage.write(LatestCustomerInfo, new)
-                    dependencyContainer.delegateAdapter.customerInfoDidChange(old!!, new)
-                    track(CustomerInfoDidChange(old, new))
-                    dependencyContainer.configManager.recheckPreloadIfNeeded()
-                }
-        }
-        registerConfigurationChangeListener()
-    }
-
-    private var configurationChangeListener: ComponentCallbacks2? = null
-
-    private fun registerConfigurationChangeListener() {
-        // Locale / region / language / timezone / interfaceStyle (when overrides
-        // are off) all reflect Android Configuration. ComponentCallbacks2 fires on
-        // changes and runs on the main thread; bounce through ioScope to call the
-        // suspend recheck.
-        val listener =
-            object : ComponentCallbacks2 {
-                override fun onConfigurationChanged(newConfig: Configuration) {
-                    ioScope.launchWithTracking {
-                        dependencyContainer.configManager.recheckPreloadIfNeeded()
-                    }
-                }
-
-                override fun onLowMemory() = Unit
-
-                override fun onTrimMemory(level: Int) = Unit
-            }
-        configurationChangeListener = listener
-        context.applicationContext.registerComponentCallbacks(listener)
-    }
 
     /**
      * Toggles the paywall loading spinner on and off.
@@ -843,11 +626,7 @@ class Superwall(
      * @param isHidden Toggles the paywall loading spinner on and off.
      */
     fun togglePaywallSpinner(isHidden: Boolean) {
-        ioScope.launchWithTracking {
-            val paywallView =
-                dependencyContainer.paywallManager.currentView ?: return@launchWithTracking
-            paywallView.updateState(PaywallViewState.Updates.ToggleSpinner(isHidden))
-        }
+        presentationCoordinator.togglePaywallSpinner(isHidden)
     }
 
     /**
@@ -857,13 +636,7 @@ class Superwall(
         wrapper: String,
         version: String,
     ) {
-        withErrorTracking {
-            dependencyContainer.deviceHelper.platformWrapper = wrapper
-            dependencyContainer.deviceHelper.platformWrapperVersion = version
-            ioScope.launch {
-                track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
-            }
-        }
+        dependencyContainer.deviceOverrides.setPlatformWrapper(wrapper, version)
     }
 
     /**
@@ -871,24 +644,14 @@ class Superwall(
      * back to using the system setting.
      */
     fun setInterfaceStyle(interfaceStyle: InterfaceStyle?) {
-        withErrorTracking {
-            dependencyContainer.deviceHelper.interfaceStyleOverride = interfaceStyle
-            ioScope.launch {
-                track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
-                dependencyContainer.configManager.recheckPreloadIfNeeded()
-            }
-        }
+        dependencyContainer.deviceOverrides.setInterfaceStyle(interfaceStyle)
     }
 
     /**
      * Removes all of Superwall's pending local notifications.
      */
     fun cancelAllScheduledNotifications() {
-        withErrorTracking {
-            WorkManager
-                .getInstance(context)
-                .cancelAllWorkByTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
-        }
+        presentationCoordinator.cancelAllScheduledNotifications()
     }
 
     /**
@@ -903,7 +666,7 @@ class Superwall(
         action: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null,
     ) {
-        paywallView?.showAlert(
+        presentationCoordinator.showAlert(
             title,
             message,
             actionTitle,
@@ -936,14 +699,7 @@ class Superwall(
             } else {
                 // Called from identity actor's completeReset during identify
                 // or full reset — just do cleanup without touching identity.
-                dependencyContainer.storage.reset()
-                dependencyContainer.paywallManager.resetCache()
-                presentationItems.reset()
-                dependencyContainer.configManager.reset()
-                dependencyContainer.reedemer.clear(RedemptionOwnershipType.AppUser)
-                ioScope.launch {
-                    track(InternalSuperwallEvent.Reset)
-                }
+                dependencyContainer.sdkResetter.completeReset()
             }
         }
     }
@@ -981,10 +737,7 @@ class Superwall(
             // because the activity provider will be retained and reused in the next configure call.
             // This ensures the current activity is still tracked across hot reload cycles.
 
-            configurationChangeListener?.let {
-                context.applicationContext.unregisterComponentCallbacks(it)
-                configurationChangeListener = null
-            }
+            dependencyContainer.appConfigChangeObserver.unregister()
         }
     }
 
@@ -1046,12 +799,7 @@ class Superwall(
      * @return An array of `ConfirmedAssignments` objects.
      * */
 
-    fun getAssignments(): Result<List<ConfirmedAssignment>> =
-        withErrorTracking {
-            dependencyContainer.storage
-                .getConfirmedAssignments()
-                .map { ConfirmedAssignment(it.key, it.value) }
-        }.toResult()
+    fun getAssignments(): Result<List<ConfirmedAssignment>> = dependencyContainer.assignmentService.getAssignments()
 
     /**
      * Confirms all experiment assignments and returns them in an array.
@@ -1063,48 +811,8 @@ class Superwall(
      * @return An array of `ConfirmedAssignments` objects.
      */
 
-    suspend fun confirmAllAssignments(): Result<List<ConfirmedAssignment>> {
-        return withErrorTracking {
-            val event = InternalSuperwallEvent.ConfirmAllAssignments
-            track(event)
-            val triggers =
-                dependencyContainer.configManager.config?.triggers
-                    ?: return@withErrorTracking emptyList()
-            val storedAssignments = dependencyContainer.storage.getConfirmedAssignments()
-            val assignments =
-                storedAssignments
-                    .map {
-                        ConfirmedAssignment(it.key, it.value)
-                    }.toMutableSet()
-
-            triggers.forEach {
-                val eventData =
-                    EventData(name = it.eventName, parameters = emptyMap(), createdAt = Date())
-                val request =
-                    dependencyContainer.makePresentationRequest(
-                        presentationInfo = PresentationInfo.ExplicitTrigger(eventData),
-                        paywallOverrides = null,
-                        isPaywallPresented = false,
-                        type = PresentationRequestType.ConfirmAllAssignments,
-                    )
-                confirmAssignment(dependencyContainer.getPaywallComponentsFactory, request).fold(
-                    onSuccess = {
-                        it?.let {
-                            assignments.add(it)
-                        }
-                    },
-                ) {
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        scope = LogScope.superwallCore,
-                        message = "Failed to confirm assignment",
-                        error = it,
-                    )
-                }
-            }
-            assignments.toList()
-        }.toResult()
-    }
+    suspend fun confirmAllAssignments(): Result<List<ConfirmedAssignment>> =
+        dependencyContainer.assignmentService.confirmAllAssignments()
 
     /**
      * Confirms all experiment assignments and returns them in an array.
@@ -1136,14 +844,7 @@ class Superwall(
      * ``Superwall`` will handle this for you.
      */
     suspend fun purchase(product: ProductDetails): Result<PurchaseResult> =
-        withErrorTracking {
-            dependencyContainer.transactionManager.purchase(
-                TransactionManager.PurchaseSource.ExternalPurchase(
-                    StoreProduct(RawStoreProduct.from(product)),
-                ),
-                shouldDismiss = true,
-            )
-        }.toResult()
+        dependencyContainer.purchaseFacade.purchase(StoreProduct(RawStoreProduct.from(product)))
 
     /**
      * Initiates a purchase of `StoreProduct`.
@@ -1158,15 +859,7 @@ class Superwall(
      * - Note: You do not need to finish the transaction yourself after this.
      * ``Superwall`` will handle this for you.
      */
-    suspend fun purchase(product: StoreProduct): Result<PurchaseResult> =
-        withErrorTracking {
-            dependencyContainer.transactionManager.purchase(
-                TransactionManager.PurchaseSource.ExternalPurchase(
-                    product,
-                ),
-                shouldDismiss = true,
-            )
-        }.toResult()
+    suspend fun purchase(product: StoreProduct): Result<PurchaseResult> = dependencyContainer.purchaseFacade.purchase(product)
 
     /**
      * Initiates a purchase of a product with the given `productId`.
@@ -1181,17 +874,7 @@ class Superwall(
      * - Note: You do not need to finish the transaction yourself after this.
      * ``Superwall`` will handle this for you.
      */
-    suspend fun purchase(productId: String): Result<PurchaseResult> =
-        withErrorTracking {
-            getProducts(productId).getOrThrow()[productId]?.let {
-                dependencyContainer.transactionManager.purchase(
-                    TransactionManager.PurchaseSource.ExternalPurchase(
-                        it,
-                    ),
-                    shouldDismiss = true,
-                )
-            } ?: throw IllegalArgumentException("Product with id $productId not found")
-        }.toResult()
+    suspend fun purchase(productId: String): Result<PurchaseResult> = dependencyContainer.purchaseFacade.purchase(productId)
 
     /**
      * Given a list of product identifiers, returns a map of identifiers to `StoreProduct` objects.
@@ -1200,9 +883,7 @@ class Superwall(
      * @return A map of product identifiers to `StoreProduct` objects.
      */
     suspend fun getProducts(vararg productIds: String): Result<Map<String, StoreProduct>> =
-        withErrorTracking {
-            dependencyContainer.storeManager.getProductsWithoutPaywall(productIds.toList())
-        }.toResult()
+        dependencyContainer.purchaseFacade.getProducts(productIds.toList())
 
     /**
      * Initiates a purchase of a `StoreProduct` with a callback.
@@ -1254,14 +935,7 @@ class Superwall(
      * @param purchaseToken: The `purchaseToken` related to the purchase you wish to consume.
      * @return Result.success with the purchase token or a Result.failure<BillingError>
      */
-    suspend fun consume(purchaseToken: String): Result<String> =
-        withErrorTracking {
-            dependencyContainer.storeManager.consume(purchaseToken).onSuccess {
-                if (dependencyContainer.makeHasInternalPurchaseController()) {
-                    dependencyContainer.storeManager.purchaseController.restorePurchases()
-                }
-            }
-        }.toResult().flatten()
+    suspend fun consume(purchaseToken: String): Result<String> = dependencyContainer.purchaseFacade.consume(purchaseToken)
 
     /**
      * Initiates a consumption of an In-App product.
@@ -1297,44 +971,7 @@ class Superwall(
      * - PurchaseError: When a purchase fails with an error
      */
     fun observe(state: PurchasingObserverState) {
-        ioScope.launchWithTracking {
-            if (!options.shouldObservePurchases) {
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    scope = LogScope.superwallCore,
-                    message =
-                        "You are trying to observe purchases but the SuperwallOption shouldObservePurchases is " +
-                                "false. Please set it to true to be able to observe purchases.",
-                )
-                return@launchWithTracking
-            }
-            when (state) {
-                is PurchasingObserverState.PurchaseWillBegin -> {
-                    val product = StoreProduct(RawStoreProduct.from(state.product))
-                    dependencyContainer.transactionManager.prepareToPurchase(
-                        product,
-                        source = TransactionManager.PurchaseSource.ObserverMode(product),
-                    )
-                }
-
-                is PurchasingObserverState.PurchaseResult -> {
-                    val result = (state.result to state.purchases).toInternalResult()
-                    for (internalPurchaseResult in result) {
-                        dependencyContainer.transactionManager.handle(
-                            internalPurchaseResult,
-                            state,
-                        )
-                    }
-                }
-
-                is PurchasingObserverState.PurchaseError -> {
-                    dependencyContainer.transactionManager.handle(
-                        InternalPurchaseResult.Failed(state.error),
-                        state,
-                    )
-                }
-            }
-        }
+        dependencyContainer.observerModeHandler.observe(state)
     }
 
     /**
@@ -1382,14 +1019,44 @@ class Superwall(
     }
 
     /**
+     * Presents the Customer Center, a self-service screen where users can view and manage their
+     * subscriptions, request refunds, restore purchases, and contact support.
+     *
+     * Only one Customer Center can be presented at a time; calling this while one is already
+     * presented does nothing. Call it from the main thread.
+     *
+     * @param configuration Overrides [SuperwallOptions.customerCenter] for this presentation.
+     * `null` uses the value configured via [SuperwallOptions].
+     * @param delegate Receives Customer Center events. Retained while the Customer Center is
+     * presented.
+     * @param onDismiss Called after the Customer Center is dismissed.
+     */
+    @JvmOverloads
+    fun presentCustomerCenter(
+        configuration: CustomerCenterConfiguration? = null,
+        delegate: CustomerCenterDelegate? = null,
+        onDismiss: (() -> Unit)? = null,
+    ) {
+        dependencyContainer.customerCenterManager.present(configuration, delegate, onDismiss)
+    }
+
+    /**
+     * Dismisses a Customer Center presented via [presentCustomerCenter]. Does nothing if none is
+     * presented. Call it from the main thread.
+     *
+     * @param completion Called once the Customer Center has been dismissed.
+     */
+    @JvmOverloads
+    fun dismissCustomerCenter(completion: (() -> Unit)? = null) {
+        dependencyContainer.customerCenterManager.dismiss(completion)
+    }
+
+    /**
      * Restores purchases
      *
      * Use this function to restore purchases made by the user.
      * */
-    suspend fun restorePurchases() =
-        withErrorTracking {
-            dependencyContainer.transactionManager.tryToRestorePurchases(null)
-        }.toResult()
+    suspend fun restorePurchases(): Result<RestorationResult> = dependencyContainer.purchaseFacade.restorePurchases()
 
     /**
      * Restores purchases and returns the result in a callback.
@@ -1401,185 +1068,15 @@ class Superwall(
             onFinished(restorePurchases())
         }
 
+    /**
+     * Handles an event from a paywall's web view. The SDK's own paywalls send their events to
+     * the internal handler directly; this stays for views created with `Superwall` as callback.
+     */
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
         paywallView: PaywallView,
     ) {
-        mainScope.launchWithTracking {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallView,
-                message = "Event Did Occur",
-                info = mapOf("event" to paywallEvent),
-            )
-
-            when (paywallEvent) {
-                is Closed -> {
-                    dismiss(
-                        paywallView,
-                        result = Declined(),
-                        closeReason = PaywallCloseReason.ManualClose,
-                    )
-                }
-
-                is InitiatePurchase -> {
-                    if (purchaseTask != null) {
-                        // If a purchase is already in progress, do not start another
-                        return@launchWithTracking
-                    }
-                    paywallView.updateState(
-                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase),
-                    )
-                    purchaseTask =
-                        launch {
-                            try {
-                                dependencyContainer.transactionManager.purchase(
-                                    Internal(
-                                        paywallEvent.productId,
-                                        paywallView.controller.state,
-                                    ),
-                                    shouldDismiss = paywallEvent.shouldDismiss,
-                                )
-                            } finally {
-                                // Ensure the task is cleared once the purchase is complete or if an error occurs
-                                purchaseTask = null
-                            }
-                        }
-                }
-
-                is InitiateRestore -> {
-                    dependencyContainer.transactionManager.tryToRestorePurchases(paywallView)
-                }
-
-                is OpenedURL -> {
-                    dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
-                }
-
-                is OpenedUrlInChrome -> {
-                    dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
-                }
-
-                is OpenedDeepLink -> {
-                    dependencyContainer.delegateAdapter.paywallWillOpenDeepLink(url = paywallEvent.url)
-                }
-
-                is Custom -> {
-                    dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
-                }
-
-                is PaywallWebEvent.CustomPlacement -> {
-                    @Suppress("UNCHECKED_CAST")
-                    track(
-                        CustomPlacement(
-                            placementName = paywallEvent.name,
-                            params =
-                                paywallEvent.params.convertFromJsonElement() as? Map<String, Any>
-                                    ?: emptyMap(),
-                            paywallInfo = paywallView.info,
-                        ),
-                    )
-                }
-
-                is PaywallWebEvent.RequestReview -> {
-                    // Trigger review request
-                    ioScope.launch {
-                        try {
-                            when (paywallEvent.type) {
-                                PaywallWebEvent.RequestReview.Type.INAPP -> {
-                                    val reviewInfo =
-                                        dependencyContainer.reviewManager.requestReviewFlow()
-                                    val activity =
-                                        dependencyContainer.activityProvider?.getCurrentActivity()
-                                    if (activity != null) {
-                                        dependencyContainer.reviewManager.launchReviewFlow(
-                                            activity,
-                                            reviewInfo,
-                                        )
-                                        // Track successful review request
-                                        val currentCount =
-                                            dependencyContainer.deviceHelper.reviewRequestsTotal()
-                                        dependencyContainer.storage.write(
-                                            ReviewData,
-                                            ReviewCount(
-                                                (currentCount + 1),
-                                            ),
-                                        )
-                                        track(
-                                            ReviewRequested(
-                                                count = currentCount + 1,
-                                                type = paywallEvent.type.rawValue,
-                                            ),
-                                        )
-                                        dependencyContainer.configManager.recheckPreloadIfNeeded()
-                                    }
-                                }
-
-                                else -> {
-                                    val packageName = dependencyContainer.deviceHelper.urlScheme
-                                    val url =
-                                        "https://play.google.com/store/apps/details?id=$packageName"
-                                    (
-                                            activityProvider?.getCurrentActivity()
-                                                ?: paywallView.encapsulatingActivity?.get()
-                                            )?.startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse(url)),
-                                        )
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Logger.debug(
-                                logLevel = LogLevel.error,
-                                scope = LogScope.paywallView,
-                                message = "Failed to request review",
-                                error = e,
-                            )
-                        }
-                    }
-                }
-
-                is PaywallWebEvent.ScheduleNotification -> {
-                    val paywallActivity =
-
-                        (
-                                paywallView
-                                    ?.encapsulatingActivity
-                                    ?.get()
-                                    ?: dependencyContainer
-                                        .activityProvider
-                                        ?.getCurrentActivity()
-                                ) as? SuperwallPaywallActivity?
-                    // Cancel any existing fallback notification of the same type before scheduling
-                    // the dynamic notification from the paywall
-                    paywallActivity?.attemptToScheduleNotifications(
-                        notifications = listOf(paywallEvent.localNotification),
-                        factory = dependencyContainer,
-                        cancelExisting = true,
-                    ) ?: run {
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.paywallView,
-                            message = "No superwall paywall activity alive to schedule notifications",
-                        )
-                    }
-                }
-
-                is RequestPermission -> {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.paywallView,
-                        message = "Permission requested: ${paywallEvent.permissionType.rawValue}",
-                    )
-                }
-
-                is PaywallWebEvent.RequestCallback -> {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.paywallView,
-                        message = "Custom callback requested: ${paywallEvent.name}",
-                    )
-                }
-            }
-        }
+        dependencyContainer.paywallEventHandler.eventDidOccur(paywallEvent, paywallView)
     }
 
     internal fun redeem(code: String) {

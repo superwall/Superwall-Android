@@ -13,6 +13,12 @@ data class SuperwallProduct(
     @SerialName("object")
     val objectType: String? = null,
     val identifier: String,
+    /**
+     * The product's display name. `null` today: `/v1/products` doesn't return a name yet, so
+     * anything showing a web product falls back to its entitlement. Populated automatically once
+     * the payload carries `name`.
+     */
+    val name: String? = null,
     val platform: SuperwallProductPlatform,
     val price: SuperwallProductPrice? = null,
     val subscription: SuperwallProductSubscription? = null,

@@ -5,17 +5,25 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.content.res.Resources
+import android.hardware.display.DisplayManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.DisplayMetrics
+import android.view.Display
 import androidx.core.content.ContextCompat
+import androidx.core.os.ConfigurationCompat
 import com.superwall.sdk.BuildConfig
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.Tier
+import com.superwall.sdk.config.options.AdConsent
+import com.superwall.sdk.config.options.EventTrackingBehavior
+import com.superwall.sdk.config.options.ReportedAdConsent
+import com.superwall.sdk.config.options.reportedAdConsent
 import com.superwall.sdk.dependencies.ActiveEntitlementsFactory
 import com.superwall.sdk.dependencies.CustomerInfoFactory
 import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
@@ -26,14 +34,16 @@ import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.StorefrontCountryFactory
 import com.superwall.sdk.identity.IdentityInfo
-import com.superwall.sdk.identity.setUserAttributes
+import com.superwall.sdk.identity.cleanAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.toResult
+import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.models.config.ComputedPropertyRequest
+import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.enrichment.EnrichmentRequest
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -44,6 +54,7 @@ import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.paywall.view.webview.templating.models.DeviceTemplate
+import com.superwall.sdk.storage.IntegrationAttributes
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
@@ -75,12 +86,15 @@ enum class InterfaceStyle(
     DARK("Dark"),
 }
 
-class DeviceHelper(
+class DeviceHelper internal constructor(
     private val context: Context,
     val storage: LocalStorage,
     val network: SuperwallAPI,
     val factory: Factory,
-    private val classifier: DeviceClassifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
+    private val classifier: DeviceClassifier,
+    private val tcfAdConsent: () -> AdConsent.Custom?,
+    private val ipCollector: DeviceIpCollector?,
+    private val subscriptionStatus: () -> SubscriptionStatus?,
 ) {
     interface Factory :
         IdentityInfoFactory,
@@ -104,6 +118,10 @@ class DeviceHelper(
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val appInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     private val appInstallDate = Date(appInfo.firstInstallTime)
+
+    /** The date the app was first installed, for consumers such as the Customer Center. */
+    val appInstallDateValue: Date
+        get() = appInstallDate
 
     fun daysSince(date: Date): Int {
         val fromDate = Instant.ofEpochMilli(date.time)
@@ -263,6 +281,33 @@ class DeviceHelper(
     val languageCode: String
         get() = _locale.language
 
+    /** The user's first preferred language in system settings, which can differ from the app's locale. */
+    private val preferredLocale: Locale
+        get() =
+            ConfigurationCompat.getLocales(Resources.getSystem().configuration).get(0)
+                ?: _locale
+
+    val preferredLocaleIdentifier: String
+        get() = preferredLocale.toString()
+
+    val preferredLanguageCode: String
+        get() = preferredLocale.language
+
+    val preferredRegionCode: String
+        get() = preferredLocale.country
+
+    /** The kind of device, the counterpart to iOS's interface idiom. */
+    val interfaceType: String
+        get() =
+            when (context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) {
+                Configuration.UI_MODE_TYPE_TELEVISION -> "tv"
+                Configuration.UI_MODE_TYPE_CAR -> "car"
+                Configuration.UI_MODE_TYPE_WATCH -> "watch"
+                Configuration.UI_MODE_TYPE_VR_HEADSET -> "vr"
+                else ->
+                    if (context.resources.configuration.smallestScreenWidthDp >= 600) "tablet" else "phone"
+            }
+
     private val regionCode: String
         get() = _locale.country
 
@@ -272,8 +317,41 @@ class DeviceHelper(
     val currencySymbol: String
         get() = _currency?.symbol ?: ""
 
+    /** The current offset from GMT, including daylight saving time. */
+    val timezoneOffsetSeconds: Int
+        get() = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000
+
     val secondsFromGMT: String
         get() = (TimeZone.getDefault().rawOffset / 1000).toString()
+
+    /** The full screen width in dp, comparable to iOS points and a browser's CSS pixels. */
+    val screenWidth: Int
+        get() = (screenSizePixels.first / density).roundToInt()
+
+    /** The full screen height in dp, comparable to iOS points and a browser's CSS pixels. */
+    val screenHeight: Int
+        get() = (screenSizePixels.second / density).roundToInt()
+
+    private val density: Float
+        get() = context.resources.displayMetrics.density
+
+    // Read from the display rather than a window, since this is called with the application
+    // context.
+    private val screenSizePixels: Pair<Int, Int>
+        get() {
+            val metrics = DisplayMetrics()
+            val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+            @Suppress("DEPRECATION")
+            displayManager?.getDisplay(Display.DEFAULT_DISPLAY)?.getRealMetrics(metrics)
+            if (metrics.widthPixels == 0 || metrics.heightPixels == 0) {
+                val fallback = context.resources.displayMetrics
+                return fallback.widthPixels to fallback.heightPixels
+            }
+            return metrics.widthPixels to metrics.heightPixels
+        }
+
+    val devicePixelRatio: Double
+        get() = density.toDouble()
 
     val isFirstAppOpen: Boolean
         get() = !storage.didTrackFirstSession
@@ -323,6 +401,9 @@ class DeviceHelper(
 
     val appInstalledAtString: String
         get() = dateFormat(DateUtils.SIMPLE).format(appInstallDate)
+
+    val appInstalledAtMillis: Long
+        get() = appInstallDate.time
 
     var interfaceStyleOverride: InterfaceStyle? = null
 
@@ -550,7 +631,7 @@ class DeviceHelper(
 
     private val subscriptionStatusString: String?
         get() =
-            Superwall.instance.subscriptionStatus.value?.let {
+            subscriptionStatus()?.let {
                 when (it) {
                     is SubscriptionStatus.Active -> "ACTIVE"
                     is SubscriptionStatus.Inactive -> "INACTIVE"
@@ -578,7 +659,7 @@ class DeviceHelper(
             fontSize.toString(),
             fontScale.toString(),
             isLowPowerModeEnabled,
-            Superwall.instance.entitlements.active
+            factory.activeEntitlements()
                 .sortedBy { it.id }
                 .joinToString(",") { "${it.id}:${it.type.raw}" },
             subscriptionStatusString ?: "null",
@@ -589,13 +670,18 @@ class DeviceHelper(
             totalPaywallViews.toString(),
             reviewRequestCount.toString(),
             factory.storefrontCountryCode() ?: "",
+            currentAdConsent.let { "${it.consent.adUserData}:${it.consent.adPersonalization}:${it.source.raw}" },
         ).joinToString("|")
+
+    internal val currentAdConsent: ReportedAdConsent
+        get() = reportedAdConsent(factory.makeSuperwallOptions(), tcfAdConsent())
 
     private suspend fun buildDeviceTemplate(
         identityInfo: IdentityInfo,
         volatileFields: VolatileTemplateFields,
-    ): DeviceTemplate =
-        DeviceTemplate(
+    ): DeviceTemplate {
+        val adConsent = currentAdConsent
+        return DeviceTemplate(
             publicApiKey = storage.apiKey,
             platform = "Android",
             appUserId = identityInfo.appUserId ?: "",
@@ -635,10 +721,10 @@ class DeviceHelper(
             localDateTime = volatileFields.localDateTime,
             isSandbox = isSandbox.toString(),
             activeEntitlements =
-                Superwall.instance.entitlements.active
+                factory.activeEntitlements()
                     .map { it.id },
             activeEntitlementsObject =
-                Superwall.instance.entitlements.active
+                factory.activeEntitlements()
                     .map { mapOf("identifier" to it.id, "type" to it.type.raw) },
             subscriptionStatus = subscriptionStatusString,
             activeProducts = factory.activeProductIds(),
@@ -657,7 +743,11 @@ class DeviceHelper(
             reviewRequestCount = reviewRequestCount,
             kotlinVersion = kotlinVersion,
             storeFrontCountryCode = factory.storefrontCountryCode(),
+            adUserDataConsent = adConsent.consent.adUserData.raw,
+            adPersonalizationConsent = adConsent.consent.adPersonalization.raw,
+            adConsentSource = adConsent.source.raw,
         )
+    }
 
     suspend fun getTemplateDevice(): Map<String, Any> {
         return withErrorTracking {
@@ -682,9 +772,11 @@ class DeviceHelper(
                 val enriched =
                     enrichment
                         ?.device
+                        ?.minus(DeviceIpCollector.ATTRIBUTE_KEYS.toSet())
                         ?: emptyMap()
                 enriched
                     .plus(it)
+                    .plus(ipAttributes())
                     .let {
                         withErrorTracking {
                             if (factory.makeSuperwallOptions().enableExperimentalDeviceVariables) {
@@ -710,6 +802,64 @@ class DeviceHelper(
             )
     }
 
+    /**
+     * Which IP addresses to collect. The MMP gets both. AppsFlyer only needs the IPv4 address,
+     * which the device's own requests don't show when it's on an IPv6 network.
+     */
+    private enum class IpCollection { NONE, IPV4_FOR_APPSFLYER, ALL }
+
+    /** Whether the latest config turned the MMP on. */
+    @Volatile
+    private var isMmpEnabled = false
+
+    private fun ipCollection(): IpCollection {
+        // The lookups only serve install attribution, which the opt-out skips.
+        if (factory.makeSuperwallOptions().eventTrackingBehavior == EventTrackingBehavior.NONE) {
+            return IpCollection.NONE
+        }
+        if (isMmpEnabled) {
+            return IpCollection.ALL
+        }
+        val appsflyerId = storage.read(IntegrationAttributes)?.get(AttributionProvider.APPSFLYER_ID)
+        if (!appsflyerId.isNullOrEmpty()) {
+            return IpCollection.IPV4_FOR_APPSFLYER
+        }
+        return IpCollection.NONE
+    }
+
+    /**
+     * Starts the IP lookups once config turns the MMP on or an AppsFlyer ID is set. On a cold
+     * launch the first device-attributes read happens before config arrives, so without this
+     * the lookup would wait for some later read.
+     *
+     * @param config The config just applied, or null to keep the latest one.
+     */
+    fun startIpCollectionIfEnabled(config: Config? = null) {
+        config?.let { isMmpEnabled = it.isMmpEnabled }
+        val collector = ipCollector ?: return
+        when (ipCollection()) {
+            IpCollection.NONE -> Unit
+            IpCollection.IPV4_FOR_APPSFLYER -> collector.refreshIpV4IfOnlyIpV6IsKnown()
+            IpCollection.ALL -> collector.refreshIfNeeded()
+        }
+    }
+
+    /** The collected IP addresses that the current config and integrations call for. */
+    private fun ipAttributes(): Map<String, String> {
+        val collector = ipCollector ?: return emptyMap()
+        return when (ipCollection()) {
+            IpCollection.NONE -> emptyMap()
+            IpCollection.IPV4_FOR_APPSFLYER -> {
+                collector.refreshIpV4IfOnlyIpV6IsKnown()
+                collector.attributes(setOf(4))
+            }
+            IpCollection.ALL -> {
+                collector.refreshIfNeeded()
+                collector.attributes()
+            }
+        }
+    }
+
     internal fun setEnrichment(enrichment: Enrichment) {
         this.lastEnrichment.value = enrichment
     }
@@ -720,8 +870,9 @@ class DeviceHelper(
         maxRetry: Int,
         timeout: Duration,
     ): Either<Enrichment, NetworkError> {
+        val identityManager = factory.makeIdentityManager()
         val userAttributes =
-            factory.makeIdentityManager().userAttributes.mapValues {
+            identityManager.userAttributes.mapValues {
                 it.value.convertToJsonElement()
             }
 
@@ -733,13 +884,16 @@ class DeviceHelper(
             .getEnrichment(EnrichmentRequest(userAttributes, deviceAttributes), maxRetry, timeout)
             .then {
                 lastEnrichment.value = it
+                // Kept in memory whatever the config says, since on a cold launch the first
+                // enrichment arrives before config does.
+                ipCollector?.record(it.device.mapNotNull { (key, value) -> (value as? String)?.let { key to it } }.toMap())
             }.then {
                 storage.write(LatestEnrichment, it)
                 it.user.let {
-                    Superwall.instance.setUserAttributes(it.toMap())
+                    identityManager.mergeUserAttributes(cleanAttributes(it.toMap()))
                 }
                 it.device.let {
-                    Superwall.instance.setUserAttributes(it.toMap())
+                    identityManager.mergeUserAttributes(cleanAttributes(it.toMap()))
                 }
             }
     }

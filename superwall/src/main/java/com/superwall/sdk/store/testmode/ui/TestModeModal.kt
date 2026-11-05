@@ -17,7 +17,6 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.superwall.sdk.R
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.serialization.AnyMapSerializer
 import com.superwall.sdk.storage.TestModeSettings
@@ -29,7 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
-internal data class TestModeModalResult(
+data class TestModeModalResult(
     val entitlements: List<EntitlementSelection>,
     val freeTrialOverride: FreeTrialOverride,
 )
@@ -43,11 +42,14 @@ internal object TestModeModal {
         apiKey: String = "",
         dashboardBaseUrl: String = "",
         savedSettings: TestModeSettings? = null,
+        userId: () -> String,
+        userAttributes: () -> Map<String, Any>,
+        deviceAttributes: suspend () -> Map<String, Any?>,
     ): TestModeModalResult {
         // Fetch these OFF the main thread — their getters use runBlocking internally,
         // which would cause an ANR if called inside withContext(Dispatchers.Main).
-        val userId = Superwall.instance.userId
-        val userAttributes = Json.encodeToString(AnyMapSerializer, Superwall.instance.userAttributes)
+        val userId = userId()
+        val userAttributes = Json.encodeToString(AnyMapSerializer, userAttributes())
 
         return withContext(Dispatchers.Main) {
             val result = CompletableDeferred<TestModeModalResult>()
@@ -95,7 +97,7 @@ internal object TestModeModal {
             // Device Attributes row
             ioScope.launch {
                 val deviceAttributes =
-                    Json.encodeToString(AnyMapSerializer, Superwall.instance.deviceAttributes())
+                    Json.encodeToString(AnyMapSerializer, deviceAttributes())
                 withContext(Dispatchers.Main) {
                     view.findViewById<View>(R.id.device_attributes_row).setOnClickListener {
                         TestModeAttributesViewer.show(activity, "Device Attributes", deviceAttributes)
@@ -173,7 +175,7 @@ internal object TestModeModal {
                 dialog.dismiss()
             }
 
-            dialog.setContentView(view)
+            dialog.setSheetContent(view)
             dialog.setOnDismissListener {
                 ioScope.cancel()
                 if (!result.isCompleted) {

@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
+import android.app.Activity
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -18,6 +19,7 @@ import com.superwall.sdk.paywall.view.PaywallView
 import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
@@ -108,6 +110,49 @@ class GetPresenterOperatorTest {
                     val errorState = withTimeout(1_000) { errorDeferred.await() }
 
                     Then("a presentation error is emitted before throwing") {
+                        assertTrue(errorState is PaywallState.PresentationError)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getPresenterIfNecessary emits error when activity is finishing`() =
+        runTest {
+            Given("a presentation request with a finishing activity") {
+                val paywallView = mockk<PaywallView>()
+                val rulesOutcome =
+                    RuleEvaluationOutcome(
+                        triggerResult =
+                            InternalTriggerResult.Paywall(
+                                Experiment.presentById("abc"),
+                            ),
+                    )
+                val request = createRequest(PresentationRequestType.Presentation)
+                val publisher = MutableSharedFlow<PaywallState>(replay = 1)
+                val activity = mockk<Activity>(relaxed = true)
+                every { activity.isFinishing } returns true
+
+                val errorDeferred =
+                    async {
+                        publisher.first { it is PaywallState.PresentationError }
+                    }
+
+                When("getPresenterIfNecessary executes") {
+                    assertFailsWith<com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason.NoPresenter> {
+                        getPresenterIfNecessary(
+                            paywallView,
+                            rulesOutcome,
+                            request,
+                            paywallStatePublisher = publisher,
+                            attemptTriggerFire = { _, _ -> },
+                            activity = { activity },
+                        )
+                    }
+
+                    val errorState = withTimeout(1_000) { errorDeferred.await() }
+
+                    Then("the invalid presenter is rejected") {
                         assertTrue(errorState is PaywallState.PresentationError)
                     }
                 }

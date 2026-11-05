@@ -4,23 +4,97 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Unreleased
 
+## Breaking changes
+- The constructors of SDK-internal classes are now `internal`, because `Superwall.configure` builds them: `AutomaticPurchaseController`, `TransactionManager`, `StoreManager`, `DeviceHelper`, `IdentityManager`, `LocalStorage`, `AppSessionManager`, `PaywallRequestManager`, `DeepLinkRouter`, `DebugManager`, `DebugView`, `TestMode` and `SWWebView`. The public overload of `SurveyManager.presentSurveyIfAvailable` is removed, and `ApiFactory.track` no longer has a default body. None of these were documented API; configure the SDK with `Superwall.configure` and use `Superwall.instance`.
+
 ## Enhancements
-- Significantly improves paywall loading 
-- Implicit placements that map to no campaign (e.g. `app_launch`, `session_start`) no longer occupy the presentation queue ahead of `register()` calls while waiting for entitlements.
-- Config refreshes now diff paywalls by cache key and only evict changed ones from the request cache, so unchanged preloaded paywalls stay warm across refreshes.
-- The loading shimmer no longer forces a software layer.
-- Logs are now delivered on a dedicated background thread, so neither the console write nor a delegate's `handleLog` implementation costs frames on the thread that produced the log. Ordering is preserved, and one log's output can no longer interleave with another's.
-- Deciding whether a log is worth building no longer resolves the dependency container, making suppressed logs close to free.
+- Adds `LogScope.billing` for the SDK's Google Play Billing logs. `LogScope.storeKitManager` is deprecated; setting it in `SuperwallOptions.logging.scopes` still enables the billing logs.
 
 ## Fixes
-- A failed subresource (image, font, analytics beacon) no longer restarts the whole paywall page load or counts toward fallback-URL attempts; only main-frame failures (and failures of the paywall runtime bundle) do. Transient main-frame failures are now retried (bounded) on Android 8+, where previously they were not retried at all.
+- Fixes observer-mode purchases going untracked when `SuperwallOptions.shouldObservePurchases` is on and only one purchase is in progress. A completed purchase now tracks `transaction_complete` and refreshes the receipt, and a cancelled one tracks `transaction_abandon`; before, both were dropped with an error log. Observer-mode charts can show more transactions after this release.
+- Fixes observer-mode tracking stopping for the rest of the session when `SuperwallOptions.shouldObservePurchases` is on and Play reported a cancelled or failed purchase while no purchase was being observed. The purchase listener crashed on it; such results are now ignored.
+
+## Deprecations
+- Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
+- Deprecates the unused iOS-port types `com.superwall.sdk.billing.StoreProductType`, `StoreKit`, `StoreKitManagerInterface`, `ProductPurchaser`, `TransactionRestorer`, `Purchasing` and `TransactionVerifierFactory`. They will be removed in a future release. `GetProductsResponse` is unchanged.
+
+## 2.9.0
+
+## Enhancements
+- Adds install attribution matching. If the app has performance marketing integrations set up on the Superwall dashboard, the SDK matches the install to the ad click that led to it and tracks an `attribution_match` event. The resulting `acquisition_*` attributes are added to user attributes, so they can be used as breakdowns and filters in charts and audiences, and they carry over to new users after `identify` or `reset`. The match runs once per install, within 7 days of install, only when the dashboard has turned it on for the app, and never blocks startup. It uses the Play install referrer's click id when present. It is skipped while `eventTrackingBehavior` is `NONE` and runs if tracking is turned back on. On the first launch, a paywall whose audiences use `acquisition_*` attributes waits up to 2 seconds for a match that's still running.
+- Adds best-effort public IPv4 and IPv6 device attributes for apps using the Superwall MMP, and the IPv4 attribute for apps that set an AppsFlyer ID. Apps that use the MMP or set an AppsFlyer ID should declare IP address collection in their Play Console data safety form.
+- Adds `SuperwallOptions.adConsent` and `Superwall.instance.adConsent` for reporting the user's ad measurement consent (`AdConsent.Custom(adUserData, adPersonalization)`, each an `AdConsentStatus` of `Granted` or `Denied`). It is sent as the `adUserDataConsent` and `adPersonalizationConsent` device attributes and forwarded with the conversions Superwall uploads to Google Ads and Meta. While `adConsent` is `AdConsent.Unspecified`, the default, the SDK uses the consent stored by an IAB TCF consent banner when GDPR applies, and otherwise defaults to granted; apps with users in the EEA, UK or Switzerland that don't use a TCF banner should set it from their consent flow. Where the values came from is reported in the new `adConsentSource` device attribute (`developer`, `tcf` or `default`). Both are reported as denied when `eventTrackingBehavior` is `NONE`.
+- Adds subscription replacement. When a paywall's Purchase action is set to replace an existing subscription, the purchase upgrades, downgrades or switches the user's active Google Play subscription that shares an entitlement with the new product, instead of buying a second one. The replacement mode (store default, charge the prorated difference now, or charge the full price now) maps to Google Play's `SubscriptionUpdateParams`. Users without such a subscription make a normal purchase.
+- Adds `PurchaseController.purchase(activity, product, basePlanId, offerId, replacement)`. Its `ProductReplacement` carries the mode and the old product's ID and purchase token, so a custom `PurchaseController` can perform the replacement. The default implementation ignores it and calls the existing `purchase` method.
+
+## Fixes
+- Fix web checkout codes passed through the Play install referrer never being redeemed. A code is now redeemed once, on the first launch after install.
+- Fixes a band of the host window showing beside the display cutout around a Fullscreen, Push or no-animation paywall shown with `PresentationHost.IN_WINDOW`. The in-window host padded the paywall for the cutout as well as the system bars; it now pads for the system bars only, as `SuperwallPaywallActivity` does, and the paywall clears the cutout with its CSS safe-area insets.
+- Fixes paywalls not running post-purchase actions (e.g. navigating to a thank-you page) after a one-time product purchase, because `transaction_complete` was only sent to the paywall for subscriptions.
+- Fixes `getProducts()` (and other network-backed suspend APIs) not being main-safe: network requests now always run on `Dispatchers.IO`, so the `/products` fallback no longer fails with `NetworkOnMainThreadException` when called from the main thread.
+
+
+## 2.8.8
+
+## Enhancements
+- Adds `AIRBRIDGE_ID` as an `AttributionProvider` (`airbridgeId`), for the Airbridge Device ID from `Airbridge.fetchDeviceUUID`.
+
+## 2.8.7
+
+## Fixes
+- Fix prioritized preloading having no effect. The first preload batch contained every paywall the device was assigned to instead of only the prioritized campaign's paywalls, so those paywalls loaded alongside everything else at launch. The first batch now holds only the prioritized campaign's paywalls, and the batch that follows holds only the rest.
+
+## 2.8.6
+
+## Enhancements
+- Adds `PaywallOptions.presentationHost`. Set it to `PresentationHost.IN_WINDOW` to show paywalls as an overlay in the presenting activity's own window instead of launching `SuperwallPaywallActivity`. Fullscreen, Drawer, Modal, Popup and Push styles, back handling, surveys, trial reminder notifications, permission requests and web checkout all work in this mode. It is meant for hosts that stop running while another activity covers them, such as Unity games, where a purchase controller written in the game's code could otherwise never answer. The default stays `PresentationHost.ACTIVITY`.
+
+## 2.8.5
+
+## Enhancements
+- Adds the Customer Center, a self-service screen where users can view and restore their purchases, cancel or change a Google Play subscription, request a refund, manage a web subscription and contact support. Present it with `Superwall.instance.presentCustomerCenter()`, dismiss it with `Superwall.instance.dismissCustomerCenter()`, and configure it with `SuperwallOptions.customerCenter`.
+- Adds `CustomerCenterDelegate` and the `customerCenter_open`, `customerCenter_close`, `customerCenter_action`, `customerCenter_surveyResponse` and `customerCenter_refundRequest` events.
+
+## Fixes
+- Fix subscribers with an unexpired subscription being reported as inactive when Google Play fails to answer a purchase query, for example when the billing client isn't ready at launch. A query that succeeds and reports no purchases still deactivates straight away.
+- Fix subscribers being reported as inactive when Google Play returns an active purchase whose product no longer maps to an entitlement in config. A lost mapping is no longer treated as the subscription ending.
+- Fix purchases being refunded by Google Play for not being acknowledged when they did not complete through the billing flow callback, for example a pending purchase that settled while the app was closed, the app being killed mid-purchase, or a Play Store promo code. The `AutomaticPurchaseController` now acknowledges any unacknowledged purchase whenever it syncs the subscription status, including on launch, and retries acknowledgements that fail.
+- Fix `register()` never calling its handler, and every later placement stalling behind it, when a Google Play product query at launch was dropped. A request that found the billing client disconnected between being queued and running was discarded without a callback, leaving its products loading forever. Such requests are now re-queued until the client reconnects, a product query that Google Play never answers times out after 15 seconds, a disconnect with queued requests reconnects, and a second `startConnection` is no longer issued while one is in flight.
+- A paywall whose webview can't load, because every URL and retry has been used up or `paywalls.timeoutAfter` passed, is now dismissed as declined with the `webViewFailedToLoad` close reason, matching iOS. The register handler gets `onDismiss` and then the feature block for a non-gated placement, or `onError` for a gated one. Previously the paywall stayed on screen, and with `timeoutAfter` set the handler received `onPresent` followed by a bare `onError` while the paywall was still showing. A paywall that fails to load off-screen, for example during preload, reloads the next time it is presented.
+
+## 2.8.4
+
+## Fixes
+- Fix bug where experiment ID would be stale among paywalls sharing experiments
+- Fix `presentation_id` changing mid-presentation when `getPaywall()` is called for a paywall that is already on screen. The id now rotates when a cached paywall is presented again, so every event between one `paywall_open` and the next carries the same id.
+- Fix trial reminder notifications being scheduled after a paywall purchase that did not start a free trial (for example a user who already used their trial and was charged immediately). Reminders are now only scheduled when a trial actually started, and the paywall receives the `freeTrial_start` message for every started trial, even when it has no trial reminders configured.
+
+
+## 2.8.3
+
+## Fixes
+- Web purchase redemption now exposes the full checkout product in `didRedeemLink`, tracks `freeTrial_start` once per code, and schedules the active paywall's trial reminders from the checkout timestamp. Notification permission waits no longer block access or drop a late grant; ambiguous or already-elapsed reminders are skipped.
+- Fix multi-page paywalls only reporting the entry page view. `paywall_open` now waits for an in-flight `template_variables` send, so the runtime does not treat a late template payload as a fresh load and drop later `page_view`s.
+- Fix an active paywall not being reopened after its webview process crashes and is recreated. Recovery cancels template work for the old document and sends the open after the replacement loads, only if the same presentation is still active.
+- Fix prices not showing when product/offers are fetched from cache
+- Fix video loading and playing in the background on preloaded paywalls
+- Fix a JSON null in placement parameters or user attributes reaching audience filters as the text `"null"`, so a filter checking whether a field is null never matched.
+
+## 2.8.2
+
+## Enhancements
+- Significantly improves paywall loading times, reducing memory and CPU footprint when preloading
+- Implicit placements that map to no campaign (e.g. `app_launch`, `session_start`) no longer occupy the presentation queue ahead of `register()` calls while waiting for entitlements.
+- Config refreshes now diff paywalls by cache key and only evict changed ones from the request cache, so unchanged preloaded paywalls stay warm across refreshes.
+- The loading shimmer no longer forces a software layer
+- Logs are now delivered on a dedicated background thread
+
+## Fixes
 - The popup presentation style's entrance animation no longer stretches to the paywall's configured loading delay, and the delay no longer postpones hiding the spinner after a purchase completes.
 - `paywall_resourceLoad_fail` events now report the failing resource's URL.
-- Console logs carrying an `info` map no longer drop the log's message, and an empty `info` map no longer prints an empty `info: {}` line in its place.
 - A `SuperwallDelegate.handleLog` implementation that throws no longer propagates the exception into whatever SDK code produced the log.
 
-## Breaking Changes
-- Removes `PaywallViewCache.entries`, a non-functional property that only ever contained a stale construction-time snapshot.
+## Potentially Breaking Changes
 - `SuperwallDelegate.handleLog` is now always called on a background thread. It could previously be called on any thread, including main, so implementations that touch UI directly must now dispatch to the main thread themselves.
 
 ## 2.8.1

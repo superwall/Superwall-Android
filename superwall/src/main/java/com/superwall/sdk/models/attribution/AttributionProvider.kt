@@ -19,6 +19,10 @@ enum class AttributionProvider(
     @SerialName("singularDeviceId")
     SINGULAR_DEVICE_ID("singularDeviceId"),
 
+    /** The Airbridge Device ID, from `Airbridge.fetchDeviceUUID`. */
+    @SerialName("airbridgeId")
+    AIRBRIDGE_ID("airbridgeId"),
+
     /** The Amplitude device identifier. */
     @SerialName("amplitudeDeviceId")
     AMPLITUDE_DEVICE_ID("amplitudeDeviceId"),
@@ -104,9 +108,19 @@ enum class AttributionProvider(
     @SerialName("mixpanel")
     MIXPANEL("mixpanel"),
 
+    /**
+     * The Google Advertising ID (AAID/GAID) for the device. The SDK doesn't collect it, so
+     * set it here if your app has it.
+     */
     @SerialName("googleAds")
     GOOGLE_ADS("googleAds"),
 
+    /**
+     * The Google App Set ID for the device.
+     *
+     * As with [GOOGLE_ADS], the SDK collected this automatically until 2.5.5. Install-attribution
+     * matching forwards it as the request's `appSetId`.
+     */
     @SerialName("googleAppSetId")
     GOOGLE_APP_SET("googleAppSetId"),
 

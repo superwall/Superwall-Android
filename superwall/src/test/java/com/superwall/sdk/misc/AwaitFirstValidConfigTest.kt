@@ -1,6 +1,6 @@
 package com.superwall.sdk.misc
 
-import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.models.config.Config
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf

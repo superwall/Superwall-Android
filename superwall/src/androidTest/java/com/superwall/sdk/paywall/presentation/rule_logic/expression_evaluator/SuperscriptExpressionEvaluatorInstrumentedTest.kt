@@ -39,6 +39,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
             },
         factory = factoryBuilder,
         ioScope = IOScope(this.coroutineContext),
+        trackError = {},
     )
 
     @Test

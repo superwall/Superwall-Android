@@ -106,6 +106,7 @@ class IdentityActorIntegrationTest {
         existingAppUserId: String? = null,
         existingAliasId: String? = null,
         existingSeed: Int? = null,
+        installScopedAttributes: Map<String, Any?> = emptyMap(),
     ): IdentityManager {
         existingAppUserId?.let { every { storage.read(AppUserId) } returns it }
         existingAliasId?.let { every { storage.read(AliasId) } returns it }
@@ -124,6 +125,7 @@ class IdentityActorIntegrationTest {
             ioScope = IOScope(scope.coroutineContext),
             notifyUserChange = {},
             completeReset = { resetCalled = true },
+            installScopedAttributes = { installScopedAttributes },
             tracker = { trackedEvents.add(it) },
             webPaywallRedeemer = { mockk(relaxed = true) },
             actor = actor,
@@ -226,6 +228,60 @@ class IdentityActorIntegrationTest {
             }
             And("a new aliasId was generated") {
                 assertNotNull(manager.aliasId)
+            }
+        }
+    }
+
+    @Test
+    fun `install-scoped attributes survive identifying as a different user`() = runTest {
+        Given("a manager identified as user-1 with a resolved MMP match") {
+            val manager =
+                createSequentialManager(
+                    scope = backgroundScope,
+                    installScopedAttributes = mapOf("acquisition_source" to "google_ads"),
+                )
+            every { storage.read(DidTrackFirstSeen) } returns true
+
+            manager.configure(neverCalledStaticConfig = false)
+            manager.hasIdentity.first()
+            manager.identify("user-1")
+            manager.awaitLatestIdentity()
+
+            When("the app identifies as user-2") {
+                manager.identify("user-2")
+                manager.awaitLatestIdentity()
+            }
+
+            Then("user-2 keeps the acquisition attributes") {
+                assertEquals("user-2", manager.appUserId)
+                assertEquals("google_ads", manager.userAttributes["acquisition_source"])
+            }
+        }
+    }
+
+    @Test
+    fun `install-scoped attributes survive a full reset`() = runTest {
+        Given("a manager identified as user-1 with a resolved MMP match") {
+            val manager =
+                createSequentialManager(
+                    scope = backgroundScope,
+                    installScopedAttributes = mapOf("acquisition_source" to "google_ads"),
+                )
+            every { storage.read(DidTrackFirstSeen) } returns true
+
+            manager.configure(neverCalledStaticConfig = false)
+            manager.hasIdentity.first()
+            manager.identify("user-1")
+            manager.awaitLatestIdentity()
+
+            When("reset is called") {
+                manager.reset()
+                manager.awaitLatestIdentity()
+            }
+
+            Then("the anonymous user keeps the acquisition attributes") {
+                assertNull(manager.appUserId)
+                assertEquals("google_ads", manager.userAttributes["acquisition_source"])
             }
         }
     }

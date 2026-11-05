@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.presentation.get_paywall
 import android.app.Activity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.getPaywallComponents
 import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
@@ -19,6 +20,8 @@ data class PaywallComponents(
     val presenter: Activity?,
     val rulesOutcome: RuleEvaluationOutcome,
     val debugInfo: Map<String, Any>,
+    /** The experiment the request resolved to. Bound to the view together with the request. */
+    val experiment: Experiment?,
 )
 
 /**
@@ -39,6 +42,7 @@ internal suspend fun Superwall.getPaywall(
             request = request,
             paywallStatePublisher = publisher,
             unsavedOccurrence = it.rulesOutcome.unsavedOccurrence,
+            experiment = it.experiment,
         )
         Either.Success(it.view)
     }, onFailure = {
@@ -58,7 +62,7 @@ fun Superwall.getPaywallSync(
     request: PresentationRequest,
     onStateChanged: (PaywallState) -> Unit = {},
 ): Either<PaywallView, Throwable> {
-    val scope = Superwall.instance.ioScope
+    val scope = ioScope
     val publisher = MutableSharedFlow<PaywallState>()
     scope.launch {
         publisher.collectLatest {

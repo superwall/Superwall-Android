@@ -390,6 +390,7 @@ data class IdentityState(
 
         object Reset : Actions({
             update(Updates.Reset)
+            installScopedAttributes().takeIf { it.isNotEmpty() }?.let { update(Updates.AttributesMerged(it)) }
             // Track user_attributes with the intermediate reset state during re-identify.
             // Old code did this via _reset() → saveIds() → _mergeUserAttributes(shouldTrackMerge=true).
             val current = state.value
@@ -404,6 +405,7 @@ data class IdentityState(
         /** Matches iOS behavior where identitySubject is set to false during the reset window. */
         object FullReset : Actions({
             update(Updates.Reset)         // identity not ready
+            installScopedAttributes().takeIf { it.isNotEmpty() }?.let { update(Updates.AttributesMerged(it)) }
             // Track user_attributes with the new (reset) identity.
             // Old code did this via _reset() → saveIds() → _mergeUserAttributes(shouldTrackMerge=true).
             val current = state.value

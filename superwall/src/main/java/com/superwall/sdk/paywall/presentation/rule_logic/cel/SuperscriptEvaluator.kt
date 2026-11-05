@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -21,12 +20,12 @@ import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValu
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.core_data.CoreDataManager
-import com.superwall.sdk.utilities.trackError
 import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
@@ -44,6 +43,7 @@ internal class SuperscriptEvaluator(
     private val ioScope: IOScope,
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
+    private val trackError: (Throwable) -> Unit,
     private val hostContext: SuperscriptHostContext =
         SuperscriptHostContext(
             json,
@@ -130,7 +130,7 @@ internal class SuperscriptEvaluator(
                                 "Unknown error ${it.getThrowable()}",
                             )
                         }
-                    Superwall.instance.trackError(e)
+                    trackError(e)
                     TriggerRuleOutcome.noMatch(
                         UnmatchedRule.Source.EXPRESSION,
                         rule.experiment.id,
@@ -246,6 +246,11 @@ internal fun Any.toPassableValue(): PassableValue =
 
 private fun JsonElement.toPassableValue(): PassableValue =
     when (this) {
+        // Checked before JsonPrimitive, which JsonNull is a kind of. Without this a
+        // JSON null falls past every primitive branch and comes out as the string
+        // "null", so an audience filter comparing the field to null never matches.
+        is JsonNull -> PassableValue.NullValue
+
         is JsonObject ->
             PassableValue.MapValue(
                 this.mapValues { (_, value) -> value.toPassableValue() }.toMap(),

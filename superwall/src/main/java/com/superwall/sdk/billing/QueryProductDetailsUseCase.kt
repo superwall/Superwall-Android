@@ -26,7 +26,7 @@ internal class QueryProductDetailsUseCase(
     private val useCaseParams: QueryProductDetailsUseCaseParams,
     val onReceive: (List<StoreProduct>) -> Unit,
     val onError: (BillingError) -> Unit,
-    val withConnectedClient: (BillingClient.() -> Unit) -> Unit,
+    val withConnectedClient: (BillingClient.() -> Unit) -> Unit?,
     executeRequestOnUIThread: ExecuteRequestOnUIThreadFunction,
 ) : BillingClientUseCase<QueryProductDetailsResult>(useCaseParams, onError, executeRequestOnUIThread) {
     private fun log(msg: String) =
@@ -44,16 +44,20 @@ internal class QueryProductDetailsUseCase(
             onReceive(emptyList())
             return
         }
-        withConnectedClient {
-            val googleType = useCaseParams.productType
-            val params = googleType.buildQueryProductDetailsParams(nonEmptyProductIds)
+        val dispatched =
+            withConnectedClient {
+                val googleType = useCaseParams.productType
+                val params = googleType.buildQueryProductDetailsParams(nonEmptyProductIds)
 
-            queryProductDetailsAsyncEnsuringOneResponse(
-                this,
-                params,
-                ::processResult,
-            )
-        }
+                queryProductDetailsAsyncEnsuringOneResponse(
+                    this,
+                    params,
+                    ::processResult,
+                )
+            }
+        // The client disconnected after this request was dequeued. Dropping it here would
+        // leave every caller waiting for a product that is never delivered.
+        if (dispatched == null) retryWhenClientReconnects()
     }
 
     /**

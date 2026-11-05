@@ -1,5 +1,6 @@
 package com.superwall.sdk.store
 
+import com.superwall.sdk.store.testmode.noTestModeModal
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -591,7 +592,7 @@ class StoreManagerTest {
         }
 
     private fun makeActiveTestMode(): TestMode {
-        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false)
+        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false, showModal = noTestModeModal)
         testMode.evaluateTestMode(
             config = mockk(relaxed = true),
             bundleId = "com.app",
@@ -823,6 +824,90 @@ class StoreManagerTest {
 
                     Then("it still resolves the custom product without throwing") {
                         junitAssertTrue(result["custom_1"]?.isCustomProduct == true)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getProducts presents a mixed paywall with its custom products when billing is unavailable`() =
+        runTest {
+            Given("a paywall mixing a custom and a Play product on a device without billing") {
+                val manager = storeManagerWith { Either.Success(customProductsResponse("custom_1")) }
+                manager.fetchAndCacheCustomProducts(setOf("custom_1"), required = true)
+                coEvery { billing.awaitGetProducts(any()) } throws BillingError.BillingNotAvailable("nope")
+                val paywall =
+                    Paywall.stub().copy(
+                        productIds = listOf("custom_1", "product1:basePlan1:sw-auto"),
+                    )
+
+                When("getProducts is called outside of test mode") {
+                    val result = manager.getProducts(null, paywall, null)
+
+                    Then("it returns the custom product instead of throwing") {
+                        assertEquals(setOf("custom_1"), result.productsByFullId.keys)
+                    }
+
+                    And("the load is marked as failed so the paywall reloads its products later") {
+                        junitAssertTrue(paywall.productsLoadingInfo.failAt != null)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getProducts picks up Play products on reload once billing is available again`() =
+        runTest {
+            Given("a mixed paywall that loaded without its Play product while billing was unavailable") {
+                val manager = storeManagerWith { Either.Success(customProductsResponse("custom_1")) }
+                manager.fetchAndCacheCustomProducts(setOf("custom_1"), required = true)
+                val playProduct =
+                    mockk<StoreProduct> {
+                        every { fullIdentifier } returns "product1:basePlan1:sw-auto"
+                    }
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    BillingError.BillingNotAvailable("nope") andThen setOf(playProduct)
+                val paywall =
+                    Paywall.stub().copy(
+                        productIds = listOf("custom_1", "product1:basePlan1:sw-auto"),
+                    )
+                manager.getProducts(null, paywall, null)
+
+                When("the paywall's products are loaded again after billing recovers") {
+                    val result = manager.getProducts(null, paywall, null)
+
+                    Then("the Play product is included") {
+                        assertEquals(
+                            setOf("custom_1", "product1:basePlan1:sw-auto"),
+                            result.productsByFullId.keys,
+                        )
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getProducts in test mode presents a Play-only paywall even when nothing resolves`() =
+        runTest {
+            Given("test mode is active with a catalog that doesn't cover the paywall and billing is unavailable") {
+                val testMode = makeActiveTestMode()
+                testMode.setTestProducts(
+                    mapOf(
+                        "other:basePlan1:sw-auto" to
+                            mockk<StoreProduct> {
+                                every { fullIdentifier } returns "other:basePlan1:sw-auto"
+                            },
+                    ),
+                )
+                storeManager.testMode = testMode
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    BillingError.BillingNotAvailable("Billing not available")
+
+                When("getProducts is called") {
+                    val result = storeManager.getProducts(null, makePaywallWithTwoProducts(), null)
+
+                    Then("it returns no products instead of throwing") {
+                        junitAssertTrue(result.productsByFullId.isEmpty())
                     }
                 }
             }

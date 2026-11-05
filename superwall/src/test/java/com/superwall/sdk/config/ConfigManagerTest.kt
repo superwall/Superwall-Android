@@ -1,10 +1,10 @@
 package com.superwall.sdk.config
 
+import com.superwall.sdk.store.testmode.noTestModeModal
 import android.content.Context
 import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
-import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.Either
@@ -29,7 +29,6 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeBehavior
 import com.superwall.sdk.web.WebPaywallRedeemer
-import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.storage.DisableVerboseEvents
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -84,7 +83,6 @@ class ConfigManagerTest {
         val testMode: TestMode?,
         val tracked: CopyOnWriteArrayList<TrackableSuperwallEvent>,
         val statuses: MutableList<SubscriptionStatus>,
-        val activateCalls: AtomicInteger,
     )
 
     @Suppress("LongParameterList")
@@ -164,7 +162,6 @@ class ConfigManagerTest {
 
         val tracked = CopyOnWriteArrayList<TrackableSuperwallEvent>()
         val statuses = mutableListOf<SubscriptionStatus>()
-        val activateCalls = AtomicInteger(0)
 
         val options =
             SuperwallOptions().apply {
@@ -191,9 +188,6 @@ class ConfigManagerTest {
                 testMode = injectedTestMode,
                 tracker = { tracked.add(it) },
                 setSubscriptionStatus = { statuses.add(it) },
-                activateTestMode = { _, justActivated ->
-                    if (justActivated) activateCalls.incrementAndGet()
-                },
                 identityManager = identityManager?.let { im -> { im } },
             )
         return Setup(
@@ -208,7 +202,6 @@ class ConfigManagerTest {
             injectedTestMode,
             tracked,
             statuses,
-            activateCalls,
         )
     }
 
@@ -247,7 +240,7 @@ class ConfigManagerTest {
     fun `reevaluateTestMode deactivates when user no longer qualifies`() =
         runTest(timeout = 30.seconds) {
             val storageForTm = mockk<Storage>(relaxed = true)
-            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false))
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false, showModal = noTestModeModal))
             testMode.evaluateTestMode(
                 Config.stub(),
                 "com.test",
@@ -272,27 +265,62 @@ class ConfigManagerTest {
     fun `reevaluateTestMode activates when user now qualifies`() =
         runTest(timeout = 30.seconds) {
             val storageForTm = mockk<Storage>(relaxed = true)
-            val testMode = TestMode(storage = storageForTm, isTestEnvironment = false)
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false, showModal = noTestModeModal))
             assertFalse(testMode.isTestMode)
 
-            val s =
-                setup(
-                    backgroundScope,
-                    testModeBehavior = TestModeBehavior.ALWAYS,
-                    injectedTestMode = testMode,
-                )
-            s.manager.reevaluateTestMode(config = Config.stub(), appUserId = "anyone")
+            setup(
+                backgroundScope,
+                testModeBehavior = TestModeBehavior.ALWAYS,
+                injectedTestMode = testMode,
+            ).manager.reevaluateTestMode(config = Config.stub(), appUserId = "anyone")
             advanceUntilIdle()
 
             assertTrue(testMode.isTestMode)
-            assertEquals("activateTestMode lambda must fire once", 1, s.activateCalls.get())
+            coVerify(exactly = 1) { testMode.activate(any(), justActivated = true) }
+        }
+
+    // ApplyConfig has its own flip-down branch (separate from ReevaluateTestMode):
+    // when a config arrives that no longer activates test mode, ApplyConfig must
+    // call clearTestModeState() and emit SubscriptionStatus.Inactive.
+    @Test
+    fun `ApplyConfig deactivates when prior testMode no longer qualifies under new config`() =
+        runTest(timeout = 30.seconds) {
+            val storageForTm = mockk<Storage>(relaxed = true)
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false, showModal = noTestModeModal))
+            // Pre-activate so ApplyConfig sees wasTestMode=true.
+            testMode.evaluateTestMode(
+                Config.stub(),
+                "com.test",
+                null,
+                null,
+                testModeBehavior = TestModeBehavior.ALWAYS,
+            )
+            assertTrue(testMode.isTestMode)
+
+            // AUTOMATIC + Config.stub() (no userIds, matching bundleId) → deactivates.
+            val s =
+                setup(
+                    backgroundScope,
+                    testModeBehavior = TestModeBehavior.AUTOMATIC,
+                    injectedTestMode = testMode,
+                )
+            s.manager.fetchConfiguration()
+            advanceUntilIdle()
+
+            assertFalse("ApplyConfig must deactivate test mode", testMode.isTestMode)
+            verify(atLeast = 1) { testMode.clearTestModeState() }
+            assertTrue(
+                "Expected SubscriptionStatus.Inactive emitted from ApplyConfig flip-down",
+                s.statuses.any { it is SubscriptionStatus.Inactive },
+            )
+            coVerify(exactly = 0) { testMode.activate(any(), any()) }
         }
 
     @Test
     fun `reevaluateTestMode is noop when state unchanged`() =
         runTest(timeout = 30.seconds) {
             val storageForTm = mockk<Storage>(relaxed = true)
-            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false))
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false, showModal = noTestModeModal))
             assertFalse(testMode.isTestMode)
 
             val s =
@@ -306,8 +334,8 @@ class ConfigManagerTest {
 
             assertFalse(testMode.isTestMode)
             verify(exactly = 0) { testMode.clearTestModeState() }
+            coVerify(exactly = 0) { testMode.activate(any(), any()) }
             assertTrue("No subscription status published on no-op", s.statuses.isEmpty())
-            assertEquals("activateTestMode must not fire on no-op", 0, s.activateCalls.get())
         }
 
     // Both reevaluateTestMode and ApplyConfig mutate TestMode.state. They
@@ -318,7 +346,7 @@ class ConfigManagerTest {
             val storage = mockk<Storage>(relaxed = true)
             val inFlight = AtomicInteger(0)
             val maxOverlap = AtomicInteger(0)
-            val testMode = spyk(TestMode(storage = storage, isTestEnvironment = false))
+            val testMode = spyk(TestMode(storage = storage, isTestEnvironment = false, showModal = noTestModeModal))
             // Track in-flight evaluateTestMode calls. If serialization holds,
             // maxOverlap stays at 1.
             every {
@@ -356,7 +384,7 @@ class ConfigManagerTest {
     fun `fetchConfig in test mode skips web entitlements and product preload`() =
         runTest(timeout = 30.seconds) {
             val storageForTm = mockk<Storage>(relaxed = true)
-            val testMode = TestMode(storage = storageForTm, isTestEnvironment = false)
+            val testMode = TestMode(storage = storageForTm, isTestEnvironment = false, showModal = noTestModeModal)
             val s =
                 setup(
                     backgroundScope,
@@ -381,7 +409,7 @@ class ConfigManagerTest {
             val refreshed = config(buildId = "refreshed", triggers = setOf(Trigger.stub().copy(eventName = "trigger_b")), enableRefresh = true)
             val getCalls = AtomicInteger(0)
             val storageForTm = mockk<Storage>(relaxed = true)
-            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false))
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false, showModal = noTestModeModal))
 
             val s =
                 setup(
@@ -613,7 +641,7 @@ class ConfigManagerTest {
                     every { aliasId } returns "alias-from-identity"
                 }
             val storageForTm = mockk<Storage>(relaxed = true)
-            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false))
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false, showModal = noTestModeModal))
             val s =
                 setup(
                     backgroundScope,
@@ -645,7 +673,7 @@ class ConfigManagerTest {
                     every { aliasId } returns "alias-from-identity"
                 }
             val storageForTm = mockk<Storage>(relaxed = true)
-            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false))
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false, showModal = noTestModeModal))
             val s =
                 setup(
                     backgroundScope,
@@ -1218,7 +1246,7 @@ class ConfigManagerTest {
     fun `reevaluateTestMode flips state synchronously`() =
         runTest(timeout = 30.seconds) {
             val storage = mockk<Storage>(relaxed = true)
-            val testMode = TestMode(storage = storage, isTestEnvironment = false)
+            val testMode = TestMode(storage = storage, isTestEnvironment = false, showModal = noTestModeModal)
             val s = setup(
                 backgroundScope,
                 injectedTestMode = testMode,
@@ -1284,7 +1312,7 @@ class ConfigManagerTest {
     fun `applyConfig testMode just-activated publishes subscription status`() =
         runTest(timeout = 30.seconds) {
             val storage = mockk<Storage>(relaxed = true)
-            val testMode = TestMode(storage = storage, isTestEnvironment = false)
+            val testMode = TestMode(storage = storage, isTestEnvironment = false, showModal = noTestModeModal)
             val s = setup(
                 backgroundScope,
                 injectedTestMode = testMode,
@@ -1303,7 +1331,7 @@ class ConfigManagerTest {
     fun `applyConfig deactivates testMode when user no longer qualifies`() =
         runTest(timeout = 30.seconds) {
             val storage = mockk<Storage>(relaxed = true)
-            val testMode = spyk(TestMode(storage = storage, isTestEnvironment = false))
+            val testMode = spyk(TestMode(storage = storage, isTestEnvironment = false, showModal = noTestModeModal))
             testMode.evaluateTestMode(
                 Config.stub(), "com.app", null, null,
                 testModeBehavior = TestModeBehavior.ALWAYS,
@@ -1364,7 +1392,6 @@ class ConfigManagerTest {
                 testMode = null,
                 tracker = {},
                 setSubscriptionStatus = null,
-                activateTestMode = { _, _ -> },
             )
 
             mgr.fetchConfiguration()
@@ -1410,7 +1437,6 @@ class ConfigManagerTest {
                 testMode = null,
                 tracker = {},
                 setSubscriptionStatus = null,
-                activateTestMode = { _, _ -> },
             )
 
             mgr.fetchConfiguration()
@@ -1475,7 +1501,6 @@ class ConfigManagerTest {
                 testMode = null,
                 tracker = {},
                 setSubscriptionStatus = null,
-                activateTestMode = { _, _ -> },
                 awaitUtilNetwork = { awaitCalls.incrementAndGet() },
             )
 
@@ -1684,7 +1709,6 @@ internal class ConfigManagerForTest(
     testMode: TestMode?,
     tracker: suspend (TrackableSuperwallEvent) -> Unit,
     setSubscriptionStatus: ((SubscriptionStatus) -> Unit)?,
-    activateTestMode: suspend (Config, Boolean) -> Unit,
     identityManager: (() -> IdentityManager)? = null,
     awaitUtilNetwork: suspend () -> Unit = {},
 ) : ConfigManager(
@@ -1706,6 +1730,5 @@ internal class ConfigManagerForTest(
         identityManager = identityManager,
         setSubscriptionStatus = setSubscriptionStatus,
         awaitUtilNetwork = awaitUtilNetwork,
-        activateTestMode = activateTestMode,
         actor = SequentialActor(ConfigState.None, CoroutineScope(Dispatchers.Unconfined)),
     )

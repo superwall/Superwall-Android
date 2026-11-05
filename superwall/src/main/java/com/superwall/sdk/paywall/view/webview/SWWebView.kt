@@ -25,20 +25,18 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import androidx.core.graphics.createBitmap
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
-import com.superwall.sdk.game.dispatchKeyEvent
-import com.superwall.sdk.game.dispatchMotionEvent
+import com.superwall.sdk.game.GameControllerManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.asEither
+import com.superwall.sdk.misc.runOnUiThread
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -66,21 +64,23 @@ interface SendPaywallMessages {
     fun handle(message: PaywallMessage)
 }
 
-class SWWebView(
+class SWWebView internal constructor(
     context: Context,
     override val messageHandler: PaywallMessageHandler,
     private val onFinishedLoading: ((url: String) -> Unit)? = null,
     private val options: () -> PaywallOptions,
-    private val track: suspend (TrackableSuperwallEvent) -> Unit = { Superwall.instance.track(it) },
+    private val track: suspend (TrackableSuperwallEvent) -> Unit,
+    private val currentActivity: () -> Activity?,
+    private val localResources: () -> Map<String, PaywallResource>,
+    private val deviceLocale: () -> String?,
+    private val gameControllerEnabled: () -> Boolean,
 ) : WebView(context),
     PaywallWebUI {
     override var delegate: PaywallUIDelegate? = null
     private val mainScope = MainScope()
     private val ioScope = IOScope()
     val activity: Activity?
-        get() =
-            Superwall.instance.dependencyContainer.activityProvider
-                ?.getCurrentActivity()
+        get() = currentActivity()
     private val gestureDetector: GestureDetector by lazy {
         GestureDetector(
             context,
@@ -90,7 +90,7 @@ class SWWebView(
     override var onScrollChangeListener: PaywallWebUI.OnScrollChangeListener? = null
 
     private val localResourceHandler by lazy {
-        LocalResourceHandler(context) { Superwall.instance.localResources }
+        LocalResourceHandler(context, localResources)
     }
 
     override fun detach(fromView: ViewGroup) {
@@ -112,6 +112,8 @@ class SWWebView(
 
     var onRenderCrashed: (didCrash: Boolean, priority: Int) -> Unit =
         { i, e -> }
+
+    private var onLoadFailed: (WebviewError) -> Unit = {}
 
     private companion object ChromeClient : WebChromeClient() {
         const val MAX_LOAD_RETRIES = 3
@@ -181,6 +183,52 @@ class SWWebView(
     private var lastLoadedUrl: String? = null
     private var loadRetryCount = 0
 
+    private var hostPaused = false
+    private var viewDestroyed = false
+    // View callbacks can run from the superclass constructor, before Kotlin initializers.
+    // The JVM default (false) keeps them from evaluating JS until this is set to true, so it
+    // must stay a field with an initializer rather than being inlined.
+    private var mediaLifecycleReady = true
+
+    private fun updateMediaPlayback() {
+        if (!mediaLifecycleReady || viewDestroyed) return
+        val allowed = !hostPaused && isAttachedToWindow && isShown && windowVisibility == View.VISIBLE
+        evaluateJavascript(MediaPlaybackScript.build(allowed), null)
+    }
+
+    override fun onPause() {
+        hostPaused = true
+        updateMediaPlayback()
+        super<WebView>.onPause()
+    }
+
+    override fun onResume() {
+        super<WebView>.onResume()
+        hostPaused = false
+        updateMediaPlayback()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // A cached view can be attached to a different host, including an embedded one.
+        onResume()
+    }
+
+    override fun onDetachedFromWindow() {
+        if (!viewDestroyed) evaluateJavascript(MediaPlaybackScript.build(false), null)
+        super.onDetachedFromWindow()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        updateMediaPlayback()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        updateMediaPlayback()
+    }
+
     // The device preload script seeds `window.__SW_DEVICE_PRELOAD__` as soon as
     // the page starts loading, so translated paywalls render in the device locale
     // on first paint instead of waiting for the `template_variables` message. The
@@ -189,13 +237,10 @@ class SWWebView(
     // runtime just falls back to waiting for `template_variables` as before.
     private fun currentDeviceLocale(): String? =
         delegate?.state?.locale
-            ?: if (Superwall.initialized) {
-                Superwall.instance.dependencyContainer.deviceHelper.locale
-            } else {
-                null
-            }
+            ?: deviceLocale()
 
     private val onPageStartedPreloadHook: (WebView) -> Unit = { view ->
+        updateMediaPlayback()
         currentDeviceLocale()?.let { locale ->
             view.evaluateJavascript(DevicePreloadScript.build(locale), null)
         }
@@ -279,25 +324,41 @@ class SWWebView(
     // Chromium's own InputConnection is required for the keyboard to commit text
     // (Cyrillic, Korean, emoji, etc.) into paywall inputs.
     override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection? =
-        if (Superwall.initialized && Superwall.instance.options.isGameControllerEnabled) {
+        if (isGameControllerEnabled()) {
             BaseInputConnection(this, false)
         } else {
             super.onCreateInputConnection(outAttrs)
         }
 
+    private fun isGameControllerEnabled(): Boolean = gameControllerEnabled()
+
+    /** A fresh web view with the same message handler and inputs, used after the renderer crashes. */
+    internal fun recreate(): SWWebView =
+        SWWebView(
+            context = context,
+            messageHandler = messageHandler,
+            onFinishedLoading = onFinishedLoading,
+            options = options,
+            track = track,
+            currentActivity = currentActivity,
+            localResources = localResources,
+            deviceLocale = deviceLocale,
+            gameControllerEnabled = gameControllerEnabled,
+        )
+
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
-        if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
+        if (event == null || !isGameControllerEnabled()) {
             return super.dispatchKeyEvent(event)
         }
-        Superwall.instance.dispatchKeyEvent(event)
+        runOnUiThread { GameControllerManager.shared.dispatchKeyEvent(event) }
         return true
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent?): Boolean {
-        if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
+        if (event == null || !isGameControllerEnabled()) {
             return super.dispatchGenericMotionEvent(event)
         }
-        Superwall.instance.dispatchMotionEvent(event)
+        runOnUiThread { GameControllerManager.shared.dispatchMotionEvent(event) }
         return true
     }
 
@@ -418,24 +479,45 @@ class SWWebView(
                                         }
                                     },
                                 )
-                                if (lastLoadedUrl != null) {
-                                    when (lastWebViewClient) {
-                                        is WebviewFallbackClient -> {
-                                            // NO-OP as it has internal fallback
-                                        }
+                                val error = it.webviewError
+                                val outOfAttempts =
+                                    when (error) {
+                                        is WebviewError.NoUrls,
+                                        is WebviewError.AllUrlsFailed,
+                                        is WebviewError.MaxAttemptsReached,
+                                        -> true
 
-                                        is DefaultWebviewClient -> {
-                                            if (loadRetryCount < MAX_LOAD_RETRIES) {
-                                                loadRetryCount += 1
-                                                log(
-                                                    "Paywall loading failed - retrying $lastLoadedUrl",
-                                                )
-                                                loadUrl(lastLoadedUrl!!)
+                                        is WebviewError.NetworkError ->
+                                            when (lastWebViewClient) {
+                                                is WebviewFallbackClient -> {
+                                                    // NO-OP as it has internal fallback; it reports
+                                                    // AllUrlsFailed/MaxAttemptsReached when that runs out.
+                                                    false
+                                                }
+
+                                                is DefaultWebviewClient -> {
+                                                    if (lastLoadedUrl == null) {
+                                                        false
+                                                    } else if (loadRetryCount < MAX_LOAD_RETRIES) {
+                                                        loadRetryCount += 1
+                                                        log(
+                                                            "Paywall loading failed - retrying $lastLoadedUrl",
+                                                        )
+                                                        loadUrl(lastLoadedUrl!!)
+                                                        false
+                                                    } else {
+                                                        true
+                                                    }
+                                                }
+
+                                                else -> false
                                             }
-                                        }
 
-                                        else -> {}
+                                        is WebviewError.Timeout -> false
                                     }
+                                if (outOfAttempts) {
+                                    log("Paywall loading failed - no attempts left for ${delegate?.state?.paywall?.identifier}")
+                                    onLoadFailed(error)
                                 }
                             }
 
@@ -459,6 +541,8 @@ class SWWebView(
                             }
 
                             is WebviewClientEvent.OnPageFinished -> {
+                                // Reinstall after navigation in case the early injection was lost.
+                                updateMediaPlayback()
                                 // The client records page-level failures synchronously on the
                                 // WebViewClient callback thread, so this can't miss an error
                                 // whose async OnError event hasn't been processed yet.
@@ -574,6 +658,7 @@ class SWWebView(
     }
 
     override fun destroy() {
+        viewDestroyed = true
         onScrollChangeListener = null
         super.destroy()
     }
@@ -590,8 +675,10 @@ class SWWebView(
     override fun setup(
         url: PaywallURL,
         onRenderCrashed: (Boolean, Int) -> Unit,
+        onLoadFailed: (WebviewError) -> Unit,
     ) {
         this.onRenderCrashed = onRenderCrashed
+        this.onLoadFailed = onLoadFailed
         scrollEnabled = delegate?.state?.paywall?.isScrollEnabled ?: true
         loadRetryCount = 0
         mainScope.launch {

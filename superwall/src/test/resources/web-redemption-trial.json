@@ -1,0 +1,84 @@
+{
+  "codes": [
+    {
+      "status": "SUCCESS",
+      "code": "TESTCODE",
+      "redemptionInfo": {
+        "ownership": {
+          "type": "APP_USER",
+          "appUserId": "appUserId"
+        },
+        "purchaserInfo": {
+          "appUserId": "appUserId",
+          "storeIdentifiers": {
+            "store": "STRIPE",
+            "stripeCustomerId": "cus_123",
+            "stripeSubscriptionIds": [
+              "sub_123"
+            ]
+          }
+        },
+        "paywallInfo": {
+          "identifier": "test_paywall",
+          "placementName": "test_placement",
+          "placementParams": {},
+          "variantId": "variant_1",
+          "experimentId": "exp_1",
+          "product": {
+            "identifier": "test_product",
+            "languageCode": "en",
+            "locale": "en_US",
+            "currencyCode": "USD",
+            "currencySymbol": "$",
+            "period": "1 month",
+            "periodly": "monthly",
+            "localizedPeriod": "month",
+            "periodAlt": "mo",
+            "periodDays": 30,
+            "periodWeeks": 4,
+            "periodMonths": 1,
+            "periodYears": 0,
+            "rawPrice": 9.99,
+            "price": "$9.99",
+            "dailyPrice": "$0.33",
+            "weeklyPrice": "$2.50",
+            "monthlyPrice": "$9.99",
+            "yearlyPrice": "$119.88",
+            "rawTrialPeriodPrice": 0.0,
+            "trialPeriodPrice": "$0.00",
+            "trialPeriodDailyPrice": "$0.00",
+            "trialPeriodWeeklyPrice": "$0.00",
+            "trialPeriodMonthlyPrice": "$0.00",
+            "trialPeriodYearlyPrice": "$0.00",
+            "trialPeriodDays": 7,
+            "trialPeriodWeeks": 1,
+            "trialPeriodMonths": 0,
+            "trialPeriodYears": 0,
+            "trialPeriodText": "7-day free trial",
+            "trialPeriodEndDate": "2026-09-14T12:30:00.000Z"
+          },
+          "productIdentifier": "test_product"
+        },
+        "entitlements": [
+          {
+            "identifier": "premium",
+            "type": "SERVICE_LEVEL",
+            "isActive": true
+          }
+        ]
+      }
+    }
+  ],
+  "customerInfo": {
+    "subscriptions": [],
+    "nonSubscriptions": [],
+    "userId": "appUserId",
+    "entitlements": [
+      {
+        "identifier": "premium",
+        "type": "SERVICE_LEVEL",
+        "isActive": true
+      }
+    ]
+  }
+}

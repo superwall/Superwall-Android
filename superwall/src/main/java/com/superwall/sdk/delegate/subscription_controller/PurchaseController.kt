@@ -5,6 +5,7 @@ import androidx.annotation.MainThread
 import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 /**
@@ -95,6 +96,37 @@ interface PurchaseController {
         @Suppress("DEPRECATION")
         return purchase(activity, rawStoreProduct.underlyingProductDetails, basePlanId, offerId)
     }
+
+    /**
+     * Called when the user initiates purchasing of a product that should replace one of their
+     * existing subscriptions, e.g. an upgrade, downgrade or plan switch.
+     *
+     * The SDK calls this instead of `purchase(activity, product, basePlanId, offerId)` for every
+     * purchase. [replacement] is non-null only when the paywall's Purchase action is set to
+     * replace an existing subscription and the user has an active subscription that shares an
+     * entitlement with [product]. For Google Play products, pass
+     * [ProductReplacement.oldPurchaseToken] and [ProductReplacement.mode] to the billing flow's
+     * `SubscriptionUpdateParams` (or the equivalent in your billing library, such as RevenueCat's
+     * `oldProductId` and `googleReplacementMode`).
+     *
+     * The default implementation ignores [replacement] and calls
+     * `purchase(activity, product, basePlanId, offerId)`, so existing implementations keep working.
+     *
+     * @param activity The `Activity` from which the purchase was initiated.
+     * @param product The Superwall [StoreProduct] the user would like to purchase.
+     * @param basePlanId An optional base plan identifier of the product that's being purchased.
+     * @param offerId An optional offer identifier of the product that's being purchased.
+     * @param replacement The existing subscription this purchase replaces, if any.
+     * @return A `PurchaseResult` object, which is the result of your purchase logic.
+     */
+    @MainThread
+    suspend fun purchase(
+        activity: Activity,
+        product: StoreProduct,
+        basePlanId: String?,
+        offerId: String?,
+        replacement: ProductReplacement?,
+    ): PurchaseResult = purchase(activity, product, basePlanId, offerId)
 
     /**
      * Called when the user initiates a restore.

@@ -1,0 +1,42 @@
+appId: com.superwall.superapp
+name: no_billing_test_mode
+tags:
+  - no_billing
+---
+# Runs on a device without Google Play Billing: disable the Play Store first with
+#   adb shell pm disable-user --user 0 com.android.vending
+# Not part of config.yaml's default flows, since it needs that device state.
+- launchApp:
+    appId: com.superwall.superapp
+    clearState: true
+- tapOn: "Purchase Controller Test"
+- tapOn: "Configure with test mode"
+
+# Test mode should come up even though billing can't connect
+- extendedWaitUntil:
+    visible: ".*Test Mode Active"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+- tapOn: "Continue"
+
+# A Play-only paywall presents with products from the test catalog
+- tapOn: "Trigger Paywall"
+- extendedWaitUntil:
+    visible: ".*Continue.*"
+    timeout: 20000
+- tapOn: "Continue"
+
+# Purchases go through the simulated test mode drawer, not Play
+- extendedWaitUntil:
+    visible: "TEST MODE"
+    timeout: 10000
+- tapOn: "(Confirm Purchase|Start Free Trial)"
+
+# The simulated purchase unlocks the feature and activates the subscription
+- extendedWaitUntil:
+    visible: "Feature triggered"
+    timeout: 10000
+- tapOn: "OK"
+- assertVisible: "Subscription status is Active"

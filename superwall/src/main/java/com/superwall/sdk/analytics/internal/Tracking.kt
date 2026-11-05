@@ -1,10 +1,11 @@
 package com.superwall.sdk.analytics.internal
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -58,7 +59,7 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
                 )
 
             dependencyContainer.delegateAdapter.handleSuperwallEvent(eventInfo = info)
-            emitSuperwallEvent(info)
+            dependencyContainer.superwallEventBus.emit(info)
 
             Logger.debug(
                 logLevel = LogLevel.debug,
@@ -96,10 +97,13 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
                 event = event,
             )
         }
+        if (event is InternalSuperwallEvent.DeviceAttributes) {
+            reconcileAdConsentAfterPublish(event.deviceAttributes)
+        }
         dependencyContainer.storage.coreDataManager.saveEventData(eventData)
 
         if (event.canImplicitlyTriggerPaywall) {
-            Superwall.instance.handleImplicitTrigger(
+            handleImplicitTrigger(
                 event = event,
                 eventData = eventData,
             )

@@ -9,4 +9,21 @@
     <style name="MessageTextStyle">
         <item name="android:textSize">15sp</item>
     </style>
+
+    <!-- Customer Center. A host app can restyle it by overriding this style. -->
+    <style name="Theme.Superwall.CustomerCenter" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/superwall_customer_center_background</item>
+        <item name="android:statusBarColor">@color/superwall_customer_center_background</item>
+        <item name="android:navigationBarColor">@color/superwall_customer_center_background</item>
+    </style>
+
+    <!-- Dialogs (e.g. surveys) of an in-window paywall whose host Activity has no AppCompat theme.
+         A host app can restyle them by overriding this style. -->
+    <style name="Theme.Superwall.InWindow" parent="Theme.Material3.DayNight.NoActionBar" />
+
+    <!-- The headless activity that asks for permissions: no UI of its own. -->
+    <style name="Theme.Superwall.PermissionRequest" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

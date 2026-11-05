@@ -23,6 +23,7 @@ class AttributionManager(
     val ioScope: IOScope = IOScope(),
     val redeemAfterSetting: () -> Unit,
     val vendorId: () -> VendorId,
+    val startIpCollection: () -> Unit = {},
 ) {
     /**
      * Backing field for integration identifiers.
@@ -61,6 +62,9 @@ class AttributionManager(
                         com.superwall.sdk.storage.IntegrationAttributes,
                         _integrationAttributes,
                     )
+                    if (attributes.containsKey(AttributionProvider.APPSFLYER_ID)) {
+                        startIpCollection()
+                    }
                     ioScope.launch {
                         track(IntegrationAttributes(merged))
                         redeemAfterSetting()

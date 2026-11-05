@@ -11,7 +11,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
-import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -37,7 +37,7 @@ internal class NotificationScheduler {
 
         suspend fun Context.existsWithTag(id: String): Boolean {
             val workManager = WorkManager.getInstance(this)
-            return workManager.getWorkInfosByTag(id).await().isNotEmpty()
+            return workManager.getWorkInfosByTagFlow(id).first().isNotEmpty()
         }
 
         fun scheduleNotifications(
@@ -45,6 +45,7 @@ internal class NotificationScheduler {
             factory: DeviceHelperFactory,
             context: Context,
             cancelExisting: Boolean = false,
+            applySandboxScaling: Boolean = true,
         ) {
             val workManager = WorkManager.getInstance(context)
             IOScope().launch {
@@ -67,7 +68,7 @@ internal class NotificationScheduler {
                     var delay = notification.delay // delay in milliseconds
 
                     val isSandbox = factory.makeIsSandbox()
-                    if (isSandbox) {
+                    if (isSandbox && applySandboxScaling) {
                         delay = delay / 24 / 60
                     }
 

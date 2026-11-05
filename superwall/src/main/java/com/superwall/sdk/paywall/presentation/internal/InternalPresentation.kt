@@ -48,6 +48,7 @@ internal suspend fun Superwall.internallyPresent(
             debugInfo = paywallComponents.debugInfo,
             request = request,
             paywallStatePublisher = publisher,
+            experiment = paywallComponents.experiment,
         )
     } catch (e: Throwable) {
         logErrors(request, e)

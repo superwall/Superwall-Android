@@ -3,7 +3,6 @@ package com.superwall.sdk.network.device
 import android.content.Context
 import android.provider.Settings
 import com.superwall.sdk.Given
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.analytics.DeviceClassifier
@@ -18,15 +17,10 @@ import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.TotalPaywallViews
-import com.superwall.sdk.store.Entitlements
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
@@ -49,8 +43,6 @@ class DeviceHelperMemoizationTest {
     private val network = mockk<SuperwallAPI>(relaxed = true)
     private val factory = mockk<DeviceHelper.Factory>(relaxed = true)
     private val classifier = mockk<DeviceClassifier>()
-    private val superwall = mockk<Superwall>()
-    private val entitlements = mockk<Entitlements>()
 
     private var currentUserId: String? = "user-1"
     private var currentEntitlements = setOf(Entitlement("basic"))
@@ -82,12 +74,7 @@ class DeviceHelperMemoizationTest {
 
         every { classifier.deviceTier() } returns Tier.MID
 
-        every { entitlements.active } answers { currentEntitlements }
-        every { superwall.entitlements } returns entitlements
-        every { superwall.subscriptionStatus } returns
-            MutableStateFlow<SubscriptionStatus>(SubscriptionStatus.Inactive)
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns superwall
+        every { factory.activeEntitlements() } answers { currentEntitlements }
 
         deviceHelper =
             DeviceHelper(
@@ -96,12 +83,10 @@ class DeviceHelperMemoizationTest {
                 network = network,
                 factory = factory,
                 classifier = classifier,
+                tcfAdConsent = { null },
+                ipCollector = null,
+                subscriptionStatus = { SubscriptionStatus.Inactive },
             )
-    }
-
-    @After
-    fun tearDown() {
-        unmockkObject(Superwall.Companion)
     }
 
     @Test

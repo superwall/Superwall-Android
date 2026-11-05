@@ -1,9 +1,7 @@
 package com.superwall.sdk.storage
 
 import android.content.Context
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingResult
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.dependencies.DeviceHelperFactory
@@ -21,18 +19,23 @@ import kotlinx.serialization.json.Json
 import java.util.Date
 import kotlin.coroutines.CoroutineContext
 
-open class LocalStorage(
+open class LocalStorage internal constructor(
     context: Context,
     private val json: Json,
     private val _apiKey: String,
     private val factory: LocalStorage.Factory,
     private val ioScope: IOScope,
     // / The disk cache.
-    private val cache: Cache = Cache(context = context, json = json),
+    private val cache: Cache,
     // / The interface that manages core data.
-    val coreDataManager: CoreDataManager = CoreDataManager(context = context),
+    val coreDataManager: CoreDataManager,
+    private val track: suspend (Trackable) -> Unit,
 ) : Storage,
     CoroutineScope {
+    companion object {
+        private const val MMP_INSTALL_ATTRIBUTION_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
+    }
+
     interface Factory :
         DeviceHelperFactory,
         HasExternalPurchaseControllerFactory
@@ -141,7 +144,7 @@ open class LocalStorage(
             if (_didTrackFirstSeen) return@launch
 
             CoroutineScope(Dispatchers.IO).launch {
-                Superwall.instance.track(InternalSuperwallEvent.FirstSeen())
+                track(InternalSuperwallEvent.FirstSeen())
             }
 
             write(DidTrackFirstSeen, true)
@@ -177,6 +180,41 @@ open class LocalStorage(
             trackEvent(event)
         }
         write(DidTrackAppInstall, true)
+    }
+
+    private fun isMMPInstallAttributionWindowOpen(appInstalledAtMillis: Long): Boolean {
+        // Fail open when the install date is unusable — unset/epoch-zero, or in the future
+        // because the device clock is skewed. Mirrors iOS, which treats an empty or
+        // unparseable `appInstalledAtString` as in-window: silently dropping attribution
+        // over a bad clock is worse than occasionally attempting a match that won't land.
+        if (appInstalledAtMillis <= 0L) {
+            return true
+        }
+
+        val ageMs = System.currentTimeMillis() - appInstalledAtMillis
+        return ageMs <= MMP_INSTALL_ATTRIBUTION_WINDOW_MS
+    }
+
+    fun shouldAttemptInitialMMPInstallAttributionMatch(
+        hadTrackedAppInstallBeforeConfigure: Boolean,
+        appInstalledAtMillis: Long,
+    ): Boolean {
+        val didCompleteRequest = read(DidCompleteMMPInstallAttributionRequest) ?: false
+        if (didCompleteRequest) {
+            return false
+        }
+
+        val isEligible = read(IsEligibleForMMPInstallAttributionMatch) ?: false
+        if (hadTrackedAppInstallBeforeConfigure && !isEligible) {
+            return false
+        }
+
+        if (!isMMPInstallAttributionWindowOpen(appInstalledAtMillis)) {
+            return false
+        }
+
+        write(IsEligibleForMMPInstallAttributionMatch, true)
+        return true
     }
 
     open fun clearCachedSessionEvents() {

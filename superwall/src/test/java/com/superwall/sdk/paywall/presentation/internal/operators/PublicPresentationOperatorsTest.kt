@@ -12,7 +12,6 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -21,14 +20,9 @@ import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withTimeout
 import org.junit.After
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Test
 
 class PublicPresentationOperatorsTest {
@@ -86,57 +80,6 @@ class PublicPresentationOperatorsTest {
 
                     Then("no tracking call is issued") {
                         coVerify(exactly = 0) { superwall.track(any()) }
-                    }
-                }
-            }
-        }
-
-    @Test
-    fun `storePresentationObjects caches request and publisher`() =
-        runTest {
-            Given("a presentation request and publisher") {
-                val superwall = mockk<com.superwall.sdk.Superwall>()
-                val presentationItems =
-                    com.superwall.sdk.paywall.presentation
-                        .PresentationItems()
-                every { superwall.presentationItems } returns presentationItems
-
-                val request = createPresentationRequest()
-                val publisher = MutableSharedFlow<PaywallState>()
-
-                When("storePresentationObjects executes") {
-                    superwall.storePresentationObjects(request, publisher)
-
-                    Then("presentationItems remembers the last presentation request") {
-                        val stored =
-                            withTimeout(1_000) {
-                                while (presentationItems.last == null) {
-                                    delay(10)
-                                }
-                                presentationItems.last
-                            }
-                        assertSame(request, stored?.request)
-                        assertSame(publisher, stored?.statePublisher)
-                    }
-                }
-            }
-        }
-
-    @Test
-    fun `storePresentationObjects ignores null request`() =
-        runTest {
-            Given("no request is available") {
-                val superwall = mockk<com.superwall.sdk.Superwall>()
-                val presentationItems =
-                    com.superwall.sdk.paywall.presentation
-                        .PresentationItems()
-                every { superwall.presentationItems } returns presentationItems
-
-                When("storePresentationObjects receives null request") {
-                    superwall.storePresentationObjects(null, MutableSharedFlow())
-
-                    Then("presentationItems remains unchanged") {
-                        assertNull(presentationItems.last)
                     }
                 }
             }

@@ -17,4 +17,9 @@ sealed class BillingError(
         code: Int,
         description: String,
     ) : BillingError(code, "Google Billing error: $code - $description")
+
+    /** Google Play did not answer a request in time. Not cached, so a later request retries. */
+    class Timeout(
+        description: String,
+    ) : BillingError(3, description)
 }

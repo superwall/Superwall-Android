@@ -2,14 +2,14 @@ package com.superwall.sdk.billing
 
 import android.content.Context
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.GetBillingConfigParams
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
-import com.android.billingclient.api.QueryPurchasesParams
+import com.superwall.sdk.billing.google.GooglePlayStore
+import com.superwall.sdk.billing.google.PlayPurchases
+import com.superwall.sdk.billing.google.purchaseResultOf
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
@@ -19,60 +19,87 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AppLifecycleObserver
-import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
-import com.superwall.sdk.misc.retryOrNull
+import com.superwall.sdk.misc.primitives.SequentialActor
+import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
-import kotlin.math.min
 
 internal const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
 internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
 
-class GoogleBillingWrapper(
+// Consecutive transient setup failures after which billing is treated as unavailable, so
+// requests stop waiting on a connection that may never come (e.g. a broken Play Store).
+// Reconnecting carries on in the background and a later successful setup makes it available.
+internal const val MAX_TRANSIENT_SETUP_FAILURES = 3
+
+// How long a product query may take, connection time included, before it fails. Play
+// normally answers within a couple of seconds; this is a backstop so a callback that
+// never arrives can't leave paywalls waiting on their products for the life of the process.
+internal const val PRODUCTS_QUERY_TIMEOUT_MS = 15_000L
+
+// Purchase outcomes kept for slow collectors of the wrapper's neutral purchase updates.
+private const val PURCHASE_UPDATES_BUFFER = 64
+
+/** Builds the Play billing client the SDK uses, reporting purchases to [listener]. */
+internal fun playBillingClient(context: Context): (PurchasesUpdatedListener) -> BillingClient =
+    { listener ->
+        BillingClient
+            .newBuilder(context)
+            .setListener(listener)
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
+            ).build()
+    }
+
+class GoogleBillingWrapper internal constructor(
     val context: Context,
     val ioScope: IOScope,
     val appLifecycleObserver: AppLifecycleObserver,
     val factory: Factory,
-    val createBillingClient: (PurchasesUpdatedListener) -> BillingClient = {
-        BillingClient
-            .newBuilder(context)
-            .setListener(it)
-            .enablePendingPurchases(
-                PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
-            ).build()
-    },
+    val createBillingClient: (PurchasesUpdatedListener) -> BillingClient,
+    private val productDetails: ProductDetailsRepository,
+    connectionActor: StateActor<BillingConnectionContext, ConnectionState>,
 ) : PurchasesUpdatedListener,
     BillingClientStateListener,
     Billing {
-    companion object {
-        private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
-        private const val QUERY_PURCHASES_TIMEOUT_MS = 10_000L
-        private const val QUERY_PURCHASES_MAX_RETRIES = 3
+    /**
+     * Builds a wrapper with its own product cache and billing connection. The SDK builds its
+     * wrapper through the internal constructor, from `DependencyContainer`.
+     */
+    constructor(
+        context: Context,
+        ioScope: IOScope,
+        appLifecycleObserver: AppLifecycleObserver,
+        factory: Factory,
+        createBillingClient: (PurchasesUpdatedListener) -> BillingClient = playBillingClient(context),
+    ) : this(
+        context = context,
+        ioScope = ioScope,
+        appLifecycleObserver = appLifecycleObserver,
+        factory = factory,
+        createBillingClient = createBillingClient,
+        productDetails = ProductDetailsRepository(),
+        connectionActor = SequentialActor(ConnectionState(), ioScope),
+    )
 
-        @androidx.annotation.VisibleForTesting
-        internal fun clearProductsCache() {
-            productsCache.clear()
-        }
+    // Kept for binary compatibility; the query constants now live in [PurchaseQueries].
+    companion object
+
+    /** Forgets every product this wrapper fetched, so the next request asks Play again. */
+    @androidx.annotation.VisibleForTesting
+    internal fun clearProductsCache() {
+        productDetails.clear()
     }
 
     interface Factory :
@@ -80,144 +107,88 @@ class GoogleBillingWrapper(
         HasInternalPurchaseControllerFactory,
         OptionsFactory
 
-    private val threadHandler = Handler(ioScope)
     private val shouldFinishTransactions: Boolean
         get() = !factory.makeSuperwallOptions().shouldObservePurchases
 
-    @get:Synchronized
-    @set:Synchronized
-    @Volatile
-    var billingClient: BillingClient? = null
+    /** The Play connection: client, availability, reconnect backoff and waiting requests. */
+    private val connection =
+        BillingConnection(
+            scope = ioScope,
+            createBillingClient = createBillingClient,
+            purchasesListener = this,
+            stateListener = this,
+            actor = connectionActor,
+        )
 
-    private val serviceRequests =
-        ConcurrentLinkedQueue<Pair<(connectionError: BillingError?) -> Unit, Long?>>()
+    /** The billing client, once created. Setting `null` makes the next connection create a new one. */
+    var billingClient: BillingClient?
+        get() = connection.client
+        set(value) = connection.setClient(value)
 
-    // how long before the data source tries to reconnect to Google play
-    private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
-
-    @get:Synchronized
-    @set:Synchronized
-    private var reconnectionAlreadyScheduled = false
+    /**
+     * Whether Play Billing can be used on this device. Once [BillingAvailability.Unavailable],
+     * requests fail straight away instead of reconnecting, until the app next returns to
+     * the foreground and billing is probed again.
+     */
+    internal val availability: StateFlow<BillingAvailability> = connection.availability
 
     // Setup mutable state flow for purchase results
     override val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
-    internal val IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE =
-        "Google Play In-app Billing API version is less than 3"
+    /** The last Play purchase this wrapper saw for each purchase token. */
+    internal val playPurchases = PlayPurchases()
+
+    // Every outcome Play reports to [onPurchasesUpdated], in neutral form.
+    private val purchaseUpdates = MutableSharedFlow<StorePurchaseResult>(extraBufferCapacity = PURCHASE_UPDATES_BUFFER)
 
     init {
         startConnectionOnMainThread()
-    }
-
-    internal class Handler(
-        val scope: CoroutineScope,
-    ) {
-        fun post(action: () -> Unit) {
-            scope.launch {
-                action()
-            }
-        }
-
-        fun postDelayed(
-            action: () -> Unit,
-            delayMilliseconds: Long,
-        ) {
-            scope.launch {
-                delay(delayMilliseconds)
-                action()
-            }
+        // Unavailable isn't always permanent - the user may sign in to the Play Store
+        // while the app is in the background - so probe again on every foregrounding.
+        ioScope.launch {
+            appLifecycleObserver.isInBackground
+                .drop(1)
+                .filter { inBackground -> !inBackground }
+                .collect { connection.reprobe() }
         }
     }
 
-    private fun executePendingRequests() {
-        synchronized(this@GoogleBillingWrapper) {
-            while (billingClient?.isReady == true) {
-                serviceRequests.poll()?.let { (request, delayMilliseconds) ->
-                    if (delayMilliseconds != null) {
-                        threadHandler.postDelayed(
-                            { request(null) },
-                            delayMilliseconds,
-                        )
-                    } else {
-                        threadHandler.post { request(null) }
-                    }
-                } ?: break
-            }
-        }
-    }
+    /** Products, purchases, consume and storefront queries over [connection]. */
+    private val queries =
+        PurchaseQueries(
+            connection = connection,
+            productDetails = productDetails,
+            appInBackground = { appLifecycleObserver.isInBackground.value },
+        )
 
-    override suspend fun queryAllPurchases(): List<Purchase> =
-        coroutineScope {
-            val apps =
-                async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.INAPP).getOrThrow() } }
-            val subs =
-                async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() } }
-            (apps.await() ?: emptyList()) + (subs.await() ?: emptyList())
-        }
+    /** This wrapper as the SDK's store-neutral [Store]. */
+    internal val store: Store =
+        GooglePlayStore(
+            queries = queries,
+            availability = availability,
+            purchaseUpdates = purchaseUpdates,
+            purchases = playPurchases,
+            latestResult = purchaseResults,
+        )
 
-    override suspend fun consume(purchaseToken: String): Result<String> =
-        suspendCoroutine { cont ->
-            val useCase =
-                ConsumePurchaseUseCase(
-                    ConsumePurchaseUseCaseParams(
-                        purchaseToken = purchaseToken,
-                        appInBackground = appLifecycleObserver.isInBackground.value,
-                    ),
-                    onReceive = { consumedToken ->
-                        cont.resume(Result.success(consumedToken))
-                    },
-                    onError = { error ->
-                        cont.resume(Result.failure(error))
-                    },
-                    withConnectedClient = ::withConnectedClient,
-                    executeRequestOnUIThread = ::executeRequestOnUIThread,
-                )
-            useCase.run()
-        }
+    override suspend fun queryAllPurchases(): List<Purchase> = queries.allPurchases()
+
+    override suspend fun querySubscriptionPurchases(): Result<List<Purchase>> = queries.subscriptionPurchases()
+
+    override suspend fun consume(purchaseToken: String): Result<String> = queries.consume(purchaseToken)
 
     fun startConnectionOnMainThread(delayMilliseconds: Long = 0) {
-        threadHandler.postDelayed(
-            { startConnection() },
-            delayMilliseconds,
-        )
+        connection.connect(delayMilliseconds)
     }
 
     fun startConnection() {
-        synchronized(this@GoogleBillingWrapper) {
-            if (billingClient == null) {
-                billingClient = createBillingClient(this)
-            }
-
-            reconnectionAlreadyScheduled = false
-
-            billingClient?.let {
-                if (!it.isReady) {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.productsManager,
-                        "Starting billing client",
-                    )
-                    try {
-                        it.startConnection(this)
-                    } catch (e: IllegalStateException) {
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.productsManager,
-                            "IllegalStateException when connecting to billing client: ${e.message}",
-                        )
-                        sendErrorsToAllPendingRequests(BillingError.IllegalStateException)
-                    }
-                }
-            }
-        }
+        connection.connect()
     }
 
     /**
      * Gets the StoreProduct(s) for the given list of product ids for all types.
      *
-     * Coroutine friendly version of [getProducts].
-     *
-     * @param [productIds] List of productIds
+     * @param [fullProductIds] List of productIds
      *
      * @throws [BillingError] if there's an error retrieving the products.
      * @return A list of [StoreProduct] with the products that have been able to be fetched from the store successfully.
@@ -225,233 +196,10 @@ class GoogleBillingWrapper(
      */
     @JvmSynthetic
     @Throws(Throwable::class)
-    override suspend fun awaitGetProducts(fullProductIds: Set<String>): Set<StoreProduct> {
-        // Get the cached products. If any are a failure, we throw an error.
-        val cachedProducts =
-            fullProductIds
-                .mapNotNull { fullProductId ->
-                    productsCache[fullProductId]?.let { result ->
-                        when (result) {
-                            is Either.Success -> result.value
-                            is Either.Failure -> throw result.error
-                        }
-                    }
-                }.toSet()
-
-        // If all products are found in cache, return them directly
-        if (cachedProducts.size == fullProductIds.size) {
-            return cachedProducts
-        }
-
-        // Determine which product IDs are not in cache
-        val missingFullProductIds =
-            fullProductIds - cachedProducts.map { it.fullIdentifier }.toSet()
-
-        return suspendCoroutine { continuation ->
-            getProducts(
-                missingFullProductIds,
-                object : GetStoreProductsCallback {
-                    override fun onReceived(storeProducts: Set<StoreProduct>) {
-                        // Update cache with fetched products and collect their identifiers
-                        val foundProductIds =
-                            storeProducts.map { product ->
-                                productsCache[product.fullIdentifier] = Either.Success(product)
-                                product.fullIdentifier
-                            }
-
-                        // Identify and handle missing products
-                        missingFullProductIds
-                            .filterNot { it in foundProductIds }
-                            .forEach { fullProductId ->
-                                productsCache[fullProductId] =
-                                    Either.Failure(Exception("Failed to query product details for $fullProductId"))
-                            }
-
-                        // Combine cached products (now including the newly fetched ones) with the fetched products
-                        val allProducts = cachedProducts + storeProducts
-                        continuation.resume(allProducts)
-                    }
-
-                    override fun onError(error: BillingError) {
-                        // Cache BillingNotAvailable — it's a permanent device state
-                        // that won't resolve, so retrying is wasteful.
-                        // Other billing errors (service unavailable, disconnected, network)
-                        // are transient and should NOT be cached to allow retry.
-                        if (error is BillingError.BillingNotAvailable) {
-                            missingFullProductIds.forEach { fullProductId ->
-                                productsCache[fullProductId] = Either.Failure(error)
-                            }
-                        }
-                        continuation.resumeWithException(error)
-                    }
-                },
-            )
-        }
-    }
-
-    private fun getProducts(
-        fullProductIds: Set<String>,
-        callback: GetStoreProductsCallback,
-    ) {
-        val types = setOf(ProductType.SUBS, ProductType.INAPP)
-        val decomposedProductDetailsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>> =
-            mutableMapOf()
-
-        // TODO: CHANGE THIS BECAUSE DECOMPOSING THE PRODUCT ID WON'T WORK NOW
-        val subscriptionIds = mutableSetOf<String>()
-        // Decompose the subscriptionId into its constituents and create mapping of
-        // subscriptionId -> one or more decompositions.
-        fullProductIds.forEach { fullProductId ->
-            // TODO: Swap this out for PlayStoreProduct
-            val decomposedProductIds = DecomposedProductIds.from(fullProductId)
-            val subscriptionId = decomposedProductIds.subscriptionId
-            subscriptionIds.add(subscriptionId)
-            decomposedProductDetailsBySubscriptionId
-                .getOrPut(subscriptionId) { mutableListOf() }
-                .add(decomposedProductIds)
-        }
-
-        getProductsOfTypes(
-            subscriptionIds = subscriptionIds,
-            types = types,
-            collectedStoreProducts = emptySet(),
-            decomposedProductIdsBySubscriptionId = decomposedProductDetailsBySubscriptionId,
-            callback =
-                object : GetStoreProductsCallback {
-                    override fun onReceived(storeProducts: Set<StoreProduct>) {
-                        callback.onReceived(storeProducts)
-                    }
-
-                    override fun onError(error: BillingError) {
-                        callback.onError(error)
-                    }
-                },
-        )
-    }
-
-    private fun getProductsOfTypes(
-        subscriptionIds: Set<String>,
-        types: Set<String>,
-        collectedStoreProducts: Set<StoreProduct>,
-        decomposedProductIdsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>,
-        callback: GetStoreProductsCallback,
-    ) {
-        if (types.isEmpty()) {
-            callback.onReceived(collectedStoreProducts)
-            return
-        }
-
-        // Each type resolves exactly once, so onReceived can only fire once every type
-        // has succeeded; the flag keeps onError to a single delivery when several types fail.
-        val collected = ConcurrentLinkedQueue<StoreProduct>()
-        val typesRemaining = AtomicInteger(types.size)
-        val errored = AtomicBoolean(false)
-
-        types.forEach { type ->
-            queryProductDetailsAsync(
-                productType = type,
-                subscriptionIds = subscriptionIds,
-                decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
-                onReceive = { storeProducts ->
-                    dispatch {
-                        collected.addAll(storeProducts)
-                        if (typesRemaining.decrementAndGet() == 0) {
-                            callback.onReceived(collectedStoreProducts + collected)
-                        }
-                    }
-                },
-                onError = { error ->
-                    dispatch {
-                        if (errored.compareAndSet(false, true)) {
-                            callback.onError(error)
-                        }
-                    }
-                },
-            )
-        }
-    }
-
-    private fun dispatch(action: () -> Unit) {
-        threadHandler.post(action)
-    }
-
-    private fun queryProductDetailsAsync(
-        productType: String,
-        subscriptionIds: Set<String>,
-        decomposedProductIdsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>,
-        onReceive: (List<StoreProduct>) -> Unit,
-        onError: (BillingError) -> Unit,
-    ) {
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.productsManager,
-            message = "Requesting products from the store with identifiers: ${subscriptionIds.joinToString()}",
-        )
-
-        val useCase =
-            QueryProductDetailsUseCase(
-                QueryProductDetailsUseCaseParams(
-                    subscriptionIds = subscriptionIds,
-                    decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
-                    productType = productType,
-                    appInBackground = appLifecycleObserver.isInBackground.value,
-                ),
-                onReceive,
-                onError,
-                ::withConnectedClient,
-                ::executeRequestOnUIThread,
-            )
-        useCase.run()
-    }
-
-    @Synchronized
-    private fun executeRequestOnUIThread(
-        delayMilliseconds: Long? = null,
-        request: (BillingError?) -> Unit,
-    ) {
-        serviceRequests.add(request to delayMilliseconds)
-        if (billingClient?.isReady == false) {
-            startConnectionOnMainThread()
-        } else {
-            executePendingRequests()
-        }
-    }
-
-    /**
-     * Retries the billing service connection with exponential backoff, maxing out at the time
-     * specified by RECONNECT_TIMER_MAX_TIME_MILLISECONDS.
-     *
-     * This prevents ANRs, see https://github.com/android/play-billing-samples/issues/310
-     */
-    private fun retryBillingServiceConnectionWithExponentialBackoff() {
-        if (reconnectionAlreadyScheduled) {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Billing client retry already scheduled.",
-            )
-        } else {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Billing client disconnected, retrying in $reconnectMilliseconds milliseconds",
-            )
-            reconnectionAlreadyScheduled = true
-            startConnectionOnMainThread(reconnectMilliseconds)
-            reconnectMilliseconds =
-                min(
-                    reconnectMilliseconds * 2,
-                    RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
-                )
-        }
-    }
+    override suspend fun awaitGetProducts(fullProductIds: Set<String>): Set<StoreProduct> = queries.products(fullProductIds)
 
     override fun onBillingServiceDisconnected() {
-        Logger.debug(
-            LogLevel.debug,
-            LogScope.productsManager,
-            "Billing client disconnected",
-        )
+        connection.disconnected()
     }
 
     /**
@@ -459,142 +207,14 @@ class GoogleBillingWrapper(
      * country of the user's Play Store account. Waits for the billing client to connect
      * if it hasn't yet; resolves to `null` if billing is unavailable or the fetch fails.
      */
-    override suspend fun getStorefrontCountryCode(): String? =
-        suspendCoroutine { continuation ->
-            executeRequestOnUIThread { connectionError ->
-                if (connectionError != null) {
-                    continuation.resume(null)
-                    return@executeRequestOnUIThread
-                }
-                val dispatched =
-                    withConnectedClient {
-                        getBillingConfigAsync(
-                            GetBillingConfigParams.newBuilder().build(),
-                        ) { billingResult, billingConfig ->
-                            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && billingConfig != null) {
-                                continuation.resume(billingConfig.countryCode)
-                            } else {
-                                Logger.debug(
-                                    LogLevel.debug,
-                                    LogScope.productsManager,
-                                    "Failed to fetch billing config: ${billingResult.debugMessage} " +
-                                        "ErrorCode: ${billingResult.responseCode}",
-                                )
-                                continuation.resume(null)
-                            }
-                        }
-                    }
-                if (dispatched == null) {
-                    continuation.resume(null)
-                }
-            }
-        }
+    override suspend fun getStorefrontCountryCode(): String? = queries.storefrontCountryCode()
 
     override fun onBillingSetupFinished(billingResult: BillingResult) {
-        threadHandler.post {
-            when (billingResult.responseCode) {
-                BillingClient.BillingResponseCode.OK -> {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.productsManager,
-                        "Billing client connected",
-                    )
-                    executePendingRequests()
-                    reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
-                    trackProductDetailsNotSupportedIfNeeded()
-                }
-
-                BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
-                BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-                -> {
-                    val originalErrorMessage =
-                        "DebugMessage: ${billingResult.debugMessage} " +
-                            "ErrorCode: ${billingResult.responseCode}."
-
-                    /**
-                     * We check for cases when Google sends Google Play In-app Billing API version is less than 3
-                     * as a debug message. Version 3 is from 2012, so the message is a bit useless.
-                     * We have detected this message in several cases:
-                     *
-                     * - When there's no Google account configured in the device
-                     * - When there's no Play Store (this happens in incorrectly configured emulators)
-                     * - When language is changed in the device and Play Store caches get corrupted. Opening the
-                     * Play Store or clearing its caches would fix this case.
-                     * See https://github.com/RevenueCat/purchases-android/issues/1288
-                     */
-                    val error =
-                        if (billingResult.debugMessage == IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE) {
-                            val message =
-                                "Billing is not available in this device. Make sure there's an " +
-                                    "account configured in Play Store. Reopen the Play Store or clean its caches if this " +
-                                    "keeps happening. " +
-                                    "Original error message: $originalErrorMessage"
-                            BillingError.BillingNotAvailable(message)
-                        } else {
-                            val message =
-                                "Billing is not available in this device. " +
-                                    "Original error message: $originalErrorMessage"
-                            BillingError.BillingNotAvailable(message)
-                        }
-
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.productsManager,
-                        error.message
-                            ?: "Billing is not available in this device. ${billingResult.debugMessage}",
-                    )
-                    // The calls will fail with an error that will be surfaced. We want to surface these errors
-                    // Can't call executePendingRequests because it will not do anything since it checks for isReady()
-                    sendErrorsToAllPendingRequests(error)
-                }
-
-                BillingClient.BillingResponseCode.ERROR,
-                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
-                BillingClient.BillingResponseCode.USER_CANCELED,
-                BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
-                BillingClient.BillingResponseCode.NETWORK_ERROR,
-                -> {
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.productsManager,
-                        "Billing client error, retrying: ${billingResult.responseCode}",
-                    )
-                    retryBillingServiceConnectionWithExponentialBackoff()
-                }
-
-                BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
-                BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
-                BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
-                -> {
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.productsManager,
-                        "Billing client error, item not supported or unavailable: ${billingResult.responseCode}",
-                    )
-                }
-
-                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
-                    // Billing service is already trying to connect. Don't do anything.
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.productsManager,
-                        "Billing client error, developer error: ${billingResult.responseCode}",
-                    )
-                }
-            }
-        }
+        connection.setupFinished(billingResult)
     }
 
-    fun withConnectedClient(receivingFunction: BillingClient.() -> Unit): Unit? {
-        return billingClient?.takeIf { it.isReady }?.receivingFunction() ?: run {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Billing client not ready",
-            )
-            return@run null
-        }
-    }
+    fun withConnectedClient(receivingFunction: BillingClient.() -> Unit): Unit? = queries.withConnectedClient(receivingFunction)
+
 
     override fun onPurchasesUpdated(
         result: BillingResult,
@@ -602,14 +222,16 @@ class GoogleBillingWrapper(
     ) {
         Logger.debug(
             LogLevel.debug,
-            LogScope.storeKitManager,
+            LogScope.billing,
             "onPurchasesUpdated: $result",
         )
+        purchases?.let { playPurchases.record(it) }
+        purchaseUpdates.tryEmit(purchaseResultOf(result, purchases))
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (purchase in purchases) {
                 Logger.debug(
                     LogLevel.debug,
-                    LogScope.storeKitManager,
+                    LogScope.billing,
                     "Purchase: $purchase",
                 )
                 CoroutineScope(Dispatchers.IO).launch {
@@ -625,7 +247,7 @@ class GoogleBillingWrapper(
 
             Logger.debug(
                 LogLevel.debug,
-                LogScope.storeKitManager,
+                LogScope.billing,
                 "User cancelled purchase",
             )
         } else {
@@ -634,7 +256,7 @@ class GoogleBillingWrapper(
             }
             Logger.debug(
                 LogLevel.debug,
-                LogScope.storeKitManager,
+                LogScope.billing,
                 "Purchase failed",
             )
         }
@@ -673,32 +295,6 @@ class GoogleBillingWrapper(
             }
     }
 
-    @Synchronized
-    private fun sendErrorsToAllPendingRequests(error: BillingError) {
-        while (true) {
-            serviceRequests.poll()?.let { (serviceRequest, _) ->
-                threadHandler.post {
-                    serviceRequest(error)
-                }
-            } ?: break
-        }
-    }
-
-    private fun trackProductDetailsNotSupportedIfNeeded() {
-        val billingResult =
-            billingClient?.isFeatureSupported(BillingClient.FeatureType.PRODUCT_DETAILS)
-        if (
-            billingResult != null &&
-            billingResult.responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED
-        ) {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Product details not supported: ${billingResult.responseCode} ${billingResult.debugMessage}",
-            )
-        }
-    }
-
     internal suspend fun latestPurchase() =
         queryAllPurchases()
             .sortedByDescending {
@@ -725,36 +321,7 @@ class GoogleBillingWrapper(
                 )
             }
 
-    suspend fun queryType(type: String): Result<List<Purchase>> {
-        val deferred = CompletableDeferred<Result<List<Purchase>>>()
-        val params =
-            QueryPurchasesParams
-                .newBuilder()
-                .setProductType(type)
-                .build()
-
-        withConnectedClient {
-            queryPurchasesAsync(params) { billingResult, purchasesList ->
-                if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        scope = LogScope.nativePurchaseController,
-                        message = "Unable to query for purchases.",
-                    )
-                    deferred.complete(Result.failure(Throwable("Billing query failed with code ${billingResult.responseCode}")))
-                    return@queryPurchasesAsync
-                }
-
-                deferred.complete(Result.success(purchasesList))
-            }
-        } ?: deferred.complete(
-            Result.failure(Throwable("Billing client not ready")),
-        )
-
-        return withTimeoutOrNull(QUERY_PURCHASES_TIMEOUT_MS) {
-            deferred.await()
-        } ?: Result.failure(Throwable("Query purchases timed out"))
-    }
+    suspend fun queryType(type: String): Result<List<Purchase>> = queries.queryType(type)
 }
 
 fun Pair<BillingResult, List<Purchase>?>.toInternalResult(): List<InternalPurchaseResult> {

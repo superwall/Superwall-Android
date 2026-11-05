@@ -1,7 +1,10 @@
 package com.superwall.sdk.store.abstractions.product.receipt
 
-import com.android.billingclient.api.Purchase
 import com.superwall.sdk.billing.Billing
+import com.superwall.sdk.billing.BillingBackedStore
+import com.superwall.sdk.billing.Store
+import com.superwall.sdk.billing.StorePurchase
+import com.superwall.sdk.billing.google.PlayPurchases
 import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -37,16 +40,59 @@ enum class LatestSubscriptionOfferType {
     WINBACK,
 }
 
-@Suppress("EXPOSED_PARAMETER_TYPE")
-class ReceiptManager(
+/**
+ * Builds the device's purchases, entitlements and customer info from the [Store]'s receipts.
+ * It reads only neutral store types; the SDK builds it with its own store.
+ */
+class ReceiptManager internal constructor(
     private var delegate: ProductsFetcher?,
-    private val billing: Billing,
+    private val store: Store,
     private val ioScope: IOScope = IOScope(),
     private val storage: Storage,
     internal val customerInfoManager: () -> CustomerInfoManager,
     private val entitlementProcessor: EntitlementProcessor = EntitlementProcessor(),
-    private val subscriptionStatusProvider: SubscriptionStatusProvider = PlayBillingSubscriptionStatusProvider(billing),
+    private val subscriptionStatus: StoreSubscriptionStatus = DefaultSubscriptionStatus,
 ) {
+    /**
+     * Kept for its public signature. [billing] is read as a [Store]; a custom
+     * [subscriptionStatusProvider] is still handed the original Play purchase.
+     */
+    constructor(
+        delegate: ProductsFetcher?,
+        billing: Billing,
+        ioScope: IOScope = IOScope(),
+        storage: Storage,
+        customerInfoManager: () -> CustomerInfoManager,
+        entitlementProcessor: EntitlementProcessor = EntitlementProcessor(),
+        subscriptionStatusProvider: SubscriptionStatusProvider = PlayBillingSubscriptionStatusProvider(billing),
+    ) : this(
+        delegate,
+        BillingBackedStore.storeOf(billing),
+        ioScope,
+        storage,
+        customerInfoManager,
+        entitlementProcessor,
+        subscriptionStatusProvider,
+    )
+
+    private constructor(
+        delegate: ProductsFetcher?,
+        source: Pair<Store, PlayPurchases>,
+        ioScope: IOScope,
+        storage: Storage,
+        customerInfoManager: () -> CustomerInfoManager,
+        entitlementProcessor: EntitlementProcessor,
+        subscriptionStatusProvider: SubscriptionStatusProvider,
+    ) : this(
+        delegate = delegate,
+        store = source.first,
+        ioScope = ioScope,
+        storage = storage,
+        customerInfoManager = customerInfoManager,
+        entitlementProcessor = entitlementProcessor,
+        subscriptionStatus = ProviderSubscriptionStatus.of(subscriptionStatusProvider) { source.second.native(it.token) },
+    )
+
     var latestSubscriptionWillAutoRenew: Boolean? = null
     var latestSubscriptionPeriodType: LatestPeriodType? = null
     var transactionReceipts: MutableList<TransactionReceipt> = mutableListOf()
@@ -101,13 +147,13 @@ class ReceiptManager(
         val existingHistory = storage.read(StoredTransactionHistory) ?: UserTransactionHistory()
 
         // 1️⃣ FIRST PASS: Collect purchases, create transaction adapters, and collect receipts
-        val allPurchases = billing.queryAllPurchases()
+        val allPurchases = store.ownedPurchases()
         val transactionsByEntitlement: MutableMap<String, MutableList<EntitlementTransaction>> = mutableMapOf()
         val currentTransactions: MutableList<EntitlementTransaction> = mutableListOf()
 
         // Build mapping from raw product ID to full product ID using server entitlements
         // This allows us to fetch products with proper base plan/offer info
-        val rawProductIds = allPurchases.flatMap { it.products }.toSet()
+        val rawProductIds = allPurchases.flatMap { it.productIds }.toSet()
         val rawToFullProductId = mutableMapOf<String, String>()
         rawProductIds.forEach { rawId ->
             // Find the full product ID from server config that matches this raw ID
@@ -120,11 +166,11 @@ class ReceiptManager(
 
         // Fetch products using full product IDs so they have proper base plan/offer info
         val fullProductIds = rawToFullProductId.values.toSet()
-        val productsById = billing.awaitGetProducts(fullProductIds).associateBy { it.productIdentifier }
+        val productsById = store.products(fullProductIds).found.associateBy { it.productIdentifier }
 
         allPurchases.forEach { purchase ->
             // Create adapters for each product in the purchase
-            val adapters = PlayStorePurchaseAdapter.fromPurchase(purchase, productsById)
+            val adapters = StorePurchaseTransaction.fromPurchase(purchase, productsById)
 
             adapters.forEach { adapter ->
                 currentTransactions.add(adapter)
@@ -145,12 +191,12 @@ class ReceiptManager(
             }
 
             // Collect receipt for original transaction
-            val txnId = GoogleBillingPurchaseTransaction.originalOrderId(purchase.orderId) ?: purchase.purchaseToken
+            val txnId = GoogleBillingPurchaseTransaction.originalOrderId(purchase.orderId) ?: purchase.token
             if (!originalTransactionIds.contains(txnId)) {
                 transactionReceipts.add(
                     TransactionReceipt(
                         originalTransactionId = txnId,
-                        purchaseToken = purchase.purchaseToken,
+                        purchaseToken = purchase.token,
                     ),
                 )
                 originalTransactionIds.add(txnId)
@@ -244,15 +290,15 @@ class ReceiptManager(
      * Updates experimental device variables from the most recent purchase.
      */
     private suspend fun updateExperimentalDeviceVariables(
-        allPurchases: List<Purchase>,
+        allPurchases: List<StorePurchase>,
         productsById: Map<String, StoreProduct>,
     ) {
         val mostRecentPurchase = allPurchases.maxByOrNull { it.purchaseTime } ?: return
-        val product = productsById[mostRecentPurchase.products.firstOrNull()] ?: return
+        val product = productsById[mostRecentPurchase.productIds.firstOrNull()] ?: return
 
-        latestSubscriptionWillAutoRenew = subscriptionStatusProvider.getWillAutoRenew(mostRecentPurchase)
-        latestSubscriptionState.value = subscriptionStatusProvider.getSubscriptionState(mostRecentPurchase, product)
-        latestSubscriptionPeriodType = subscriptionStatusProvider.getOfferType(mostRecentPurchase, product)
+        latestSubscriptionWillAutoRenew = subscriptionStatus.willAutoRenew(mostRecentPurchase)
+        latestSubscriptionState.value = subscriptionStatus.subscriptionState(mostRecentPurchase, product)
+        latestSubscriptionPeriodType = subscriptionStatus.offerType(mostRecentPurchase, product)
     }
 
     fun refreshReceipt() {
@@ -272,14 +318,14 @@ class ReceiptManager(
 
     suspend fun lastSubscriptionProperties(): LatestSubscriptionState {
         val purchase =
-            billing.queryAllPurchases().maxByOrNull { it.purchaseTime }
+            store.ownedPurchases().maxByOrNull { it.purchaseTime }
                 ?: return LatestSubscriptionState.UNKNOWN
 
         val product =
-            billing.awaitGetProducts(purchase.products.toSet()).firstOrNull()
+            store.products(purchase.productIds.toSet()).found.firstOrNull()
                 ?: return LatestSubscriptionState.UNKNOWN
 
-        return subscriptionStatusProvider.getSubscriptionState(purchase, product)
+        return subscriptionStatus.subscriptionState(purchase, product)
     }
 
     fun hasPurchasedProduct(productId: String): Boolean = _purchases.firstOrNull { it.productIdentifier == productId } != null

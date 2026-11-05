@@ -9,6 +9,7 @@ import androidx.lifecycle.testing.TestLifecycleOwner
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
@@ -140,7 +141,7 @@ class TransactionManagerTest {
         mockk<ActivityProvider> {
             every { getCurrentActivity() } returns mockk()
         }
-    private val storeManager = spyk(StoreManager(purchaseController, billing, receiptManagerFactory = { mockk(relaxed = true) }))
+    private val storeManager = spyk(StoreManager(purchaseController, billing, receiptManagerFactory = { mockk(relaxed = true) }, track = {}))
 
     private var eventsQueue = mockk<EventsQueue>(relaxUnitFun = true)
     private var transactionManagerFactory =
@@ -200,23 +201,34 @@ class TransactionManagerTest {
                 options,
             )
         return TransactionManager(
-            purchaseController = purchaseController,
-            storeManager = _storeManager,
-            activityProvider = activityProvider,
-            subscriptionStatus = subscriptionStatus,
-            track = { track(it) },
-            dismiss = { i, e -> dismiss(i, e) },
-            showAlert = { showAlert(it) },
-            updateState = { cacheKey, update -> updateState(cacheKey, update) },
-            notifyOfTransactionComplete = { cacheKey, trialEndDate, id -> notifyOfTransactionComplete(cacheKey, trialEndDate) },
-            eventsQueue = eventsQueue,
-            factory = trManagerFactory,
-            ioScope = IOScope(backgroundScope.coroutineContext),
-            storage = storage,
-            entitlementsById = entitlementsById,
-            allEntitlementsByProductId = { emptyMap() },
-            showRestoreDialogForWeb = showRestoreDialogForWeb,
-            refreshReceipt = {},
+            TransactionDependencies(
+                purchaseController = purchaseController,
+                storeManager = _storeManager,
+                activityProvider = activityProvider,
+                subscriptionStatus = subscriptionStatus,
+                track = { track(it) },
+                dismiss = { i, e -> dismiss(i, e) },
+                showAlert = { showAlert(it) },
+                updateState = { cacheKey, update -> updateState(cacheKey, update) },
+                notifyOfTransactionComplete = { cacheKey, trialEndDate, id, _ -> notifyOfTransactionComplete(cacheKey, trialEndDate) },
+                eventsQueue = eventsQueue,
+                factory = trManagerFactory,
+                ioScope = IOScope(backgroundScope.coroutineContext),
+                storage = storage,
+                entitlementsById = entitlementsById,
+                allEntitlementsByProductId = { emptyMap() },
+                showRestoreDialogForWeb = showRestoreDialogForWeb,
+                refreshReceipt = {},
+                webEntitlements = { emptySet() },
+                currentCustomerInfo = { CustomerInfo.empty() },
+                notifyBackendOfReceipts = {},
+                notifyOfTransactionAbandon = {},
+                testMode = null,
+                testModeTransactionHandler = null,
+                setSubscriptionStatus = null,
+                activeDeviceEntitlements = { emptySet() },
+                openRestoreOnWeb = {},
+            ),
         )
     }
 
@@ -296,6 +308,7 @@ class TransactionManagerTest {
                         any(),
                         any<StoreProduct>(),
                         "basePlan",
+                        any(),
                         any(),
                     )
                 } returns PurchaseResult.Purchased()
@@ -402,6 +415,7 @@ class TransactionManagerTest {
                         any(),
                         any<StoreProduct>(),
                         "basePlan",
+                        any(),
                         any(),
                     )
                 } returns PurchaseResult.Purchased()
@@ -528,6 +542,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Failed("Test failure")
 
@@ -584,6 +599,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Failed("Test failure")
 
@@ -634,6 +650,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Pending()
 
@@ -679,6 +696,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Cancelled()
 
@@ -723,6 +741,7 @@ class TransactionManagerTest {
                     purchaseController.purchase(
                         any(),
                         any<StoreProduct>(),
+                        any(),
                         any(),
                         any(),
                     )
@@ -914,6 +933,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Purchased()
 
@@ -960,6 +980,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         any(),
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Purchased()
 
@@ -1003,6 +1024,7 @@ class TransactionManagerTest {
                     purchaseController.purchase(
                         any(),
                         any<StoreProduct>(),
+                        any(),
                         any(),
                         any(),
                     )
@@ -1053,6 +1075,7 @@ class TransactionManagerTest {
                         any<StoreProduct>(),
                         "basePlan",
                         any(),
+                        any(),
                     )
                 } returns PurchaseResult.Purchased()
 
@@ -1100,6 +1123,7 @@ class TransactionManagerTest {
                         any(),
                         any<StoreProduct>(),
                         "basePlan",
+                        any(),
                         any(),
                     )
                 } returns PurchaseResult.Purchased()

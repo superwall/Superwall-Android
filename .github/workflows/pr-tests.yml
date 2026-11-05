@@ -27,6 +27,12 @@ jobs:
     - name: Change wrapper permissions
       run: chmod +x ./gradlew
 
+    - name: No internal Superwall.instance reads
+      run: ./scripts/check-no-superwall-instance.sh
+
+    - name: Play Billing types stay in billing/ and on public signatures
+      run: ./scripts/check-play-types-confined.sh
+
     - name: Run unit tests with coverage
       run: ./gradlew :superwall:testDebugUnitTest -x lint -x lintDebug -x lintVitalRelease
 
