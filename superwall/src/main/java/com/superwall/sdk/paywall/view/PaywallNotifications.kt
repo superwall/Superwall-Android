@@ -65,11 +65,16 @@ internal class PaywallNotifications(
          * answer can no longer arrive.
          */
         fun forEmbeddingActivity(activity: Activity): PaywallNotifications {
+            // The cached PaywallView keeps these notifications past cleanup(), so the request
+            // must not hold the app's Activity alive after it is destroyed.
+            val activityRef = WeakReference(activity)
             val notifications =
                 PaywallNotifications(activity) { onResult ->
-                    activity.runOnUiThread {
-                        if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread onResult(false)
-                        requestPermissionFrom(activity, Manifest.permission.POST_NOTIFICATIONS, onResult)
+                    val host = activityRef.get()?.takeUnless { it.isFinishing || it.isDestroyed }
+                        ?: return@PaywallNotifications onResult(false)
+                    host.runOnUiThread {
+                        if (host.isFinishing || host.isDestroyed) return@runOnUiThread onResult(false)
+                        requestPermissionFrom(host, Manifest.permission.POST_NOTIFICATIONS, onResult)
                     }
                 }
             (activity as? LifecycleOwner)?.lifecycle?.addObserver(

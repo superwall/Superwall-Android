@@ -208,4 +208,23 @@ class EmbeddedPaywallNotificationsTest {
             }
         }
     }
+
+    @Test
+    fun `the cached notifications don't hold the embedding Activity strongly`() {
+        Given("notifications created for an embedded paywall") {
+            val notifications = PaywallNotifications.forEmbeddingActivity(activity)
+
+            Then("the permission request captures no Activity, so a destroyed host can be collected") {
+                val request =
+                    PaywallNotifications::class.java
+                        .getDeclaredField("requestPermission")
+                        .apply { isAccessible = true }
+                        .get(notifications)!!
+                val captured =
+                    request.javaClass.declaredFields
+                        .filter { android.app.Activity::class.java.isAssignableFrom(it.type) }
+                assertTrue("captured: $captured", captured.isEmpty())
+            }
+        }
+    }
 }
