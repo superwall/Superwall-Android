@@ -7,6 +7,17 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Breaking changes
 - The constructors of SDK-internal classes are now `internal`, because `Superwall.configure` builds them: `AutomaticPurchaseController`, `TransactionManager`, `StoreManager`, `DeviceHelper`, `IdentityManager`, `LocalStorage`, `AppSessionManager`, `PaywallRequestManager`, `DeepLinkRouter`, `DebugManager`, `DebugView`, `TestMode` and `SWWebView`. The public overload of `SurveyManager.presentSurveyIfAvailable` is removed, and `ApiFactory.track` no longer has a default body. None of these were documented API; configure the SDK with `Superwall.configure` and use `Superwall.instance`.
 
+## Enhancements
+- Adds `LogScope.billing` for the SDK's Google Play Billing logs. `LogScope.storeKitManager` is deprecated; setting it in `SuperwallOptions.logging.scopes` still enables the billing logs.
+
+## Fixes
+- Fixes observer-mode purchases going untracked when `SuperwallOptions.shouldObservePurchases` is on and only one purchase is in progress. A completed purchase now tracks `transaction_complete` and refreshes the receipt, and a cancelled one tracks `transaction_abandon`; before, both were dropped with an error log. Observer-mode charts can show more transactions after this release.
+- Fixes observer-mode tracking stopping for the rest of the session when `SuperwallOptions.shouldObservePurchases` is on and Play reported a cancelled or failed purchase while no purchase was being observed. The purchase listener crashed on it; such results are now ignored.
+
+## Deprecations
+- Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
+- Deprecates the unused iOS-port types `com.superwall.sdk.billing.StoreProductType`, `StoreKit`, `StoreKitManagerInterface`, `ProductPurchaser`, `TransactionRestorer`, `Purchasing` and `TransactionVerifierFactory`. They will be removed in a future release. `GetProductsResponse` is unchanged.
+
 ## 2.9.0
 
 ## Enhancements
@@ -15,11 +26,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Adds `SuperwallOptions.adConsent` and `Superwall.instance.adConsent` for reporting the user's ad measurement consent (`AdConsent.Custom(adUserData, adPersonalization)`, each an `AdConsentStatus` of `Granted` or `Denied`). It is sent as the `adUserDataConsent` and `adPersonalizationConsent` device attributes and forwarded with the conversions Superwall uploads to Google Ads and Meta. While `adConsent` is `AdConsent.Unspecified`, the default, the SDK uses the consent stored by an IAB TCF consent banner when GDPR applies, and otherwise defaults to granted; apps with users in the EEA, UK or Switzerland that don't use a TCF banner should set it from their consent flow. Where the values came from is reported in the new `adConsentSource` device attribute (`developer`, `tcf` or `default`). Both are reported as denied when `eventTrackingBehavior` is `NONE`.
 - Adds subscription replacement. When a paywall's Purchase action is set to replace an existing subscription, the purchase upgrades, downgrades or switches the user's active Google Play subscription that shares an entitlement with the new product, instead of buying a second one. The replacement mode (store default, charge the prorated difference now, or charge the full price now) maps to Google Play's `SubscriptionUpdateParams`. Users without such a subscription make a normal purchase.
 - Adds `PurchaseController.purchase(activity, product, basePlanId, offerId, replacement)`. Its `ProductReplacement` carries the mode and the old product's ID and purchase token, so a custom `PurchaseController` can perform the replacement. The default implementation ignores it and calls the existing `purchase` method.
-- Adds `LogScope.billing` for the SDK's Google Play Billing logs. `LogScope.storeKitManager` is deprecated; setting it in `SuperwallOptions.logging.scopes` still enables the billing logs.
-
-## Deprecations
-- Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
-- Deprecates the unused iOS-port types `com.superwall.sdk.billing.StoreProductType`, `StoreKit`, `StoreKitManagerInterface`, `ProductPurchaser`, `TransactionRestorer`, `Purchasing` and `TransactionVerifierFactory`. They will be removed in a future release. `GetProductsResponse` is unchanged.
 
 ## Fixes
 - Fix web checkout codes passed through the Play install referrer never being redeemed. A code is now redeemed once, on the first launch after install.
