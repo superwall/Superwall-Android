@@ -7,6 +7,9 @@ import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
+import com.superwall.sdk.billing.google.GooglePlayStore
+import com.superwall.sdk.billing.google.PlayPurchases
+import com.superwall.sdk.billing.google.purchaseResultOf
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
@@ -23,6 +26,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,6 +47,9 @@ internal const val MAX_TRANSIENT_SETUP_FAILURES = 3
 // normally answers within a couple of seconds; this is a backstop so a callback that
 // never arrives can't leave paywalls waiting on their products for the life of the process.
 internal const val PRODUCTS_QUERY_TIMEOUT_MS = 15_000L
+
+// Purchase outcomes kept for slow collectors of the wrapper's neutral purchase updates.
+private const val PURCHASE_UPDATES_BUFFER = 64
 
 /** Builds the Play billing client the SDK uses, reporting purchases to [listener]. */
 internal fun playBillingClient(context: Context): (PurchasesUpdatedListener) -> BillingClient =
@@ -128,6 +135,12 @@ class GoogleBillingWrapper internal constructor(
     // Setup mutable state flow for purchase results
     override val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
+    /** The last Play purchase this wrapper saw for each purchase token. */
+    internal val playPurchases = PlayPurchases()
+
+    // Every outcome Play reports to [onPurchasesUpdated], in neutral form.
+    private val purchaseUpdates = MutableSharedFlow<StorePurchaseResult>(extraBufferCapacity = PURCHASE_UPDATES_BUFFER)
+
     init {
         startConnectionOnMainThread()
         // Unavailable isn't always permanent - the user may sign in to the Play Store
@@ -146,6 +159,16 @@ class GoogleBillingWrapper internal constructor(
             connection = connection,
             productDetails = productDetails,
             appInBackground = { appLifecycleObserver.isInBackground.value },
+        )
+
+    /** This wrapper as the SDK's store-neutral [Store]. */
+    internal val store: Store =
+        GooglePlayStore(
+            queries = queries,
+            availability = availability,
+            purchaseUpdates = purchaseUpdates,
+            purchases = playPurchases,
+            latestResult = purchaseResults,
         )
 
     override suspend fun queryAllPurchases(): List<Purchase> = queries.allPurchases()
@@ -202,6 +225,8 @@ class GoogleBillingWrapper internal constructor(
             LogScope.billing,
             "onPurchasesUpdated: $result",
         )
+        purchases?.let { playPurchases.record(it) }
+        purchaseUpdates.tryEmit(purchaseResultOf(result, purchases))
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (purchase in purchases) {
                 Logger.debug(

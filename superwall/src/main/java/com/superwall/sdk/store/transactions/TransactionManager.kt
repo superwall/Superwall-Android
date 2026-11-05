@@ -1,6 +1,6 @@
 package com.superwall.sdk.store.transactions
 
-import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.billing.StorePurchaseUpdate
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.dependencies.AttributesFactory
@@ -17,7 +17,6 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.store.ProductReplacement
-import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 class TransactionManager internal constructor(
@@ -82,11 +81,11 @@ class TransactionManager internal constructor(
         observerModeTracker.start()
     }
 
-    /** Acts on a Play [result] for the latest purchase the app made itself (observer mode). */
+    /** Acts on a store [result] for the latest purchase the app made itself (observer mode). */
     internal suspend fun handle(
-        result: InternalPurchaseResult,
-        state: PurchasingObserverState,
-    ) = observerModeTracker.handle(result, state)
+        result: StorePurchaseUpdate,
+        report: ObservedReport,
+    ) = observerModeTracker.handle(result, report)
 
     fun updatePaymentQueue(removedTransactions: List<String>) {
         purchaseFlow.clearPurchasingIds(removedTransactions)

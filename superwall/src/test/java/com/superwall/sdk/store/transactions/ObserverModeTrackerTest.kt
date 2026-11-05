@@ -7,6 +7,7 @@ import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
+import com.superwall.sdk.billing.google.toStorePurchase
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.store.PurchasingObserverState
@@ -127,7 +128,7 @@ class ObserverModeTrackerTest {
                         val (id, source, outcome) = settled.single()
                         assertEquals("p1", id)
                         assertTrue(source is PurchaseSource.ObserverMode)
-                        assertEquals(PurchaseOutcome.Purchased(false, purchase), outcome)
+                        assertEquals(PurchaseOutcome.Purchased(false, purchase.toStorePurchase()), outcome)
                         assertTrue(tracker.state.value.observed.isEmpty())
                     }
                 }
@@ -249,7 +250,7 @@ class ObserverModeTrackerTest {
 
                     Then("it settles as purchased once and nothing is observed") {
                         assertEquals(1, receiptsRefreshed)
-                        assertEquals(PurchaseOutcome.Purchased(false, purchase), settled.single().third)
+                        assertEquals(PurchaseOutcome.Purchased(false, purchase.toStorePurchase()), settled.single().third)
                         assertTrue(tracker.state.value.observed.isEmpty())
                     }
                 }

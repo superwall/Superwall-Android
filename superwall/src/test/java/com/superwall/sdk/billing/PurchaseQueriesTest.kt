@@ -113,6 +113,33 @@ class PurchaseQueriesTest {
         }
 
     @Test
+    fun `a products result lists what Play didn't return as missing instead of failing`() =
+        runTest {
+            Given("connected queries") {
+                val fake = FakeClient()
+                val (queries) = queries(fake)
+
+                When("a product Play doesn't know is requested") {
+                    val first = backgroundScope.async { queries.productsResult(setOf(productId)) }
+                    runCurrent()
+                    fake.answerProducts(BillingClient.BillingResponseCode.OK)
+                    runCurrent()
+
+                    Then("the id is reported missing") {
+                        val result = first.await()
+                        assertTrue(result.found.isEmpty())
+                        assertEquals(setOf(productId), result.missingIds)
+                    }
+
+                    And("asking again reports it missing without querying Play") {
+                        assertEquals(setOf(productId), queries.productsResult(setOf(productId)).missingIds)
+                        assertEquals(2, fake.productListeners.size)
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `an answer that arrives after the timeout still fills the cache`() =
         runTest {
             Given("a request whose answer comes too late") {
