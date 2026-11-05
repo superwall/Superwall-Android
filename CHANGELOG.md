@@ -13,10 +13,14 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Fixes
 - Fixes observer-mode purchases going untracked when `SuperwallOptions.shouldObservePurchases` is on and only one purchase is in progress. A completed purchase now tracks `transaction_complete` and refreshes the receipt, and a cancelled one tracks `transaction_abandon`; before, both were dropped with an error log. Observer-mode charts can show more transactions after this release.
 - Fixes observer-mode tracking stopping for the rest of the session when `SuperwallOptions.shouldObservePurchases` is on and Play reported a cancelled or failed purchase while no purchase was being observed. The purchase listener crashed on it; such results are now ignored.
+- Fixes trial reminders and other paywall notifications never being scheduled for a paywall embedded in the app's own Activity, such as one shown with `PaywallComposable`. Notifications were only scheduled when the paywall was shown in a `SuperwallPaywallActivity` or in-window; the SDK now asks the embedding Activity for the notification permission and schedules them there.
 
 ## Deprecations
 - Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
 - Deprecates the unused iOS-port types `com.superwall.sdk.billing.StoreProductType`, `StoreKit`, `StoreKitManagerInterface`, `ProductPurchaser`, `TransactionRestorer`, `Purchasing` and `TransactionVerifierFactory`. They will be removed in a future release. `GetProductsResponse` is unchanged.
+
+## Fixes
+- Fixes `CustomerInfo` and entitlements naming the first configured base plan, with an expiry based on that plan's period, when a Google Play subscription has several base plans. The SDK now saves the product that was bought against its purchase token. When it can't know the plan, such as after a reinstall or for a purchase made before this fix, `productId` and `latestProductId` are the Play subscription ID and the expiry dates are `null`. Those users keep their access, and a plan that was recorded now also decides which entitlements the purchase unlocks.
 
 ## 2.9.0
 
@@ -36,6 +40,25 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Fixes a band of the host window showing beside the display cutout around a Fullscreen, Push or no-animation paywall shown with `PresentationHost.IN_WINDOW`. The in-window host padded the paywall for the cutout as well as the system bars; it now pads for the system bars only, as `SuperwallPaywallActivity` does, and the paywall clears the cutout with its CSS safe-area insets.
 - Fixes paywalls not running post-purchase actions (e.g. navigating to a thank-you page) after a one-time product purchase, because `transaction_complete` was only sent to the paywall for subscriptions.
 - Fixes `getProducts()` (and other network-backed suspend APIs) not being main-safe: network requests now always run on `Dispatchers.IO`, so the `/products` fallback no longer fails with `NetworkOnMainThreadException` when called from the main thread.
+- Fixes `reset()` and switching users deleting every top-level file in the host app's cache directory. Reset now only clears Superwall's own user-scoped storage.
+- Fixes the previous user's experiment assignments, paywall view counts, customer info, transaction history and survey assignment carrying over to the next user after `reset()` or `identify()` with a different user. The cached config and enrichment are kept.
+- Fixes storage writes not being atomic: a process kill mid-write could empty a stored value (e.g. the user's alias or seed). Writes now go through `AtomicFile`, and the in-memory cache is thread-safe.
+- Fixes config retries waiting forever on devices connected over Ethernet, a VPN or any network other than Wi-Fi or cellular. Any network with internet access now counts, and the wait is capped at 30 seconds.
+- Fixes one product ID that Google Play doesn't return (e.g. not live yet) making every later product load fail until the app was restarted. Missing products are left out of the result and asked for again after 5 minutes.
+- Fixes renewing subscribers being reported with an `EXPIRED` `latestSubscriptionState` and a wrong expiry date (the first period's end) after their first renewal. Google Play doesn't give the client an expiry date, grace period or account hold, so the device no longer guesses them: a purchased subscription is `SUBSCRIBED`, and a pending purchase is no longer reported as revoked or in a grace period.
+- Fixes observer mode dropping successful purchases and, after a cancelled or failed purchase it wasn't tracking, ignoring every later purchase. Each observed purchase is handled once, whether it's reported by Google Play or through `Superwall.instance.observe`.
+- Fixes a failed Google Play read (e.g. billing still connecting at launch) being treated as "no purchases": stored receipts and customer info are no longer overwritten, and `latestSubscriptionState` is no longer set to `EXPIRED`. Play subscribers stay active through a failed read for up to one subscription period after Play last confirmed their purchase.
+- After `reset()` or switching users, the new user's purchase history and device customer info are rebuilt from Google Play straight away instead of staying empty until the next purchase or restore.
+- Fixes the SDK connecting two Google Play billing clients when no `PurchaseController` is set, which processed every purchase twice. `AutomaticPurchaseController` now uses the SDK's single billing connection.
+- Fixes a blank screen when the app's process is recreated with a paywall on top and Superwall is configured after `Application.onCreate`. The paywall activity now closes.
+- Fixes `PaywallComposable` not loading a new paywall when its `placement` changes, and crashing when it isn't hosted in an `Activity`.
+- The restore-failed alert and `PaywallComposable`'s default error are now localized. Text you set on `PaywallOptions.restoreFailed` is shown as is.
+
+## Deprecations
+- Deprecates `PaywallOptions.useCachedTemplates`. It has no effect: on-device caching is configured per paywall in the Superwall dashboard. It will be removed in the next major version.
+
+## Breaking changes
+- `AutomaticPurchaseController`'s constructor now takes the SDK's `Billing` instead of a `Context` and a billing client factory. Apps that don't construct it themselves are unaffected.
 
 
 ## 2.8.8

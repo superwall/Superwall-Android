@@ -199,6 +199,7 @@ internal data class TransactionState(
                     }
 
                 runInline(PrepareToPurchase(product, source))
+                val tokensBeforePurchase = dependencies.storeManager.knownPurchaseTokens
                 val outcome =
                     resolveReplacement(product, source).fold(
                         onSuccess = { replacement ->
@@ -213,13 +214,25 @@ internal data class TransactionState(
                         onFailure = { replacementLookupFailed(product) },
                     )
 
+                // Play's purchase only names the subscription, so remember which base plan was bought.
+                if (outcome is PurchaseResult.Purchased) {
+                    dependencies.storeManager.recordPurchasedProduct(product, tokensBeforePurchase)
+                }
+
                 // An external-only controller owns the rest of the purchase's lifecycle.
                 if (!isExternalOnly(source)) {
                     val isEligibleForTrial = rawStoreProduct.selectedOffer != null
                     val settled =
                         when (outcome) {
                             is PurchaseResult.Purchased ->
-                                PurchaseOutcome.Purchased(didStartFreeTrial = isEligibleForTrial && product.hasFreeTrial)
+                                PurchaseOutcome.Purchased(
+                                    didStartFreeTrial = isEligibleForTrial && product.hasFreeTrial,
+                                    // The automatic controller hands back the store purchase; a
+                                    // custom controller doesn't.
+                                    purchase =
+                                        outcome.purchases.firstOrNull { product.productIdentifier in it.productIds }
+                                            ?: outcome.purchases.firstOrNull(),
+                                )
 
                             else -> outcome.toOutcome()
                         }
@@ -442,7 +455,7 @@ internal sealed class PurchaseOutcome {
     /** Bought through Play: the receipt and latest transaction are read back. */
     data class Purchased(
         val didStartFreeTrial: Boolean,
-        /** The store purchase, when known up front (observer mode). */
+        /** The store purchase, when known up front (observer mode, or a flow the SDK launched). */
         val purchase: StorePurchase? = null,
     ) : PurchaseOutcome()
 
@@ -489,7 +502,14 @@ private suspend fun TransactionContext.didPurchase(
                     info = mapOf("product_id" to product.fullIdentifier, "paywall_state" to source.state),
                 )
             }
-            val transaction = awaitLatestTransaction()
+            // Read the transaction from the purchase the flow returned when there is one. In
+            // observer mode the app finishes transactions itself, as with the latest transaction.
+            val transaction =
+                when {
+                    outcome.purchase == null -> awaitLatestTransaction()
+                    dependencies.observesPurchases -> null
+                    else -> dependencies.storeTransactionOf(outcome.purchase) ?: awaitLatestTransaction()
+                }
             storeManager.loadPurchasedProducts(dependencies.allEntitlementsByProductId())
             dependencies.ioScope.launchWithTracking { dependencies.notifyBackendOfReceipts() }
             trackTransactionDidSucceed(transaction, product, source, outcome.didStartFreeTrial)

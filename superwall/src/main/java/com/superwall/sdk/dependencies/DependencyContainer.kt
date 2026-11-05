@@ -27,6 +27,7 @@ import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
+import com.superwall.sdk.billing.BillingBackedStore
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.billing.ConnectionState
 import com.superwall.sdk.billing.ProductDetailsRepository
@@ -49,6 +50,7 @@ import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.AdConsentPublisher
 import com.superwall.sdk.config.options.AdConsentState
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.config.options.localized
 import com.superwall.sdk.config.options.TcfConsentReader
 import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.customercenter.CustomerCenterManager
@@ -165,7 +167,6 @@ import com.superwall.sdk.store.SubscriptionStatusObserver
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.defaultGetBilling
 import com.superwall.sdk.store.readDeviceEntitlementRecords
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeTransactionHandler
@@ -476,7 +477,9 @@ class DependencyContainer internal constructor(
             clearPresentationItems = { presentationCoordinator.presentationItems.reset() },
             resetConfig = { configManager.reset() },
             clearAppUserRedemptions = { reedemer.clear(RedemptionOwnershipType.AppUser) },
+            clearProductsCache = { googleBillingWrapper.clearProductsCache() },
             track = { trackEvent(it) },
+            reloadPurchases = { storeManager.reloadPurchasesForNewUser(entitlements.entitlementsByProductId) },
         )
     }
 
@@ -632,11 +635,10 @@ class DependencyContainer internal constructor(
                 kotlinPurchaseController =
                     purchaseController
                         ?: AutomaticPurchaseController(
-                            context = context,
                             scope = ioScope,
+                            store = BillingBackedStore.storeOf(googleBillingWrapper).first,
                             entitlementsInfo = { entitlements },
                             deviceEntitlementRecords = { readDeviceEntitlementRecords(storage) },
-                            getBilling = defaultGetBilling,
                             passIdentifiersToPlayStore = { makeSuperwallOptions().passIdentifiersToPlayStore },
                             userId = { identityManager.userId },
                             externalAccountId = { identityManager.externalAccountId },
@@ -1618,10 +1620,11 @@ class DependencyContainer internal constructor(
                 trackEvent(trackedEvent)
             }
             paywallView.handle(PaywallMessage.RestoreFailed(message))
+            val alert = options.paywalls.restoreFailed.localized(paywallView.context)
             paywallView.showAlert(
-                title = options.paywalls.restoreFailed.title,
-                message = options.paywalls.restoreFailed.message,
-                closeActionTitle = options.paywalls.restoreFailed.closeButtonTitle,
+                title = alert.title,
+                message = alert.message,
+                closeActionTitle = alert.closeButtonTitle,
             )
         }
     }

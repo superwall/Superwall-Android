@@ -2346,7 +2346,12 @@ public abstract interface class com/superwall/sdk/billing/Billing {
 	public abstract fun getPurchaseResults ()Lkotlinx/coroutines/flow/MutableStateFlow;
 	public abstract fun getStorefrontCountryCode (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun queryAllPurchases (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun queryAllPurchasesResult-IoAF18A (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun querySubscriptionPurchases-IoAF18A (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/superwall/sdk/billing/Billing$DefaultImpls {
+	public static fun queryAllPurchasesResult-IoAF18A (Lcom/superwall/sdk/billing/Billing;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract class com/superwall/sdk/billing/BillingError : java/lang/Exception {
@@ -2422,6 +2427,7 @@ public final class com/superwall/sdk/billing/GoogleBillingWrapper : com/android/
 	public fun onBillingSetupFinished (Lcom/android/billingclient/api/BillingResult;)V
 	public fun onPurchasesUpdated (Lcom/android/billingclient/api/BillingResult;Ljava/util/List;)V
 	public fun queryAllPurchases (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun queryAllPurchasesResult-IoAF18A (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun querySubscriptionPurchases-IoAF18A (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun queryType-gIAlu-s (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setBillingClient (Lcom/android/billingclient/api/BillingClient;)V
@@ -2998,6 +3004,9 @@ public final class com/superwall/sdk/config/options/PaywallOptions$PresentationH
 }
 
 public final class com/superwall/sdk/config/options/PaywallOptions$RestoreFailed {
+	public static final field DEFAULT_CLOSE_BUTTON_TITLE Ljava/lang/String;
+	public static final field DEFAULT_MESSAGE Ljava/lang/String;
+	public static final field DEFAULT_TITLE Ljava/lang/String;
 	public fun <init> ()V
 	public fun <init> (Lkotlin/jvm/functions/Function1;)V
 	public final fun getCloseButtonTitle ()Ljava/lang/String;
@@ -13025,18 +13034,14 @@ public final class com/superwall/sdk/storage/AppUserId : com/superwall/sdk/stora
 }
 
 public final class com/superwall/sdk/storage/Cache : kotlinx/coroutines/CoroutineScope {
-	public static final field Companion Lcom/superwall/sdk/storage/Cache$Companion;
 	public fun <init> (Landroid/content/Context;Lkotlin/coroutines/CoroutineContext;Lkotlinx/serialization/json/Json;)V
 	public synthetic fun <init> (Landroid/content/Context;Lkotlin/coroutines/CoroutineContext;Lkotlinx/serialization/json/Json;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun clean ()V
+	public final fun clearUserScope ()V
 	public final fun delete (Lcom/superwall/sdk/storage/Storable;)V
 	public final fun getContext ()Landroid/content/Context;
 	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
 	public final fun read (Lcom/superwall/sdk/storage/Storable;)Ljava/lang/Object;
 	public final fun write (Lcom/superwall/sdk/storage/Storable;Ljava/lang/Object;)V
-}
-
-public final class com/superwall/sdk/storage/Cache$Companion {
 }
 
 public final class com/superwall/sdk/storage/CacheKeysKt {
@@ -13480,50 +13485,15 @@ public final class com/superwall/sdk/storage/core_data/entities/ManagedTriggerRu
 	public fun insert (Lcom/superwall/sdk/storage/core_data/entities/ManagedTriggerRuleOccurrence;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
-public abstract interface class com/superwall/sdk/storage/memory/GenericCache {
-	public abstract fun clear ()V
-	public abstract fun get (Ljava/lang/Object;)Ljava/lang/Object;
-	public abstract fun getSize ()I
-	public abstract fun remove (Ljava/lang/Object;)Ljava/lang/Object;
-	public abstract fun set (Ljava/lang/Object;Ljava/lang/Object;)V
-}
-
-public final class com/superwall/sdk/storage/memory/LRUCache : com/superwall/sdk/storage/memory/GenericCache {
-	public static final field Companion Lcom/superwall/sdk/storage/memory/LRUCache$Companion;
-	public fun <init> (Lcom/superwall/sdk/storage/memory/GenericCache;I)V
-	public synthetic fun <init> (Lcom/superwall/sdk/storage/memory/GenericCache;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun clear ()V
-	public fun get (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun getSize ()I
-	public fun remove (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun set (Ljava/lang/Object;Ljava/lang/Object;)V
-}
-
-public final class com/superwall/sdk/storage/memory/LRUCache$Companion {
-}
-
-public final class com/superwall/sdk/storage/memory/PerpetualCache : com/superwall/sdk/storage/memory/GenericCache {
-	public fun <init> ()V
-	public fun clear ()V
-	public fun get (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun getSize ()I
-	public fun remove (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun set (Ljava/lang/Object;Ljava/lang/Object;)V
-}
-
-public final class com/superwall/sdk/store/AutomaticPurchaseController : com/android/billingclient/api/PurchasesUpdatedListener, com/superwall/sdk/delegate/subscription_controller/PurchaseController {
+public final class com/superwall/sdk/store/AutomaticPurchaseController : com/superwall/sdk/delegate/subscription_controller/PurchaseController {
 	public static final field Companion Lcom/superwall/sdk/store/AutomaticPurchaseController$Companion;
-	public final fun getContext ()Landroid/content/Context;
 	public final fun getDeviceEntitlementRecords ()Lkotlin/jvm/functions/Function0;
 	public final fun getEntitlementsInfo ()Lkotlin/jvm/functions/Function0;
-	public final fun getGetBilling ()Lkotlin/jvm/functions/Function2;
 	public final fun getScope ()Lcom/superwall/sdk/misc/IOScope;
-	public fun onPurchasesUpdated (Lcom/android/billingclient/api/BillingResult;Ljava/util/List;)V
 	public fun purchase (Landroid/app/Activity;Lcom/android/billingclient/api/ProductDetails;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun purchase (Landroid/app/Activity;Lcom/superwall/sdk/store/abstractions/product/StoreProduct;Ljava/lang/String;Ljava/lang/String;Lcom/superwall/sdk/store/ProductReplacement;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun purchase (Landroid/app/Activity;Lcom/superwall/sdk/store/abstractions/product/StoreProduct;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun restorePurchases (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun setContext (Landroid/content/Context;)V
 }
 
 public final class com/superwall/sdk/store/AutomaticPurchaseController$Companion {
@@ -13760,6 +13730,7 @@ public final class com/superwall/sdk/store/StoreManager : com/superwall/sdk/stor
 	public final fun loadStorefrontCountryCode (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun products (Ljava/util/Set;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun refreshReceipt ()V
+	public final fun reloadPurchasesForNewUser (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setTestMode (Lcom/superwall/sdk/store/testmode/TestMode;)V
 }
 
@@ -14142,7 +14113,12 @@ public abstract interface class com/superwall/sdk/store/abstractions/product/rec
 	public abstract fun isActive ()Z
 	public abstract fun isInBillingRetryPeriod ()Z
 	public abstract fun isInGracePeriod ()Z
+	public abstract fun isPending ()Z
 	public abstract fun isRevoked ()Z
+}
+
+public final class com/superwall/sdk/store/abstractions/product/receipt/EntitlementTransaction$DefaultImpls {
+	public static fun isPending (Lcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransaction;)Z
 }
 
 public final class com/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType : java/lang/Enum {
@@ -14236,6 +14212,7 @@ public final class com/superwall/sdk/store/abstractions/product/receipt/PlayStor
 	public fun isActive ()Z
 	public fun isInBillingRetryPeriod ()Z
 	public fun isInGracePeriod ()Z
+	public fun isPending ()Z
 	public fun isRevoked ()Z
 }
 
@@ -14244,8 +14221,8 @@ public final class com/superwall/sdk/store/abstractions/product/receipt/PlayStor
 }
 
 public final class com/superwall/sdk/store/abstractions/product/receipt/ReceiptManager {
-	public fun <init> (Lcom/superwall/sdk/store/coordinator/ProductsFetcher;Lcom/superwall/sdk/billing/Billing;Lcom/superwall/sdk/misc/IOScope;Lcom/superwall/sdk/storage/Storage;Lkotlin/jvm/functions/Function0;Lcom/superwall/sdk/store/abstractions/product/receipt/EntitlementProcessor;Lcom/superwall/sdk/store/abstractions/product/receipt/SubscriptionStatusProvider;)V
-	public synthetic fun <init> (Lcom/superwall/sdk/store/coordinator/ProductsFetcher;Lcom/superwall/sdk/billing/Billing;Lcom/superwall/sdk/misc/IOScope;Lcom/superwall/sdk/storage/Storage;Lkotlin/jvm/functions/Function0;Lcom/superwall/sdk/store/abstractions/product/receipt/EntitlementProcessor;Lcom/superwall/sdk/store/abstractions/product/receipt/SubscriptionStatusProvider;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/superwall/sdk/store/coordinator/ProductsFetcher;Lcom/superwall/sdk/billing/Billing;Lcom/superwall/sdk/misc/IOScope;Lcom/superwall/sdk/storage/Storage;Lkotlin/jvm/functions/Function0;Lcom/superwall/sdk/store/abstractions/product/receipt/EntitlementProcessor;Lcom/superwall/sdk/store/abstractions/product/receipt/SubscriptionStatusProvider;Lkotlin/jvm/functions/Function0;)V
+	public synthetic fun <init> (Lcom/superwall/sdk/store/coordinator/ProductsFetcher;Lcom/superwall/sdk/billing/Billing;Lcom/superwall/sdk/misc/IOScope;Lcom/superwall/sdk/storage/Storage;Lkotlin/jvm/functions/Function0;Lcom/superwall/sdk/store/abstractions/product/receipt/EntitlementProcessor;Lcom/superwall/sdk/store/abstractions/product/receipt/SubscriptionStatusProvider;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun experimentalProperties ()Ljava/util/Map;
 	public final fun getLatestSubscriptionPeriodType ()Lcom/superwall/sdk/store/abstractions/product/receipt/LatestPeriodType;
 	public final fun getLatestSubscriptionWillAutoRenew ()Ljava/lang/Boolean;
@@ -14257,6 +14234,7 @@ public final class com/superwall/sdk/store/abstractions/product/receipt/ReceiptM
 	public final fun loadPurchasedProducts (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun loadPurchases (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun refreshReceipt ()V
+	public final fun reloadForNewUser (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setLatestSubscriptionPeriodType (Lcom/superwall/sdk/store/abstractions/product/receipt/LatestPeriodType;)V
 	public final fun setLatestSubscriptionWillAutoRenew (Ljava/lang/Boolean;)V
 	public final fun setTransactionReceipts (Ljava/util/List;)V
@@ -14281,11 +14259,13 @@ public final class com/superwall/sdk/store/abstractions/product/receipt/ReceiptM
 
 public final class com/superwall/sdk/store/abstractions/product/receipt/StoredEntitlementTransaction : com/superwall/sdk/store/abstractions/product/receipt/EntitlementTransaction {
 	public static final field Companion Lcom/superwall/sdk/store/abstractions/product/receipt/StoredEntitlementTransaction$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Date;Ljava/util/Date;Ljava/util/Date;ZLcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType;ZLjava/util/Date;ZZZ)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Date;Ljava/util/Date;Ljava/util/Date;ZLcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType;ZLjava/util/Date;ZZZZ)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Date;Ljava/util/Date;Ljava/util/Date;ZLcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType;ZLjava/util/Date;ZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component10 ()Z
 	public final fun component11 ()Z
 	public final fun component12 ()Z
+	public final fun component13 ()Z
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/util/Date;
 	public final fun component4 ()Ljava/util/Date;
@@ -14294,8 +14274,8 @@ public final class com/superwall/sdk/store/abstractions/product/receipt/StoredEn
 	public final fun component7 ()Lcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType;
 	public final fun component8 ()Z
 	public final fun component9 ()Ljava/util/Date;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Date;Ljava/util/Date;Ljava/util/Date;ZLcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType;ZLjava/util/Date;ZZZ)Lcom/superwall/sdk/store/abstractions/product/receipt/StoredEntitlementTransaction;
-	public static synthetic fun copy$default (Lcom/superwall/sdk/store/abstractions/product/receipt/StoredEntitlementTransaction;Ljava/lang/String;Ljava/lang/String;Ljava/util/Date;Ljava/util/Date;Ljava/util/Date;ZLcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType;ZLjava/util/Date;ZZZILjava/lang/Object;)Lcom/superwall/sdk/store/abstractions/product/receipt/StoredEntitlementTransaction;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Date;Ljava/util/Date;Ljava/util/Date;ZLcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType;ZLjava/util/Date;ZZZZ)Lcom/superwall/sdk/store/abstractions/product/receipt/StoredEntitlementTransaction;
+	public static synthetic fun copy$default (Lcom/superwall/sdk/store/abstractions/product/receipt/StoredEntitlementTransaction;Ljava/lang/String;Ljava/lang/String;Ljava/util/Date;Ljava/util/Date;Ljava/util/Date;ZLcom/superwall/sdk/store/abstractions/product/receipt/EntitlementTransactionType;ZLjava/util/Date;ZZZZILjava/lang/Object;)Lcom/superwall/sdk/store/abstractions/product/receipt/StoredEntitlementTransaction;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getExpirationDate ()Ljava/util/Date;
 	public fun getOriginalPurchaseDate ()Ljava/util/Date;
@@ -14309,6 +14289,7 @@ public final class com/superwall/sdk/store/abstractions/product/receipt/StoredEn
 	public fun isActive ()Z
 	public fun isInBillingRetryPeriod ()Z
 	public fun isInGracePeriod ()Z
+	public fun isPending ()Z
 	public fun isRevoked ()Z
 	public fun toString ()Ljava/lang/String;
 }

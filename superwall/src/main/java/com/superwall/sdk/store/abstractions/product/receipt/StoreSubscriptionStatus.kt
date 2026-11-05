@@ -1,10 +1,8 @@
 package com.superwall.sdk.store.abstractions.product.receipt
 
 import com.android.billingclient.api.Purchase
-import com.superwall.sdk.billing.StoreProductKind
 import com.superwall.sdk.billing.StorePurchase
 import com.superwall.sdk.billing.StorePurchaseState
-import com.superwall.sdk.billing.google.kind
 import com.superwall.sdk.billing.google.offerPhasePricesMicros
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 
@@ -30,37 +28,21 @@ internal interface StoreSubscriptionStatus {
 
 /** The SDK's own status logic, on neutral types only. */
 internal object DefaultSubscriptionStatus : StoreSubscriptionStatus {
+    /**
+     * A purchase the store returns in the purchased state is entitled now, so it is SUBSCRIBED.
+     * Play Billing has no client-side expiry, grace or hold signal, so none is derived from
+     * `purchaseTime`, which stays at the original purchase across renewals. When there's no
+     * current purchase at all, see [ReceiptManager.lastSubscriptionProperties].
+     */
     override suspend fun subscriptionState(
         purchase: StorePurchase,
         product: StoreProduct?,
-    ): LatestSubscriptionState {
-        val timeSincePurchase = System.currentTimeMillis() - purchase.purchaseTime
-        val duration = product?.rawStoreProduct?.subscriptionPeriod?.toMillis ?: 0
-
-        return when {
-            // Revoked/refunded
-            purchase.state == StorePurchaseState.Unknown -> LatestSubscriptionState.REVOKED
-
-            // Grace period - pending but still auto-renewing
-            purchase.state == StorePurchaseState.Pending && purchase.autoRenewing ->
-                LatestSubscriptionState.GRACE_PERIOD
-
-            // Expired - purchased but past duration
-            purchase.state == StorePurchaseState.Purchased && duration > 0 && timeSincePurchase > duration ->
-                LatestSubscriptionState.EXPIRED
-
-            // Active subscription
-            purchase.state == StorePurchaseState.Purchased &&
-                purchase.autoRenewing &&
-                (duration == 0L || timeSincePurchase < duration) ->
-                LatestSubscriptionState.SUBSCRIBED
-
-            // Expired (non-renewing or past duration)
-            purchase.state == StorePurchaseState.Purchased -> LatestSubscriptionState.EXPIRED
-
-            else -> LatestSubscriptionState.UNKNOWN
+    ): LatestSubscriptionState =
+        when (purchase.state) {
+            StorePurchaseState.Purchased -> LatestSubscriptionState.SUBSCRIBED
+            StorePurchaseState.Unknown -> LatestSubscriptionState.REVOKED
+            StorePurchaseState.Pending -> LatestSubscriptionState.UNKNOWN
         }
-    }
 
     override fun willAutoRenew(purchase: StorePurchase): Boolean = purchase.autoRenewing
 
@@ -88,22 +70,11 @@ internal object DefaultSubscriptionStatus : StoreSubscriptionStatus {
         }
     }
 
+    // A purchased product the store still returns is active: the client can't see an expiry.
     override suspend fun isActive(
         purchase: StorePurchase,
         product: StoreProduct?,
-    ): Boolean {
-        if (purchase.state != StorePurchaseState.Purchased || product == null) return false
-        return when (product.kind) {
-            // Non-consumable is always active if purchased
-            StoreProductKind.OneTime -> true
-            StoreProductKind.Subscription -> {
-                // If we can't determine expiration, assume active
-                val period = product.rawStoreProduct?.subscriptionPeriod ?: return true
-                purchase.purchaseTime + period.toMillis > System.currentTimeMillis()
-            }
-            StoreProductKind.Unknown -> false
-        }
-    }
+    ): Boolean = purchase.state == StorePurchaseState.Purchased && product != null
 }
 
 /**

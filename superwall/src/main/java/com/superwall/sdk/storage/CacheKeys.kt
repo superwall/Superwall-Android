@@ -485,6 +485,22 @@ internal object StoredTestModeSettings : Storable<TestModeSettings> {
         get() = TestModeSettings.serializer()
 }
 
+/**
+ * For each Play entitlement Play last reported as active: the latest time it can still be
+ * active without Play saying so again (when Play last confirmed it, plus one subscription period).
+ *
+ * Play gives the client no expiry date, so this only bounds how long a subscriber stays active
+ * through a failed read. It is never shown as the entitlement's expiry.
+ */
+internal object PlayEntitlementHoldDates : Storable<Map<String, Long>> {
+    override val key: String
+        get() = "store.playEntitlementHoldDates"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Map<String, Long>>
+        get() = MapSerializer(String.serializer(), Long.serializer())
+}
+
 internal object LastWebEntitlementsFetchDate : Storable<Long> {
     override val key: String
         get() = "store.lastWebEntitlementsFetchDate"
@@ -492,6 +508,20 @@ internal object LastWebEntitlementsFetchDate : Storable<Long> {
         get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
     override val serializer: KSerializer<Long>
         get() = Long.serializer()
+}
+
+/**
+ * The full product ID bought with each Play purchase token. Play's `Purchase` only names the
+ * subscription, so this is how a purchase keeps its base plan. It's app-specific because the
+ * purchase outlives the current user.
+ */
+internal object PurchasedProductIdsByToken : Storable<Map<String, String>> {
+    override val key: String
+        get() = "store.purchasedProductIdsByToken"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Map<String, String>>
+        get() = MapSerializer(String.serializer(), String.serializer())
 }
 
 internal object StoredTransactionHistory : Storable<com.superwall.sdk.store.abstractions.product.receipt.UserTransactionHistory> {

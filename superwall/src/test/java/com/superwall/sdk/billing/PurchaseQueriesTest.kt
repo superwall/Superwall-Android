@@ -103,9 +103,9 @@ class PurchaseQueriesTest {
                         assertTrue(first.await().getOrThrow().isEmpty())
                     }
 
-                    And("asking again fails from the cache without querying Play") {
+                    And("asking again is skipped from the cache without querying Play") {
                         val second = runCatching { queries.products(setOf(productId)) }
-                        assertTrue(second.isFailure)
+                        assertTrue(second.getOrThrow().isEmpty())
                         assertEquals(2, fake.productListeners.size)
                     }
                 }
@@ -160,7 +160,7 @@ class PurchaseQueriesTest {
 
                     Then("the next request is served from the cache, without a new query") {
                         val next = runCatching { queries.products(setOf(productId)) }
-                        assertTrue(next.isFailure)
+                        assertTrue(next.getOrThrow().isEmpty())
                         assertEquals(2, fake.productListeners.size)
                     }
                 }

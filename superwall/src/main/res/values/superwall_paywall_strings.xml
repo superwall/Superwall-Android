@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paywall strings. Resource names are prefixed so a host app can override any of them. -->
+<resources>
+    <string name="superwall_restore_failed_title">No Subscription Found</string>
+    <string name="superwall_restore_failed_message">We couldn\'t find an active subscription for your account.</string>
+    <string name="superwall_restore_failed_close">Okay</string>
+    <string name="superwall_paywall_unavailable">No paywall to display</string>
+</resources>

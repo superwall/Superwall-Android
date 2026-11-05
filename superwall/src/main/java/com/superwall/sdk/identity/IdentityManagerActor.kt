@@ -404,7 +404,10 @@ data class IdentityState(
 
         /** Matches iOS behavior where identitySubject is set to false during the reset window. */
         object FullReset : Actions({
-            update(Updates.Reset)         // identity not ready
+            // Clean up storage, config and paywall cache BEFORE minting the new identity,
+            // otherwise the user-scope wipe in storage.reset() would erase the fresh IDs.
+            completeReset()
+            update(Updates.Reset)
             installScopedAttributes().takeIf { it.isNotEmpty() }?.let { update(Updates.AttributesMerged(it)) }
             // Track user_attributes with the new (reset) identity.
             // Old code did this via _reset() → saveIds() → _mergeUserAttributes(shouldTrackMerge=true).
@@ -415,7 +418,6 @@ data class IdentityState(
                     audienceFilterParams = HashMap(current.userAttributes),
                 ),
             )
-            completeReset()               // storage, config, paywall cache cleanup
         })
     }
 }
