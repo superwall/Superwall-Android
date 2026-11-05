@@ -152,8 +152,8 @@ class GoogleBillingWrapperConnectionTest {
                 When("the same wrapper asks for it again") {
                     val again = runCatching { firstWrapper.awaitGetProducts(setOf(productId)) }
 
-                    Then("it fails from the cache without querying Play") {
-                        assertTrue(again.isFailure)
+                    Then("it is skipped from the cache without querying Play") {
+                        assertTrue(again.getOrThrow().isEmpty())
                         assertEquals(2, first.productListeners.size)
                     }
                 }

@@ -1,9 +1,13 @@
 package com.superwall.sdk.store
 
 import com.superwall.sdk.billing.DecomposedProductIds
+import com.superwall.sdk.models.customer.toSet
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.product.Store
+import com.superwall.sdk.storage.LatestDeviceCustomerInfo
+import com.superwall.sdk.storage.PlayEntitlementHoldDates
+import com.superwall.sdk.storage.Storage
 import java.util.Date
 
 /**
@@ -34,11 +38,14 @@ import java.util.Date
  * read refuted is dropped, and one whose expiry is already behind us is
  * dropped as well, because time passing needs no read to confirm it.
  *
- * Requiring an expiry date to hold the status means some subscribers are
- * still demoted by a non-answer: lifetime unlocks, and any entitlement whose
- * device record has no date because product details couldn't be fetched when
- * the receipts were last processed. Holding those up would have nothing to
- * bound it, so they keep the old behaviour.
+ * Play gives the client no expiry date, so a Play device record's date is a
+ * hold date instead (see [deviceRecordsForEmptyRead]): when Play last
+ * confirmed the entitlement, plus one subscription period.
+ *
+ * Requiring a date to hold the status means some subscribers are still
+ * demoted by a non-answer: lifetime unlocks, and any entitlement whose product
+ * details couldn't be fetched when the receipts were last processed. Holding
+ * those up would have nothing to bound it, so they keep the old behaviour.
  *
  * The expiry is checked against the device clock, so a held-up status ends
  * when local time passes the entitlement's expiry date, not when Play next
@@ -61,6 +68,21 @@ import java.util.Date
  * at all.
  * @param readFailed Whether either query failed after its retries.
  */
+/**
+ * The stored device entitlements, with Play's hold dates ([PlayEntitlementHoldDates]) standing in
+ * for the expiry date Play doesn't give the client. Only used to decide whether a failed read may
+ * demote; the hold date is never shown as an expiry.
+ */
+internal fun deviceRecordsForEmptyRead(storage: Storage): Set<Entitlement> {
+    val holdDates = storage.read(PlayEntitlementHoldDates).orEmpty()
+    val records = storage.read(LatestDeviceCustomerInfo)?.entitlements.orEmpty()
+    return records
+        .map { record ->
+            val holdUntil = holdDates[record.id]
+            if (record.expiresAt == null && holdUntil != null) record.copy(expiresAt = Date(holdUntil)) else record
+        }.toSet() // merges duplicate ids the same way the device CustomerInfo does
+}
+
 internal fun resolveStatusForEmptyRead(
     currentStatus: SubscriptionStatus,
     deviceRecords: Set<Entitlement>,

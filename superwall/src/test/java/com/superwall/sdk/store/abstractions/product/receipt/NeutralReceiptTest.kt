@@ -69,8 +69,9 @@ class NeutralReceiptTest {
             Then("it uses the full id, the token and the pending state") {
                 assertEquals("monthly:base", transaction.productId)
                 assertEquals("token-1", transaction.transactionId)
-                assertTrue(transaction.isRevoked)
-                assertTrue(transaction.isInGracePeriod)
+                assertTrue(transaction.isPending)
+                assertFalse(transaction.isRevoked)
+                assertFalse(transaction.isInGracePeriod)
                 assertFalse(transaction.isActive)
                 assertEquals(EntitlementTransactionType.AUTO_RENEWABLE, transaction.productType)
             }
@@ -93,12 +94,13 @@ class NeutralReceiptTest {
                 DefaultSubscriptionStatus.subscriptionState(storePurchase(state = StorePurchaseState.Unknown), product()),
             )
             assertEquals(
-                LatestSubscriptionState.GRACE_PERIOD,
+                LatestSubscriptionState.UNKNOWN,
                 DefaultSubscriptionStatus.subscriptionState(storePurchase(state = StorePurchaseState.Pending), product()),
             )
             assertEquals(LatestSubscriptionState.SUBSCRIBED, DefaultSubscriptionStatus.subscriptionState(storePurchase(), product()))
+            // Play has no client-side expiry: a purchased, non-renewing subscription is still entitled.
             assertEquals(
-                LatestSubscriptionState.EXPIRED,
+                LatestSubscriptionState.SUBSCRIBED,
                 DefaultSubscriptionStatus.subscriptionState(storePurchase(autoRenewing = false), product()),
             )
             assertTrue(DefaultSubscriptionStatus.isActive(storePurchase(), product(ProductType.INAPP)))

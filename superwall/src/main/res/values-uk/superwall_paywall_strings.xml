@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Підписку не знайдено</string>
+    <string name="superwall_restore_failed_message">Ми не знайшли активної підписки для вашого облікового запису.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Немає екрана оплати для показу</string>
+</resources>

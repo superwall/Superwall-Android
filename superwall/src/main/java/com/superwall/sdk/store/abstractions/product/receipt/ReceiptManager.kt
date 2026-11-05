@@ -16,11 +16,13 @@ import com.superwall.sdk.models.customer.NonSubscriptionTransaction
 import com.superwall.sdk.models.customer.SubscriptionTransaction
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.storage.LatestDeviceCustomerInfo
+import com.superwall.sdk.storage.PlayEntitlementHoldDates
 import com.superwall.sdk.storage.PurchasedProductIdsByToken
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredTransactionHistory
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
@@ -54,6 +56,7 @@ class ReceiptManager internal constructor(
     internal val customerInfoManager: () -> CustomerInfoManager,
     private val entitlementProcessor: EntitlementProcessor = EntitlementProcessor(),
     private val subscriptionStatus: StoreSubscriptionStatus = DefaultSubscriptionStatus,
+    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
 ) {
     /**
      * Kept for its public signature. [billing] is read as a [Store]; a custom
@@ -67,6 +70,7 @@ class ReceiptManager internal constructor(
         customerInfoManager: () -> CustomerInfoManager,
         entitlementProcessor: EntitlementProcessor = EntitlementProcessor(),
         subscriptionStatusProvider: SubscriptionStatusProvider = PlayBillingSubscriptionStatusProvider(billing),
+        currentTimeMillis: () -> Long = System::currentTimeMillis,
     ) : this(
         delegate,
         BillingBackedStore.storeOf(billing),
@@ -75,6 +79,7 @@ class ReceiptManager internal constructor(
         customerInfoManager,
         entitlementProcessor,
         subscriptionStatusProvider,
+        currentTimeMillis,
     )
 
     private constructor(
@@ -85,6 +90,7 @@ class ReceiptManager internal constructor(
         customerInfoManager: () -> CustomerInfoManager,
         entitlementProcessor: EntitlementProcessor,
         subscriptionStatusProvider: SubscriptionStatusProvider,
+        currentTimeMillis: () -> Long,
     ) : this(
         delegate = delegate,
         store = source.first,
@@ -93,6 +99,7 @@ class ReceiptManager internal constructor(
         customerInfoManager = customerInfoManager,
         entitlementProcessor = entitlementProcessor,
         subscriptionStatus = ProviderSubscriptionStatus.of(subscriptionStatusProvider) { source.second.native(it.token) },
+        currentTimeMillis = currentTimeMillis,
     )
 
     var latestSubscriptionWillAutoRenew: Boolean? = null
@@ -232,6 +239,24 @@ class ReceiptManager internal constructor(
         )
 
     suspend fun loadPurchases(serverEntitlementsByProductId: Map<String, Set<Entitlement>>): PurchaseSnapshot {
+        // A read that failed tells us nothing, so keep the last known purchases, history and
+        // customer info instead of overwriting them as if the user had no purchases.
+        val allPurchases =
+            store.activePurchases().getOrElse { error ->
+                Logger.debug(
+                    logLevel = LogLevel.warn,
+                    scope = LogScope.receipts,
+                    message = "Couldn't read purchases from Google Play, keeping the last known state.",
+                    error = error,
+                )
+                return PurchaseSnapshot(
+                    purchases = _purchases.toSet(),
+                    entitlementsByProductId = emptyMap(),
+                    nonSubscriptions = emptyList(),
+                    subscriptions = emptyList(),
+                )
+            }
+
         val purchases: MutableSet<InAppPurchase> = mutableSetOf()
         val originalTransactionIds: MutableSet<String> = mutableSetOf()
         transactionReceipts.clear()
@@ -251,7 +276,6 @@ class ReceiptManager internal constructor(
         val storedHistory = storage.read(StoredTransactionHistory) ?: UserTransactionHistory()
 
         // 1️⃣ FIRST PASS: Collect purchases, create transaction adapters, and collect receipts
-        val allPurchases = store.ownedPurchases()
         val transactionsByEntitlement: MutableMap<String, MutableList<EntitlementTransaction>> = mutableMapOf()
         val currentTransactions: MutableList<EntitlementTransaction> = mutableListOf()
 
@@ -320,6 +344,8 @@ class ReceiptManager internal constructor(
                 originalTransactionIds.add(txnId)
             }
         }
+
+        storage.write(PlayEntitlementHoldDates, holdDates(transactionsByEntitlement, productsById.values))
 
         // 2️⃣ Merge current transactions with history and persist
         // This preserves data from expired purchases that Google Play no longer returns
@@ -411,7 +437,11 @@ class ReceiptManager internal constructor(
         allPurchases: List<StorePurchase>,
         productsById: Map<String, StoreProduct>,
     ) {
-        val mostRecentPurchase = allPurchases.maxByOrNull { it.purchaseTime } ?: return
+        val mostRecentPurchase = allPurchases.maxByOrNull { it.purchaseTime }
+        if (mostRecentPurchase == null) {
+            latestSubscriptionState.value = stateWithoutCurrentPurchase()
+            return
+        }
         val product = productsById[mostRecentPurchase.productIds.firstOrNull()] ?: return
 
         latestSubscriptionWillAutoRenew = subscriptionStatus.willAutoRenew(mostRecentPurchase)
@@ -435,15 +465,77 @@ class ReceiptManager internal constructor(
     }
 
     suspend fun lastSubscriptionProperties(): LatestSubscriptionState {
-        val purchase =
-            store.ownedPurchases().maxByOrNull { it.purchaseTime }
-                ?: return LatestSubscriptionState.UNKNOWN
+        // A failed read isn't "no purchases", so leave the state as it was.
+        val purchases = store.activePurchases().getOrElse { return latestSubscriptionState.value }
+        val purchase = purchases.maxByOrNull { it.purchaseTime } ?: return stateWithoutCurrentPurchase()
 
+        // The state comes from the purchase alone; the product lookup is best-effort so a
+        // lookup failure can't turn a paying subscriber into UNKNOWN.
         val product =
-            store.products(purchase.productIds.toSet()).found.firstOrNull()
-                ?: return LatestSubscriptionState.UNKNOWN
-
+            try {
+                store.products(purchase.productIds.toSet()).found.firstOrNull()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                null
+            }
         return subscriptionStatus.subscriptionState(purchase, product)
+    }
+
+    /**
+     * Play no longer returns any purchase. If this user had a subscription before (it's in the
+     * stored history), it has ended; otherwise we have nothing to go on.
+     */
+    private fun stateWithoutCurrentPurchase(): LatestSubscriptionState {
+        val hadSubscription =
+            storage.read(StoredTransactionHistory)?.transactions?.values?.any {
+                it.productType == EntitlementTransactionType.AUTO_RENEWABLE ||
+                    it.productType == EntitlementTransactionType.NON_RENEWABLE
+            } == true
+        return if (hadSubscription) LatestSubscriptionState.EXPIRED else LatestSubscriptionState.UNKNOWN
+    }
+
+    /**
+     * How long each entitlement Play just reported as active can be held active through a
+     * failed read: until now plus the longest subscription period that unlocks it. A renewing
+     * subscription's current period can't end later than that. Lifetime unlocks and products
+     * whose period is unknown get no date, so they can't hold a status up.
+     */
+    private fun holdDates(
+        transactionsByEntitlement: Map<String, List<EntitlementTransaction>>,
+        products: Collection<StoreProduct>,
+    ): Map<String, Long> {
+        val now = currentTimeMillis()
+        val productsByFullId = products.associateBy { it.fullIdentifier }
+        return transactionsByEntitlement
+            .mapNotNull { (entitlementId, transactions) ->
+                transactions
+                    .filter {
+                        it.isActive &&
+                            (
+                                it.productType == EntitlementTransactionType.AUTO_RENEWABLE ||
+                                    it.productType == EntitlementTransactionType.NON_RENEWABLE
+                            )
+                    }.mapNotNull { productsByFullId[it.productId]?.subscriptionPeriod?.toMillis() }
+                    .maxOrNull()
+                    ?.let { period -> entitlementId to now + period }
+            }.toMap()
+    }
+
+    /**
+     * Rebuilds the receipt-derived state after the user scope was wiped (reset or a switch to
+     * another user). Play purchases belong to the device's Play account, not the app user, so
+     * they're read again and stored for the new user instead of staying empty until the next
+     * purchase or restore. The old user's in-memory values are dropped first, so a failed read
+     * leaves the new user with no receipt state until the next successful load.
+     */
+    suspend fun reloadForNewUser(serverEntitlementsByProductId: Map<String, Set<Entitlement>>) {
+        _purchases = mutableSetOf()
+        latestSubscriptionWillAutoRenew = null
+        latestSubscriptionPeriodType = null
+        latestSubscriptionState.value = LatestSubscriptionState.UNKNOWN
+        loadPurchases(serverEntitlementsByProductId)
+        latestSubscriptionState.value = lastSubscriptionProperties()
     }
 
     fun hasPurchasedProduct(productId: String): Boolean = _purchases.firstOrNull { it.productIdentifier == productId } != null

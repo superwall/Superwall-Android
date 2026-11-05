@@ -1,5 +1,6 @@
 package com.superwall.sdk.store.transactions
 
+import com.superwall.sdk.config.options.localized
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.misc.AlertControllerFactory.AlertProps
 import com.superwall.sdk.misc.launchWithTracking
@@ -198,12 +199,19 @@ internal sealed class RestoreState {
         data class ShowFailureAlert(
             val paywallView: PaywallView?,
         ) : Actions({
-                val restoreFailed = dependencies.factory.makeSuperwallOptions().paywalls.restoreFailed
-                paywallView?.showAlert(
-                    title = restoreFailed.title,
-                    message = restoreFailed.message,
-                    closeActionTitle = restoreFailed.closeButtonTitle,
-                )
+                paywallView?.let { view ->
+                    // Defaults are translated to the paywall's locale; custom wording is kept.
+                    val alert =
+                        dependencies.factory
+                            .makeSuperwallOptions()
+                            .paywalls.restoreFailed
+                            .localized(view.context)
+                    view.showAlert(
+                        title = alert.title,
+                        message = alert.message,
+                        closeActionTitle = alert.closeButtonTitle,
+                    )
+                }
             })
 
         /** Offers to look for more subscriptions on the web, worded for whether Play restored any. */

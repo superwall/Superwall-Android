@@ -16,6 +16,13 @@ interface Billing {
 
     suspend fun queryAllPurchases(): List<Purchase>
 
+    /**
+     * Every purchase Play returns, or a failure when Play couldn't be asked (billing not ready,
+     * a query timed out or its retries ran out). Unlike [queryAllPurchases], a failed read is
+     * never mistaken for "no purchases".
+     */
+    suspend fun queryAllPurchasesResult(): Result<List<Purchase>> = runCatching { queryAllPurchases() }
+
     /** Fails when Play can't be asked, so a failure is never mistaken for "no subscriptions". */
     suspend fun querySubscriptionPurchases(): Result<List<Purchase>>
 

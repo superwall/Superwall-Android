@@ -1,6 +1,9 @@
 package com.superwall.sdk.config.options
 
+import android.content.Context
 import androidx.annotation.ColorRes
+import androidx.annotation.StringRes
+import com.superwall.sdk.R
 import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import kotlin.time.Duration
@@ -19,7 +22,11 @@ class PaywallOptions() {
      */
     var isHapticFeedbackEnabled: Boolean = true
 
-    /** Defines the messaging of the alert presented to the user when restoring a transaction fails. */
+    /**
+     * Defines the messaging of the alert presented to the user when restoring a transaction fails.
+     *
+     * Values left at their defaults are shown in the device's language.
+     */
     class RestoreFailed() {
         constructor(definition: RestoreFailed.() -> Unit) : this() {
             definition()
@@ -27,21 +34,48 @@ class PaywallOptions() {
 
         /**
          * The title of the alert presented to the user when restoring a transaction fails. Defaults to
-         * `No Subscription Found`.
+         * a localized `No Subscription Found`.
          */
-        var title: String = "No Subscription Found"
+        var title: String
+            get() = customTitle ?: DEFAULT_TITLE
+            set(value) {
+                customTitle = value
+            }
 
         /**
          * Defines the message of the alert presented to the user when restoring a transaction fails.
-         * Defaults to `We couldn't find an active subscription for your account.`
+         * Defaults to a localized `We couldn't find an active subscription for your account.`
          */
-        var message: String = "We couldn't find an active subscription for your account."
+        var message: String
+            get() = customMessage ?: DEFAULT_MESSAGE
+            set(value) {
+                customMessage = value
+            }
 
         /**
          * Defines the title of the close button in the alert presented to the user when restoring a
-         * transaction fails. Defaults to `Okay`.
+         * transaction fails. Defaults to a localized `Okay`.
          */
-        var closeButtonTitle: String = "Okay"
+        var closeButtonTitle: String
+            get() = customCloseButtonTitle ?: DEFAULT_CLOSE_BUTTON_TITLE
+            set(value) {
+                customCloseButtonTitle = value
+            }
+
+        // Set only when the app assigns a value, so an explicit value equal to the
+        // English default is still shown as is instead of being localized.
+        internal var customTitle: String? = null
+            private set
+        internal var customMessage: String? = null
+            private set
+        internal var customCloseButtonTitle: String? = null
+            private set
+
+        internal companion object {
+            const val DEFAULT_TITLE = "No Subscription Found"
+            const val DEFAULT_MESSAGE = "We couldn't find an active subscription for your account."
+            const val DEFAULT_CLOSE_BUTTON_TITLE = "Okay"
+        }
     }
 
     /** Defines the messaging of the alert presented to the user when restoring a transaction fails. */
@@ -88,14 +122,13 @@ class PaywallOptions() {
     var preloadDeviceOverrides = mapOf<Tier, Boolean>()
 
     /**
-     * Loads paywall template websites from disk, if available. Defaults to `true`.
+     * Has no effect. Defaults to `false`.
      *
-     * When you save a change to your paywall in the Superwall dashboard, a key is
-     * appended to the end of your paywall website URL, e.g. `sw_cache_key=<Date saved>`.
-     * This is used to cache your paywall webpage to disk after it's first loaded. Superwall will
-     * continue to load the cached version of your paywall webpage unless the next time you
-     * make a change on the Superwall dashboard.
+     * On-device caching of paywall templates is configured per paywall in the Superwall
+     * dashboard. This option is only reported in the `config_attributes` event and will be
+     * removed in the next major version.
      */
+    @Deprecated("Has no effect; on-device caching is configured per paywall in the dashboard.")
     var useCachedTemplates: Boolean = false
 
     /**
@@ -197,6 +230,7 @@ class PaywallOptions() {
 internal fun SuperwallOptions.computedShouldPreload(tier: Tier) =
     paywalls.preloadDeviceOverrides[tier] ?: paywalls.shouldPreload
 
+@Suppress("DEPRECATION")
 internal fun PaywallOptions.toMap() =
     mapOf(
         "is_haptic_feedback_enabled" to isHapticFeedbackEnabled,
@@ -213,3 +247,21 @@ internal fun PaywallOptions.toMap() =
         "automatically_dismiss" to automaticallyDismiss,
         "transaction_background_view" to transactionBackgroundView?.name,
     )
+
+/** The restore-failed alert text to show: the app's own text, or the localized default. */
+internal data class RestoreFailedAlert(
+    val title: String,
+    val message: String,
+    val closeButtonTitle: String,
+)
+
+internal fun PaywallOptions.RestoreFailed.localized(context: Context): RestoreFailedAlert {
+    fun String?.orLocalized(
+        @StringRes resource: Int,
+    ) = this ?: context.getString(resource)
+    return RestoreFailedAlert(
+        title = customTitle.orLocalized(R.string.superwall_restore_failed_title),
+        message = customMessage.orLocalized(R.string.superwall_restore_failed_message),
+        closeButtonTitle = customCloseButtonTitle.orLocalized(R.string.superwall_restore_failed_close),
+    )
+}

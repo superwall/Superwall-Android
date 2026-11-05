@@ -123,6 +123,8 @@ class TransactionManagerTest {
                     every { cacheKey } returns "test-cache-key"
                 }
             every { info } returns pwInfo
+            // The restore-failed alert localizes its text with the view's context.
+            every { context } returns InstrumentationRegistry.getInstrumentation().targetContext
         }
 
     private var purchaseController = mockk<InternalPurchaseController>()

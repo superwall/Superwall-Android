@@ -96,12 +96,14 @@ class ReceiptManagerBasePlanTest {
             every { fullIdentifier } returns fullId
             every { productIdentifier } returns rawId
             every { rawStoreProduct } returns raw
+            every { subscriptionPeriod } returns period
         }
     }
 
     private fun billing(purchases: () -> List<Purchase>): Billing =
         mockk(relaxed = true) {
             coEvery { queryAllPurchases() } answers { purchases() }
+            coEvery { queryAllPurchasesResult() } answers { Result.success(purchases()) }
             coEvery { awaitGetProducts(any()) } answers {
                 firstArg<Set<String>>().map { storeProduct(it) }.toSet()
             }
@@ -134,15 +136,16 @@ class ReceiptManagerBasePlanTest {
                     val info = storage.read(LatestDeviceCustomerInfo)!!
                     val entitlement = info.entitlements.single()
 
-                    Then("the subscription names the monthly plan and its expiry") {
+                    // Play gives the client no expiry, so none is claimed even with the plan known.
+                    Then("the subscription names the monthly plan, without an expiry") {
                         val subscription = info.subscriptions.single()
                         assertEquals(monthly, subscription.productId)
-                        assertEquals(Date(purchaseTime + monthlyMillis), subscription.expirationDate)
+                        assertNull(subscription.expirationDate)
                     }
 
                     And("so does the entitlement") {
                         assertEquals(monthly, entitlement.latestProductId)
-                        assertEquals(Date(purchaseTime + monthlyMillis), entitlement.expiresAt)
+                        assertNull(entitlement.expiresAt)
                         assertTrue(entitlement.isActive)
                     }
                 }
@@ -212,10 +215,10 @@ class ReceiptManagerBasePlanTest {
                 When("purchases are loaded") {
                     manager.loadPurchases(mapOf(annual to setOf(premium)))
 
-                    Then("the subscription names that plan and its expiry") {
+                    Then("the subscription names that plan, without an expiry") {
                         val subscription = storage.read(LatestDeviceCustomerInfo)!!.subscriptions.single()
                         assertEquals(annual, subscription.productId)
-                        assertEquals(Date(purchaseTime + annualMillis), subscription.expirationDate)
+                        assertNull(subscription.expirationDate)
                     }
                 }
             }
@@ -294,10 +297,10 @@ class ReceiptManagerBasePlanTest {
                         assertNull(old.expirationDate)
                     }
 
-                    And("the entitlement expires with the monthly plan") {
+                    And("the entitlement names the monthly plan, and the old expiry is gone") {
                         val entitlement = info.entitlements.single()
                         assertEquals(monthly, entitlement.latestProductId)
-                        assertEquals(Date(newTime + monthlyMillis), entitlement.expiresAt)
+                        assertNull(entitlement.expiresAt)
                     }
                 }
             }

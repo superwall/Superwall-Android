@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Подписка не найдена</string>
+    <string name="superwall_restore_failed_message">Мы не нашли активную подписку для вашего аккаунта.</string>
+    <string name="superwall_restore_failed_close">ОК</string>
+    <string name="superwall_paywall_unavailable">Нет экрана оплаты для показа</string>
+</resources>
