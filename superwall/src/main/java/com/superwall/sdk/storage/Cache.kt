@@ -82,22 +82,23 @@ class Cache(
     }
 
     private fun <T> readFromDisk(storable: Storable<T>): T? {
-        var jsonString = ""
         return try {
             // Read the base file directly, not through AtomicFile.openRead(): that deletes a `.new`
             // file whenever the base exists, which would discard a write the ioQueue is still
             // making to this key. The base only ever changes by an atomic rename, so it always
             // holds the last committed value.
-            jsonString = storable.file(context).readBytes().toString(Charsets.UTF_8)
+            val jsonString = storable.file(context).readBytes().toString(Charsets.UTF_8)
             json.decodeFromString(storable.serializer, jsonString)
         } catch (e: FileNotFoundException) {
             null
         } catch (e: Throwable) {
+            // Neither the stored value nor the exception is logged: logs reach the delegate, and
+            // a decoding exception's message quotes the JSON it read, which can hold a push token
+            // or other private state.
             Logger.debug(
                 logLevel = LogLevel.error,
                 LogScope.cache,
-                message = "Unable to read key: ${storable.key}, got $jsonString",
-                error = e,
+                message = "Unable to read key: ${storable.key} (${e::class.simpleName})",
             )
             null
         }

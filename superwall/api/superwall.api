@@ -69,12 +69,16 @@ public final class com/superwall/sdk/Superwall : com/superwall/sdk/paywall/view/
 	public final fun getUserAttributes ()Ljava/util/Map;
 	public final fun getUserId ()Ljava/lang/String;
 	public final fun handleDeepLink-IoAF18A (Landroid/net/Uri;)Ljava/lang/Object;
+	public final fun handleNotificationOpen (Landroid/content/Intent;)V
+	public final fun handleNotificationOpen (Ljava/util/Map;)V
 	public final fun isLoggedIn ()Z
 	public final fun isPaywallPresented ()Z
 	public final fun observe (Lcom/superwall/sdk/store/PurchasingObserverState;)V
 	public final fun observePurchaseError (Lcom/android/billingclient/api/ProductDetails;Ljava/lang/Throwable;)V
 	public final fun observePurchaseResult (Lcom/android/billingclient/api/BillingResult;Ljava/util/List;)V
 	public final fun observePurchaseStart (Lcom/android/billingclient/api/ProductDetails;)V
+	public final fun optInToNotifications ()V
+	public final fun optOutOfNotifications ()V
 	public final fun preloadAllPaywalls ()V
 	public final fun preloadPaywalls (Ljava/util/Set;)V
 	public final fun presentCustomerCenter ()V
@@ -103,6 +107,7 @@ public final class com/superwall/sdk/Superwall : com/superwall/sdk/paywall/view/
 	public final fun setLogLevel (Lcom/superwall/sdk/logger/LogLevel;)V
 	public final fun setOverrideProductsByName (Ljava/util/Map;)V
 	public final fun setPlatformWrapper (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun setPushToken (Ljava/lang/String;)V
 	public final fun setSubscriptionStatus (Lcom/superwall/sdk/models/entitlements/SubscriptionStatus;)V
 	public final fun setSubscriptionStatus ([Ljava/lang/String;)V
 	public final fun showAlert (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
@@ -5307,7 +5312,8 @@ public final class com/superwall/sdk/models/config/Config$Companion {
 
 public final class com/superwall/sdk/models/config/FeatureFlags {
 	public static final field Companion Lcom/superwall/sdk/models/config/FeatureFlags$Companion;
-	public fun <init> (ZZZZZZZZ)V
+	public fun <init> (ZZZZZZZZZ)V
+	public synthetic fun <init> (ZZZZZZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Z
 	public final fun component2 ()Z
 	public final fun component3 ()Z
@@ -5316,8 +5322,9 @@ public final class com/superwall/sdk/models/config/FeatureFlags {
 	public final fun component6 ()Z
 	public final fun component7 ()Z
 	public final fun component8 ()Z
-	public final fun copy (ZZZZZZZZ)Lcom/superwall/sdk/models/config/FeatureFlags;
-	public static synthetic fun copy$default (Lcom/superwall/sdk/models/config/FeatureFlags;ZZZZZZZZILjava/lang/Object;)Lcom/superwall/sdk/models/config/FeatureFlags;
+	public final fun component9 ()Z
+	public final fun copy (ZZZZZZZZZ)Lcom/superwall/sdk/models/config/FeatureFlags;
+	public static synthetic fun copy$default (Lcom/superwall/sdk/models/config/FeatureFlags;ZZZZZZZZZILjava/lang/Object;)Lcom/superwall/sdk/models/config/FeatureFlags;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDisableVerboseEvents ()Z
 	public final fun getEnableCELLogging ()Z
@@ -5326,6 +5333,7 @@ public final class com/superwall/sdk/models/config/FeatureFlags {
 	public final fun getEnablePostback ()Z
 	public final fun getEnableSessionEvents ()Z
 	public final fun getEnableUserIdSeed ()Z
+	public final fun getUserNotifications ()Z
 	public final fun getWeb2App ()Z
 	public fun hashCode ()I
 	public final fun setDisableVerboseEvents (Z)V
@@ -5335,6 +5343,7 @@ public final class com/superwall/sdk/models/config/FeatureFlags {
 	public final fun setEnablePostback (Z)V
 	public final fun setEnableSessionEvents (Z)V
 	public final fun setEnableUserIdSeed (Z)V
+	public final fun setUserNotifications (Z)V
 	public final fun setWeb2App (Z)V
 	public fun toString ()Ljava/lang/String;
 }

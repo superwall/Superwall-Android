@@ -103,6 +103,9 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.device.DeviceIpCollector
 import com.superwall.sdk.network.device.DeviceIpState
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.notifications.NotificationPermissionStatus
+import com.superwall.sdk.notifications.NotificationTokenLogic
+import com.superwall.sdk.notifications.NotificationTokenManager
 import com.superwall.sdk.paywall.manager.PaywallCacheState
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
@@ -143,6 +146,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
+import com.superwall.sdk.permissions.PermissionType
 import com.superwall.sdk.permissions.UserPermissions
 import com.superwall.sdk.permissions.UserPermissionsImpl
 import com.superwall.sdk.review.MockReviewManager
@@ -180,6 +184,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.ClassDiscriminatorMode
@@ -380,6 +386,7 @@ class DependencyContainer internal constructor(
     internal val deepLinkRouter: DeepLinkRouter
     internal val attributionManager: AttributionManager
     internal val mmpAttributionManager: MMPAttributionManager
+    internal val notificationTokenManager: NotificationTokenManager
     internal val deepLinkReferrer: DeepLinkReferrer
 
     /** Sends the current ad consent to Superwall as device and config attributes. */
@@ -1147,6 +1154,25 @@ class DependencyContainer internal constructor(
                 actor = SequentialActor(MMPAttributionState(), ioScope),
             )
 
+        notificationTokenManager =
+            NotificationTokenManager(
+                storage = storage,
+                tracker = { trackEvent(it).getOrNull()?.isQueued == true },
+                permissionStatus = {
+                    NotificationPermissionStatus.from(userPermissions.hasPermission(PermissionType.NOTIFICATION))
+                },
+                trackingBehavior = eventsQueue.trackingBehavior,
+                configState = configManager.configState,
+                identity = { notificationIdentity() },
+                appVersion = { deviceHelper.appVersion },
+                sdkVersion = deviceHelper.sdkVersion,
+                scope = ioScope,
+            )
+        notificationTokenManager.listen(
+            identityChanges = identityManager.hasIdentity.map { notificationIdentity() },
+            appForegrounded = appLifecycleObserver.isInBackground.filter { !it }.map { },
+        )
+
         /**
          * This loads the webview libraries in the background thread, giving us 100-200ms less lag
          * on first webview render.
@@ -1672,6 +1698,12 @@ class DependencyContainer internal constructor(
             )
 
     override fun getAliasId(): String? = identityManager.aliasId
+
+    private fun notificationIdentity() =
+        NotificationTokenLogic.Identity(
+            aliasId = identityManager.aliasId,
+            appUserId = identityManager.appUserId,
+        )
 
     override suspend fun track(event: Trackable) {
         trackEvent(event)

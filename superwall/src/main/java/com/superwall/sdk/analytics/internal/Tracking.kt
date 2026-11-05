@@ -2,6 +2,7 @@ package com.superwall.sdk.analytics.internal
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.PrivateSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -86,21 +87,24 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
 
         val verboseEvents = existingDisableVerboseEvents ?: previousDisableVerboseEvents
 
-        if (TrackingLogic.isNotDisabledVerboseEvent(
+        val isQueued =
+            TrackingLogic.isNotDisabledVerboseEvent(
                 event = event,
                 disableVerboseEvents = verboseEvents,
                 isSandbox = dependencyContainer.makeIsSandbox(),
-            )
-        ) {
-            dependencyContainer.eventsQueue.enqueue(
-                data = eventData,
-                event = event,
-            )
-        }
+            ) &&
+                dependencyContainer.eventsQueue.enqueueAccepted(
+                    data = eventData,
+                    event = event,
+                )
         if (event is InternalSuperwallEvent.DeviceAttributes) {
             reconcileAdConsentAfterPublish(event.deviceAttributes)
         }
-        dependencyContainer.storage.coreDataManager.saveEventData(eventData)
+        // Private events only go to Superwall's servers, so they aren't stored where
+        // audience filters can read them.
+        if (event !is PrivateSuperwallEvent) {
+            dependencyContainer.storage.coreDataManager.saveEventData(eventData)
+        }
 
         if (event.canImplicitlyTriggerPaywall) {
             handleImplicitTrigger(
@@ -112,7 +116,7 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
         return@withErrorTracking TrackingResult(
             data = eventData,
             parameters = parameters,
-        )
+        ).also { it.isQueued = isQueued }
     }.toResult()
 }
 
