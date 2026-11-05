@@ -11,8 +11,10 @@ import com.superwall.sdk.store.ProductReplacement
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -43,8 +45,17 @@ internal class PurchaseFlow(
         onAdmitted: () -> Unit = {},
     ): PurchaseResult {
         val admission = CompletableDeferred<PurchaseAdmission>()
-        immediate(TransactionState.Actions.Admit(source, onAdmitted, admission))
-        return when (val admitted = admission.await()) {
+        val admitted =
+            try {
+                immediate(TransactionState.Actions.Admit(source, onAdmitted, admission))
+                admission.await()
+            } catch (e: CancellationException) {
+                // Admit is already on the queue and still runs after the caller stops waiting.
+                // Release whatever it reserves, or the attempt blocks every later paywall purchase.
+                releaseOnceAdmitted(admission)
+                throw e
+            }
+        return when (admitted) {
             PurchaseAdmission.Rejected -> PurchaseResult.Failed(ALREADY_PURCHASING)
             PurchaseAdmission.ProductMissing -> PurchaseResult.Failed("Product not found")
             is PurchaseAdmission.Admitted ->
@@ -55,8 +66,20 @@ internal class PurchaseFlow(
                     )
                     result.await()
                 } finally {
-                    immediate(TransactionState.Actions.Finish(admitted.attemptId))
+                    // Queued without suspending, so a cancelled caller still releases the attempt.
+                    effect(TransactionState.Actions.Finish(admitted.attemptId))
                 }
+        }
+    }
+
+    /** Queues [TransactionState.Actions.Finish] for the attempt [admission] reserves, if any. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun releaseOnceAdmitted(admission: CompletableDeferred<PurchaseAdmission>) {
+        admission.invokeOnCompletion { error ->
+            if (error != null) return@invokeOnCompletion
+            (admission.getCompleted() as? PurchaseAdmission.Admitted)?.let {
+                effect(TransactionState.Actions.Finish(it.attemptId))
+            }
         }
     }
 

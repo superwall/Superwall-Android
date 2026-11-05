@@ -11,7 +11,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
-import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -37,7 +37,7 @@ internal class NotificationScheduler {
 
         suspend fun Context.existsWithTag(id: String): Boolean {
             val workManager = WorkManager.getInstance(this)
-            return workManager.getWorkInfosByTag(id).await().isNotEmpty()
+            return workManager.getWorkInfosByTagFlow(id).first().isNotEmpty()
         }
 
         fun scheduleNotifications(

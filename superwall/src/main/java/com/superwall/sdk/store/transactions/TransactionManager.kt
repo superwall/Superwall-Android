@@ -75,6 +75,7 @@ class TransactionManager internal constructor(
                 dependencies = dependencies,
                 settle = { product, source, outcome -> purchaseFlow.settle(product, source, outcome) },
                 restored = { product, source -> restoreFlow.restored(product, source) },
+                sdkPurchaseInFlight = { purchaseFlow.state.value.isPurchasing },
             )
         observerModeTracker = tracker
         observerModeTracker.start()

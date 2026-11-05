@@ -105,6 +105,12 @@ internal interface RestoreContext : TransactionDependenciesContext<RestoreState,
 
 /** Context for purchases the SDK observes but does not start (observer mode). */
 internal interface ObserverModeContext : TransactionDependenciesContext<ObserverModeState, ObserverModeContext> {
+    /**
+     * True while the SDK runs a purchase itself (paywall or `Superwall.purchase`). Play reports
+     * that purchase's result on the SDK's own billing listener, and the purchase flow tracks it.
+     */
+    val isSdkPurchaseInFlight: Boolean
+
     /** Hands the end of an observed purchase to the purchase flow, which tracks it. */
     suspend fun settleObservedPurchase(
         product: StoreProduct,

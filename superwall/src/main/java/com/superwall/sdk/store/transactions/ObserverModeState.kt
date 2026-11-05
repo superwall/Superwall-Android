@@ -70,9 +70,32 @@ internal data class ObserverModeState(
             })
 
         /**
-         * Follows Play's purchase results while a purchase is observed, when the options ask the
-         * SDK to observe purchases. Each result first updates what is observed, as the billing
-         * listener always did, then is handled as [Handle].
+         * Runs on the serial queue: completes [claimed] with the observed purchase a store
+         * [result] belongs to and stops observing it, or with null. A purchase is matched by its
+         * product IDs; a cancel or failure carries no product, so it resolves the latest one.
+         */
+        data class ClaimForStoreResult(
+            val result: StorePurchaseUpdate,
+            val claimed: CompletableDeferred<ObservedPurchase?>,
+        ) : Actions({
+                val match =
+                    when (result) {
+                        is StorePurchaseUpdate.Purchased ->
+                            state.value.observed.lastOrNull { it.matchesAny(result.purchase.productIds) }
+                        StorePurchaseUpdate.Cancelled, is StorePurchaseUpdate.Failed -> state.value.latest
+                        // The store's listener never reports these; the observe API passes them
+                        // with their purchases instead.
+                        StorePurchaseUpdate.Pending, StorePurchaseUpdate.Restored -> null
+                    }
+                if (match != null) update(Updates.Remove(listOf(match.productId)))
+                claimed.complete(match)
+            })
+
+        /**
+         * Follows the store's purchase results while a purchase is observed, when the options ask
+         * the SDK to observe purchases. A result that arrives while the SDK runs its own purchase
+         * belongs to that purchase, which tracks it, so it is skipped. Every other result claims
+         * its observed purchase once and settles it.
          */
         object ObserveBillingResults : Actions({
             scope.launch {
@@ -80,13 +103,16 @@ internal data class ObserverModeState(
                     .dropWhile { !state.value.isObserving }
                     .filterNotNull()
                     .collectLatest { result ->
-                        val report = reportFor(result) ?: return@collectLatest
-                        runInline(Handle(result, report))
+                        if (isSdkPurchaseInFlight) return@collectLatest
+                        val claimed = CompletableDeferred<ObservedPurchase?>()
+                        immediate(ClaimForStoreResult(result, claimed))
+                        val purchase = claimed.await() ?: return@collectLatest
+                        runInline(Settle(result, reportFor(result, purchase), purchase))
                     }
             }
         })
 
-        /** Acts on a store [result] for the latest observed purchase, with what [report] says. */
+        /** Acts on a store [result] reported through the observe API, for the latest observed purchase. */
         data class Handle(
             val result: StorePurchaseUpdate,
             val report: ObservedReport,
@@ -103,20 +129,31 @@ internal data class ObserverModeState(
                         )
                         return@exec
                     }
+                runInline(Settle(result, report, latest))
+            })
 
+        /** Settles the already claimed [purchase] with a store [result]. */
+        data class Settle(
+            val result: StorePurchaseUpdate,
+            val report: ObservedReport,
+            val purchase: ObservedPurchase,
+        ) : Actions({
                 when (result) {
                     is StorePurchaseUpdate.Purchased -> {
                         dependencies.refreshReceipt()
-                        forEachPurchasedProduct(report) { product, purchase ->
-                            settlePurchase(product, PurchaseOutcome.Purchased(product.hasFreeTrial, purchase))
+                        forEachPurchasedProduct(report) { product, storePurchase ->
+                            settlePurchase(product, PurchaseOutcome.Purchased(product.hasFreeTrial, storePurchase))
                         }
                     }
 
-                    StorePurchaseUpdate.Cancelled -> settlePurchase(latest.product, PurchaseOutcome.Cancelled)
+                    StorePurchaseUpdate.Cancelled -> settlePurchase(purchase.product, PurchaseOutcome.Cancelled)
 
                     is StorePurchaseUpdate.Failed -> {
-                        val error = report as ObservedReport.Error
-                        settlePurchase(error.product, PurchaseOutcome.Failed(failureMessage(error.error)))
+                        val error = report as? ObservedReport.Error
+                        settlePurchase(
+                            error?.product ?: purchase.product,
+                            PurchaseOutcome.Failed(failureMessage(error?.error ?: result.error)),
+                        )
                     }
 
                     StorePurchaseUpdate.Pending ->
@@ -137,7 +174,16 @@ internal data class ObserverModeState(
 internal data class ObservedPurchase(
     val productId: String,
     val product: StoreProduct,
-)
+) {
+    /**
+     * True when the store's [productIds] include this purchase. [productId] is the SDK's full
+     * identifier (`product:basePlan:offer`); the store reports the bare product ID.
+     */
+    fun matchesAny(productIds: Collection<String>): Boolean =
+        productId in productIds ||
+            productId.substringBefore(':') in productIds ||
+            product.productIdentifier in productIds
+}
 
 /** What the app or the store reported about an observed purchase, besides the update itself. */
 internal sealed interface ObservedReport {
@@ -169,7 +215,7 @@ private suspend fun ObserverModeContext.forEachPurchasedProduct(
     report: ObservedReport,
     block: suspend (StoreProduct, StorePurchase) -> Unit,
 ) {
-    val purchases = (report as ObservedReport.Result).purchases ?: return
+    val purchases = (report as? ObservedReport.Result)?.purchases ?: return
     for (purchase in purchases) {
         for (productId in purchase.productIds) {
             dependencies.storeManager.getProductFromCache(productId)?.let { block(it, purchase) }
@@ -193,32 +239,13 @@ internal fun failureMessage(error: Throwable): String =
             }
         }?.message ?: "Unknown error"
 
-/**
- * Turns a store [result] into the report for [ObserverModeState.Actions.Handle], and first
- * stops observing what the result settles, as the billing listener always did. Returns null
- * when nothing is observed for a cancel or failure.
- */
-private suspend fun ObserverModeContext.reportFor(result: StorePurchaseUpdate): ObservedReport? =
+/** The report for a store [result] that settles the observed [purchase]. */
+private fun reportFor(
+    result: StorePurchaseUpdate,
+    purchase: ObservedPurchase,
+): ObservedReport =
     when (result) {
-        is StorePurchaseUpdate.Purchased -> {
-            update(ObserverModeState.Updates.Remove(result.purchase.productIds))
-            ObservedReport.Result(listOf(result.purchase))
-        }
-
-        StorePurchaseUpdate.Cancelled -> {
-            val claimed = CompletableDeferred<ObservedPurchase?>()
-            immediate(ObserverModeState.Actions.ClaimLatest(claimed))
-            claimed.await()?.let { ObservedReport.Result(emptyList()) }
-        }
-
-        else -> {
-            val claimed = CompletableDeferred<ObservedPurchase?>()
-            immediate(ObserverModeState.Actions.ClaimLatest(claimed))
-            claimed.await()?.let {
-                ObservedReport.Error(
-                    error = (result as? StorePurchaseUpdate.Failed)?.error ?: Throwable("Unknown error"),
-                    product = it.product,
-                )
-            }
-        }
+        is StorePurchaseUpdate.Purchased -> ObservedReport.Result(listOf(result.purchase))
+        is StorePurchaseUpdate.Failed -> ObservedReport.Error(result.error, purchase.product)
+        else -> ObservedReport.Result(emptyList())
     }

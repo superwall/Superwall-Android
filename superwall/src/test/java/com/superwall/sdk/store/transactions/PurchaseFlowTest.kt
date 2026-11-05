@@ -9,6 +9,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.primitives.TypedAction
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.storage.PurchasingProductdIds
 import com.superwall.sdk.storage.Storage
@@ -24,6 +25,8 @@ import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -121,6 +124,37 @@ class PurchaseFlowTest {
                             flow.purchase(paywall(), true) { admissions++ }
                             assertEquals(2, admissions)
                         }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a caller cancelled while its admission is queued does not block later purchases`() =
+        runTest {
+            Given("the purchase queue is busy, so a paywall purchase's admission waits in it") {
+                val queueBusy = CompletableDeferred<Unit>()
+                flow.effect(
+                    object : TypedAction<TransactionContext> {
+                        override val execute: suspend TransactionContext.() -> Unit = { queueBusy.await() }
+                    },
+                )
+                val caller = launch(Dispatchers.Unconfined) { flow.purchase(paywall(), true) }
+
+                When("the caller is cancelled before its admission runs, then the queue frees up") {
+                    caller.cancelAndJoin()
+                    queueBusy.complete(Unit)
+
+                    Then("the attempt the admission reserved is released") {
+                        assertTrue(flow.state.value.inFlight.isEmpty())
+                    }
+
+                    And("the next paywall purchase is admitted and reaches the store") {
+                        var admissions = 0
+                        val next = async(Dispatchers.Unconfined) { flow.purchase(paywall(), true) { admissions++ } }
+                        assertEquals(1, admissions)
+                        gate.complete(PurchaseResult.Cancelled())
+                        assertEquals(PurchaseResult.Cancelled(), next.await())
                     }
                 }
             }

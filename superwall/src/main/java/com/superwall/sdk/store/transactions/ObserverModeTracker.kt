@@ -17,10 +17,14 @@ internal class ObserverModeTracker(
     override val dependencies: TransactionDependencies,
     private val settle: suspend (StoreProduct, PurchaseSource, PurchaseOutcome) -> Unit,
     private val restored: suspend (StoreProduct, PurchaseSource) -> Unit,
+    private val sdkPurchaseInFlight: () -> Boolean = { false },
     override val scope: CoroutineScope = dependencies.ioScope,
     override val actor: StateActor<ObserverModeContext, ObserverModeState> =
         SequentialActor(ObserverModeState(), scope),
 ) : ObserverModeContext {
+    override val isSdkPurchaseInFlight: Boolean
+        get() = sdkPurchaseInFlight()
+
     override suspend fun settleObservedPurchase(
         product: StoreProduct,
         source: PurchaseSource,
