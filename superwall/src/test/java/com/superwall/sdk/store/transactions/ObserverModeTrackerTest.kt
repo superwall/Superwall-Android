@@ -34,6 +34,7 @@ class ObserverModeTrackerTest {
     private val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
     private val products = mutableMapOf<String, StoreProduct>()
     private var observePurchases = false
+    private var sdkPurchasing = false
 
     private val storeManager =
         mockk<StoreManager>(relaxed = true) {
@@ -77,6 +78,7 @@ class ObserverModeTrackerTest {
                 ),
             settle = { product, source, outcome -> settled += Triple(product.fullIdentifier, source, outcome) },
             restored = { product, _ -> restored += product.fullIdentifier },
+            sdkPurchaseInFlight = { sdkPurchasing },
         )
 
     private val raw = mockk<RawStoreProduct>(relaxed = true)
@@ -211,7 +213,7 @@ class ObserverModeTrackerTest {
         }
 
     @Test
-    fun `with observing on, a billing cancel settles the latest observed purchase`() =
+    fun `with observing on, a billing cancel settles only the latest observed purchase`() =
         runTest {
             Given("observing is on and two purchases are observed") {
                 observePurchases = true
@@ -223,8 +225,114 @@ class ObserverModeTrackerTest {
                 When("Play's listener reports a cancel") {
                     purchaseResults.value = InternalPurchaseResult.Cancelled
 
-                    Then("the listener and the handler each resolve one purchase, as before") {
+                    Then("p2 settles as cancelled and p1 is still observed") {
                         assertEquals(PurchaseOutcome.Cancelled, settled.single().third)
+                        assertEquals(listOf("p1"), tracker.state.value.observed.map { it.productId })
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `with observing on, a lone observed purchase reported by the listener is tracked`() =
+        runTest {
+            Given("observing is on and one subscription with a base plan is observed") {
+                observePurchases = true
+                val tracker = tracker()
+                tracker.start()
+                tracker.begin(ObservedPurchase("p1:base:offer", details("p1")))
+                product("p1")
+                val purchase = purchaseOf("p1")
+
+                When("Play's listener reports it purchased") {
+                    purchaseResults.value = InternalPurchaseResult.Purchased(purchase)
+
+                    Then("it settles as purchased once and nothing is observed") {
+                        assertEquals(1, receiptsRefreshed)
+                        assertEquals(PurchaseOutcome.Purchased(false, purchase), settled.single().third)
+                        assertTrue(tracker.state.value.observed.isEmpty())
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `with observing on, a lone observed cancel reported by the listener is tracked`() =
+        runTest {
+            Given("observing is on and one purchase is observed") {
+                observePurchases = true
+                val tracker = tracker()
+                tracker.start()
+                tracker.begin(ObservedPurchase("p1", details("p1")))
+
+                When("Play's listener reports a cancel") {
+                    purchaseResults.value = InternalPurchaseResult.Cancelled
+
+                    Then("it settles as cancelled") {
+                        assertEquals(PurchaseOutcome.Cancelled, settled.single().third)
+                        assertTrue(tracker.state.value.observed.isEmpty())
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `with observing on, the listener leaves the sdk's own purchase to the purchase flow`() =
+        runTest {
+            Given("observing is on, p1 is observed and the SDK runs its own purchase") {
+                observePurchases = true
+                sdkPurchasing = true
+                val tracker = tracker()
+                tracker.start()
+                tracker.begin(ObservedPurchase("p1", details("p1")))
+
+                When("Play's listener reports a cancel") {
+                    purchaseResults.value = InternalPurchaseResult.Cancelled
+
+                    Then("nothing is settled and p1 is still observed") {
+                        assertTrue(settled.isEmpty())
+                        assertEquals(1, tracker.state.value.observed.size)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `with observing on, a purchase of a product nobody observes is ignored`() =
+        runTest {
+            Given("observing is on and p1 is observed") {
+                observePurchases = true
+                val tracker = tracker()
+                tracker.start()
+                tracker.begin(ObservedPurchase("p1", details("p1")))
+                product("p2")
+
+                When("Play's listener reports a purchase of p2") {
+                    purchaseResults.value = InternalPurchaseResult.Purchased(purchaseOf("p2"))
+
+                    Then("nothing is settled and p1 is still observed") {
+                        assertTrue(settled.isEmpty())
+                        assertEquals(1, tracker.state.value.observed.size)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `results with a mismatched observer state settle without crashing`() =
+        runTest {
+            Given("two observed purchases") {
+                val tracker = tracker()
+                val d1 = details("p1")
+                tracker.begin(ObservedPurchase("p1", d1))
+                tracker.begin(ObservedPurchase("p2", details("p2")))
+
+                When("a failure arrives with a result state and a pending result with an error state") {
+                    tracker.handle(InternalPurchaseResult.Failed(Throwable("boom")), okResult())
+                    tracker.handle(InternalPurchaseResult.Pending, PurchasingObserverState.PurchaseError(d1, Throwable("x")))
+
+                    Then("the failure settles and the pending result has no purchases to settle") {
+                        assertEquals(PurchaseOutcome.Failed("Unknown error"), settled.single().third)
                         assertTrue(tracker.state.value.observed.isEmpty())
                     }
                 }

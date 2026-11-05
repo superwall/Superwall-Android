@@ -74,6 +74,7 @@ class TransactionContextTest {
         override val scope: CoroutineScope,
     ) : ObserverModeContext {
         override val actor = StateActor<ObserverModeContext, ObserverModeState>(ObserverModeState(), scope)
+        override val isSdkPurchaseInFlight = false
 
         override suspend fun settleObservedPurchase(
             product: StoreProduct,
