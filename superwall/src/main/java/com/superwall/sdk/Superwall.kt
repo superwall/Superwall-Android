@@ -52,6 +52,7 @@ import com.superwall.sdk.paywall.view.webview.PaywallResource
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
+import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
 import com.superwall.sdk.utilities.withErrorTracking
@@ -842,7 +843,8 @@ class Superwall(
      * - Note: You do not need to finish the transaction yourself after this.
      * ``Superwall`` will handle this for you.
      */
-    suspend fun purchase(product: ProductDetails): Result<PurchaseResult> = dependencyContainer.purchaseFacade.purchase(product)
+    suspend fun purchase(product: ProductDetails): Result<PurchaseResult> =
+        dependencyContainer.purchaseFacade.purchase(StoreProduct(RawStoreProduct.from(product)))
 
     /**
      * Initiates a purchase of `StoreProduct`.

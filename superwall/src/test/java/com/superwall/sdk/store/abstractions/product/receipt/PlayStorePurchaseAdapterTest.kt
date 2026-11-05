@@ -37,6 +37,7 @@ class PlayStorePurchaseAdapterTest {
         every { purchase.purchaseTime } returns purchaseTime
         every { purchase.purchaseState } returns purchaseState
         every { purchase.isAutoRenewing } returns isAutoRenewing
+        every { purchase.isAcknowledged } returns true
         return purchase
     }
 

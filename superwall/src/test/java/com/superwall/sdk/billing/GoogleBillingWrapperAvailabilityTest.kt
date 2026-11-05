@@ -23,26 +23,14 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GoogleBillingWrapperAvailabilityTest {
     private val productId = "product1:basePlan1:sw-auto"
     private val lifecycleObserver = AppLifecycleObserver()
-
-    @Before
-    fun setup() {
-        GoogleBillingWrapper.clearProductsCache()
-    }
-
-    @After
-    fun tearDown() {
-        GoogleBillingWrapper.clearProductsCache()
-    }
 
     private fun billingResult(code: Int): BillingResult =
         BillingResult

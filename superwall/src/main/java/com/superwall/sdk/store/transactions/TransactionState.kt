@@ -1,6 +1,6 @@
 package com.superwall.sdk.store.transactions
 
-import com.android.billingclient.api.Purchase
+import com.superwall.sdk.billing.StorePurchase
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.logger.LogLevel
@@ -339,9 +339,8 @@ internal data class TransactionState(
                     }
 
                     is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
-                        val details = product.rawStoreProduct?.underlyingProductDetails
-                        if (source is PurchaseSource.ObserverMode && details != null) {
-                            onObservedPurchaseStarted(ObservedPurchase(product.fullIdentifier, details))
+                        if (source is PurchaseSource.ObserverMode && product.rawStoreProduct != null) {
+                            onObservedPurchaseStarted(ObservedPurchase(product.fullIdentifier, product))
                         }
                         val storeManager = dependencies.storeManager
                         if (!storeManager.hasCached(product.fullIdentifier)) {
@@ -443,8 +442,8 @@ internal sealed class PurchaseOutcome {
     /** Bought through Play: the receipt and latest transaction are read back. */
     data class Purchased(
         val didStartFreeTrial: Boolean,
-        /** The Play purchase, when known up front (observer mode). */
-        val purchase: Purchase? = null,
+        /** The store purchase, when known up front (observer mode). */
+        val purchase: StorePurchase? = null,
     ) : PurchaseOutcome()
 
     /** Bought outside Play (a custom product): the SDK built [transaction] itself. */
@@ -501,7 +500,7 @@ private suspend fun TransactionContext.didPurchase(
             transactionLog(message = "Transaction Succeeded", info = mapOf("product_id" to product.fullIdentifier))
             val transaction =
                 if (source is PurchaseSource.ExternalPurchase) {
-                    outcome.purchase?.let { dependencies.factory.makeStoreTransaction(it) } ?: awaitLatestTransaction()
+                    outcome.purchase?.let { dependencies.storeTransactionOf(it) } ?: awaitLatestTransaction()
                 } else {
                     null
                 }

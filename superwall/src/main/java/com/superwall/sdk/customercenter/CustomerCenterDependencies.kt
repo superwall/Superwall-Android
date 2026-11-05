@@ -1,12 +1,13 @@
 package com.superwall.sdk.customercenter
 
+import com.superwall.sdk.billing.StoreProductKind
+import com.superwall.sdk.billing.google.kind
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
-import com.android.billingclient.api.BillingClient
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.delegate.RestorationResult
@@ -262,7 +263,7 @@ internal fun ProductDisplayInfo.Companion.from(
         localizedPrice = product.localizedPrice,
         price = product.price,
         localizedPeriod = if (product.subscriptionPeriod == null) null else product.period.takeIf { it.isNotEmpty() },
-        isAutoRenewable = details?.let { it.productType == BillingClient.ProductType.SUBS },
+        isAutoRenewable = details?.let { product.kind == StoreProductKind.Subscription },
     )
 }
 
