@@ -19,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -167,6 +168,32 @@ class PurchaseQueriesTest {
         }
 
     @Test
+    fun `a request Play never answers leaves no job behind once it times out`() =
+        runTest {
+            Given("several product requests Play never answers") {
+                val fake = FakeClient()
+                val (queries, connection) = queries(fake)
+                val scopeJob = connection.scope.coroutineContext[Job]!!
+                val before = scopeJob.children.count()
+
+                When("each one times out") {
+                    repeat(3) {
+                        val job = backgroundScope.async { runCatching { queries.products(setOf(productId)) } }
+                        runCurrent()
+                        advanceTimeBy(PRODUCTS_QUERY_TIMEOUT_MS + 1)
+                        runCurrent()
+                        assertTrue(job.await().exceptionOrNull() is BillingError.Timeout)
+                    }
+
+                    Then("no fetch is left running in the connection's scope") {
+                        assertEquals(before, scopeJob.children.count())
+                        assertEquals(6, fake.productListeners.size)
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `a failed product type fails the request and nothing is cached`() =
         runTest {
             Given("a product request") {
@@ -190,6 +217,41 @@ class PurchaseQueriesTest {
                         backgroundScope.async { runCatching { queries.products(setOf(productId)) } }
                         runCurrent()
                         assertEquals(4, fake.productListeners.size)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `an OK answer after the other type failed doesn't throw in Play's listener`() =
+        runTest {
+            Given("a product request") {
+                val fake = FakeClient()
+                val (queries) = queries(fake)
+                val job = backgroundScope.async { runCatching { queries.products(setOf(productId)) } }
+                runCurrent()
+                val (subs, inApp) = fake.productListeners.toList()
+
+                When("subscriptions fail and one-time products then answer OK") {
+                    subs.onProductDetailsResponse(
+                        result(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE),
+                        mockk(relaxed = true),
+                    )
+                    val thrown =
+                        runCatching {
+                            inApp.onProductDetailsResponse(
+                                result(BillingClient.BillingResponseCode.OK),
+                                mockk<QueryProductDetailsResult>(relaxed = true),
+                            )
+                        }.exceptionOrNull()
+                    runCurrent()
+
+                    Then("the OK callback returns normally") {
+                        assertEquals(null, thrown)
+                    }
+
+                    And("the request fails with the subscription error") {
+                        assertTrue(job.await().exceptionOrNull() is BillingError.WithCode)
                     }
                 }
             }
