@@ -76,9 +76,32 @@ internal data class ObserverModeState(
             })
 
         /**
+         * Runs on the serial queue: completes [claimed] with the observed purchase a billing
+         * [result] belongs to and stops observing it, or with null. A purchase is matched by its
+         * product IDs; a cancel or failure carries no product, so it resolves the latest one.
+         */
+        data class ClaimForBillingResult(
+            val result: InternalPurchaseResult,
+            val claimed: CompletableDeferred<ObservedPurchase?>,
+        ) : Actions({
+                val match =
+                    when (result) {
+                        is InternalPurchaseResult.Purchased ->
+                            state.value.observed.lastOrNull { it.matchesAny(result.purchase.products) }
+                        is InternalPurchaseResult.Cancelled, is InternalPurchaseResult.Failed -> state.value.latest
+                        // Play's listener never reports these; the observe API passes them with
+                        // their purchases instead.
+                        InternalPurchaseResult.Pending, InternalPurchaseResult.Restored -> null
+                    }
+                if (match != null) update(Updates.Remove(listOf(match.productId)))
+                claimed.complete(match)
+            })
+
+        /**
          * Follows Play's purchase results while a purchase is observed, when the options ask the
-         * SDK to observe purchases. Each result first updates what is observed, as the billing
-         * listener always did, then is handled as [Handle].
+         * SDK to observe purchases. A result that arrives while the SDK runs its own purchase
+         * belongs to that purchase, which tracks it, so it is skipped. Every other result claims
+         * its observed purchase once and settles it.
          */
         object ObserveBillingResults : Actions({
             scope.launch {
@@ -87,13 +110,16 @@ internal data class ObserverModeState(
                     .dropWhile { !state.value.isObserving }
                     .filterNotNull()
                     .collectLatest { result ->
-                        val observerState = observerStateFor(result) ?: return@collectLatest
-                        runInline(Handle(result, observerState))
+                        if (isSdkPurchaseInFlight) return@collectLatest
+                        val claimed = CompletableDeferred<ObservedPurchase?>()
+                        immediate(ClaimForBillingResult(result, claimed))
+                        val purchase = claimed.await() ?: return@collectLatest
+                        runInline(Settle(result, observerStateFor(result, purchase), purchase))
                     }
             }
         })
 
-        /** Acts on a Play [result] for the latest observed purchase. */
+        /** Acts on a Play [result] reported through the observe API, for the latest observed purchase. */
         data class Handle(
             val result: InternalPurchaseResult,
             val observerState: PurchasingObserverState,
@@ -110,7 +136,15 @@ internal data class ObserverModeState(
                         )
                         return@exec
                     }
+                runInline(Settle(result, observerState, latest))
+            })
 
+        /** Settles the already claimed [purchase] with a Play [result]. */
+        data class Settle(
+            val result: InternalPurchaseResult,
+            val observerState: PurchasingObserverState,
+            val purchase: ObservedPurchase,
+        ) : Actions({
                 when (result) {
                     is InternalPurchaseResult.Purchased -> {
                         dependencies.refreshReceipt()
@@ -120,14 +154,14 @@ internal data class ObserverModeState(
                     }
 
                     is InternalPurchaseResult.Cancelled -> {
-                        val product = StoreProduct(RawStoreProduct.from(latest.details))
+                        val product = StoreProduct(RawStoreProduct.from(purchase.details))
                         settlePurchase(product, PurchaseOutcome.Cancelled)
                     }
 
                     is InternalPurchaseResult.Failed -> {
-                        val error = observerState as PurchasingObserverState.PurchaseError
-                        val product = StoreProduct(RawStoreProduct.from(error.product))
-                        settlePurchase(product, PurchaseOutcome.Failed(failureMessage(error.error)))
+                        val error = observerState as? PurchasingObserverState.PurchaseError
+                        val product = StoreProduct(RawStoreProduct.from(error?.product ?: purchase.details))
+                        settlePurchase(product, PurchaseOutcome.Failed(failureMessage(error?.error ?: result.error)))
                     }
 
                     InternalPurchaseResult.Pending ->
@@ -148,7 +182,14 @@ internal data class ObserverModeState(
 internal data class ObservedPurchase(
     val productId: String,
     val details: ProductDetails,
-)
+) {
+    /**
+     * True when Play's [productIds] include this purchase. [productId] is the SDK's full
+     * identifier (`product:basePlan:offer`); Play reports the bare product ID.
+     */
+    fun matchesAny(productIds: Collection<String>): Boolean =
+        productId in productIds || productId.substringBefore(':') in productIds || details.productId in productIds
+}
 
 /** Runs [action] in the calling coroutine; its state changes still go through [update]. */
 internal suspend fun ObserverModeContext.runInline(action: TypedAction<ObserverModeContext>) = action.execute(this)
@@ -166,7 +207,7 @@ private suspend fun ObserverModeContext.forEachPurchasedProduct(
     observerState: PurchasingObserverState,
     block: suspend (StoreProduct, Purchase) -> Unit,
 ) {
-    val purchases = (observerState as PurchasingObserverState.PurchaseResult).purchases ?: return
+    val purchases = (observerState as? PurchasingObserverState.PurchaseResult)?.purchases ?: return
     for (purchase in purchases) {
         for (productId in purchase.products) {
             dependencies.storeManager.getProductFromCache(productId)?.let { block(it, purchase) }
@@ -190,40 +231,23 @@ internal fun failureMessage(error: Throwable): String =
             }
         }?.message ?: "Unknown error"
 
-/**
- * Turns a billing [result] into the observer state for [ObserverModeState.Actions.Handle], and
- * first stops observing what the result settles, as the billing listener always did. Returns
- * null when nothing is observed for a cancel or failure.
- */
-private suspend fun ObserverModeContext.observerStateFor(result: InternalPurchaseResult): PurchasingObserverState? =
+/** The observer state for a billing [result] that settles the observed [purchase]. */
+private fun observerStateFor(
+    result: InternalPurchaseResult,
+    purchase: ObservedPurchase,
+): PurchasingObserverState =
     when (result) {
-        is InternalPurchaseResult.Purchased -> {
-            update(ObserverModeState.Updates.Remove(result.purchase.products))
+        is InternalPurchaseResult.Purchased ->
             PurchasingObserverState.PurchaseResult(
                 BillingResult.newBuilder().setResponseCode(BillingClient.BillingResponseCode.OK).build(),
                 listOf(result.purchase),
             )
-        }
 
-        is InternalPurchaseResult.Cancelled -> {
-            val claimed = CompletableDeferred<ObservedPurchase?>()
-            immediate(ObserverModeState.Actions.ClaimLatest(claimed))
-            claimed.await()?.let {
-                PurchasingObserverState.PurchaseResult(
-                    BillingResult.newBuilder().setResponseCode(BillingClient.BillingResponseCode.USER_CANCELED).build(),
-                    emptyList(),
-                )
-            }
-        }
+        is InternalPurchaseResult.Failed -> PurchasingObserverState.PurchaseError(error = result.error, product = purchase.details)
 
-        else -> {
-            val claimed = CompletableDeferred<ObservedPurchase?>()
-            immediate(ObserverModeState.Actions.ClaimLatest(claimed))
-            claimed.await()?.let {
-                PurchasingObserverState.PurchaseError(
-                    error = (result as? InternalPurchaseResult.Failed)?.error ?: Throwable("Unknown error"),
-                    product = it.details,
-                )
-            }
-        }
+        else ->
+            PurchasingObserverState.PurchaseResult(
+                BillingResult.newBuilder().setResponseCode(BillingClient.BillingResponseCode.USER_CANCELED).build(),
+                emptyList(),
+            )
     }
