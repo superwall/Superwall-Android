@@ -28,12 +28,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.coroutines.CoroutineContext
@@ -88,16 +86,6 @@ class GoogleBillingWrapperTest {
                 mockBillingClient
             },
         )
-    }
-
-    @Before
-    fun setup() {
-        GoogleBillingWrapper.clearProductsCache()
-    }
-
-    @After
-    fun tearDown() {
-        GoogleBillingWrapper.clearProductsCache()
     }
 
     // ========================================================================
@@ -535,7 +523,7 @@ class GoogleBillingWrapperTest {
                         every { fullIdentifier } returns "p1:base:sw-auto"
                     }
                 // Use awaitGetProducts internal caching by simulating a previously cached product
-                GoogleBillingWrapper.clearProductsCache()
+                wrapper.clearProductsCache()
 
                 When("the cache has a product") {
                     // We can't easily mock the full product query flow through BillingClient v8,

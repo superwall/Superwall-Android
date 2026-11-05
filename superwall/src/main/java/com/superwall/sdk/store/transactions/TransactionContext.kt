@@ -1,5 +1,9 @@
 package com.superwall.sdk.store.transactions
 
+import com.superwall.sdk.billing.BillingBackedStore
+import com.superwall.sdk.billing.Store
+import com.superwall.sdk.billing.StorePurchase
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.misc.ActivityProvider
@@ -63,6 +67,19 @@ internal data class TransactionDependencies(
 
     val observesPurchases: Boolean
         get() = factory.makeSuperwallOptions().shouldObservePurchases
+
+    private val storeAndPurchases by lazy { BillingBackedStore.storeOf(storeManager.billing) }
+
+    /** The store the purchases are made through, behind the store manager's billing. */
+    val store: Store
+        get() = storeAndPurchases.first
+
+    /**
+     * The SDK transaction for [purchase], built from the original store purchase it came from,
+     * or `null` when that purchase was never seen.
+     */
+    suspend fun storeTransactionOf(purchase: StorePurchase): StoreTransaction? =
+        storeAndPurchases.second.transactionFor(purchase, factory::makeStoreTransaction)
 }
 
 /**

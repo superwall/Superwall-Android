@@ -592,6 +592,9 @@ class TransactionManagerTest {
             every { purchaseToken } returns token
             every { this@mockk.purchaseTime } returns purchaseTime
             every { purchaseState } returns state
+            every { orderId } returns "order-$token"
+            every { isAutoRenewing } returns true
+            every { isAcknowledged } returns true
         }
 
     @Test
