@@ -11,10 +11,10 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -66,17 +66,13 @@ internal class PurchaseQueries(
                 is ProductLookup.Partial -> lookup.cached to lookup.missingIds
             }
 
-        // The fetch runs in the connection's scope, so an answer that arrives after the timeout
-        // still fills the cache for the next request.
-        val fetch =
-            connection.scope.async {
-                // Caught here so a failed fetch never fails the connection's scope.
-                runCatching { fetchProducts(missingIds) }
-                    .onSuccess { productDetails.store(missingIds, it) }
-            }
+        // The fetch is driven by Play's callbacks, not by a coroutine, so a request that times
+        // out leaves nothing suspended behind it. An answer that arrives after the timeout still
+        // fills the cache for the next request.
+        val fetch = fetchProducts(missingIds)
         val fetched =
             try {
-                withTimeout(PRODUCTS_QUERY_TIMEOUT_MS) { fetch.await() }.getOrThrow()
+                withTimeout(PRODUCTS_QUERY_TIMEOUT_MS) { fetch.await() }
             } catch (e: TimeoutCancellationException) {
                 val message =
                     "Timed out after ${PRODUCTS_QUERY_TIMEOUT_MS}ms waiting for Google Play to return " +
@@ -88,46 +84,55 @@ internal class PurchaseQueries(
         return cached + fetched
     }
 
-    /** Queries subscriptions and one-time products together; the first failure fails both. */
-    private suspend fun fetchProducts(fullProductIds: Set<String>): Set<StoreProduct> {
+    /**
+     * Queries subscriptions and one-time products together; the first failure fails both. Each
+     * type's answer completes its own deferred from Play's callback; once both have answered, the
+     * products are cached and the returned deferred completes.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun fetchProducts(fullProductIds: Set<String>): CompletableDeferred<Set<StoreProduct>> {
         val decomposed = fullProductIds.map(DecomposedProductIds::from)
         val bySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>> =
             decomposed.groupByTo(mutableMapOf()) { it.subscriptionId }
         val subscriptionIds = bySubscriptionId.keys.toSet()
 
-        return coroutineScope {
-            listOf(ProductType.SUBS, ProductType.INAPP)
-                .map { type -> async { queryProductsOfType(type, subscriptionIds, bySubscriptionId) } }
-                .awaitAll()
-                .flatten()
-                .toSet()
-        }
-    }
+        val result = CompletableDeferred<Set<StoreProduct>>()
+        val byType = listOf(ProductType.SUBS, ProductType.INAPP).associateWith { CompletableDeferred<List<StoreProduct>>() }
 
-    private suspend fun queryProductsOfType(
-        productType: String,
-        subscriptionIds: Set<String>,
-        bySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>,
-    ): List<StoreProduct> {
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.productsManager,
-            message = "Requesting products from the store with identifiers: ${subscriptionIds.joinToString()}",
-        )
-        return suspendCancellableCoroutine { continuation ->
+        // Runs after each type answers. Both may see the other complete and run it twice; storing
+        // is idempotent and the second complete() is a no-op.
+        fun finishWhenAllAnswered() {
+            if (byType.values.any { !it.isCompleted }) return
+            val products = byType.values.flatMap { it.getCompleted() }.toSet()
+            productDetails.store(fullProductIds, products)
+            result.complete(products)
+        }
+
+        byType.forEach { (type, answer) ->
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.productsManager,
+                message = "Requesting products from the store with identifiers: ${subscriptionIds.joinToString()}",
+            )
             QueryProductDetailsUseCase(
                 QueryProductDetailsUseCaseParams(
                     subscriptionIds = subscriptionIds,
                     decomposedProductIdsBySubscriptionId = bySubscriptionId,
-                    productType = productType,
+                    productType = type,
                     appInBackground = appInBackground(),
                 ),
-                onReceive = { products -> if (continuation.isActive) continuation.resume(products) },
-                onError = { error -> if (continuation.isActive) continuation.resumeWithException(error) },
+                onReceive = { products ->
+                    if (answer.complete(products)) finishWhenAllAnswered()
+                },
+                onError = { error ->
+                    answer.completeExceptionally(error)
+                    result.completeExceptionally(error)
+                },
                 withConnectedClient = ::withConnectedClient,
                 executeRequestOnUIThread = ::executeRequest,
             ).run()
         }
+        return result
     }
 
     suspend fun consume(purchaseToken: String): Result<String> =

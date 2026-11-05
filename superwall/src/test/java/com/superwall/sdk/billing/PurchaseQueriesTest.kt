@@ -19,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -134,6 +135,32 @@ class PurchaseQueriesTest {
                         val next = runCatching { queries.products(setOf(productId)) }
                         assertTrue(next.isFailure)
                         assertEquals(2, fake.productListeners.size)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a request Play never answers leaves no job behind once it times out`() =
+        runTest {
+            Given("several product requests Play never answers") {
+                val fake = FakeClient()
+                val (queries, connection) = queries(fake)
+                val scopeJob = connection.scope.coroutineContext[Job]!!
+                val before = scopeJob.children.count()
+
+                When("each one times out") {
+                    repeat(3) {
+                        val job = backgroundScope.async { runCatching { queries.products(setOf(productId)) } }
+                        runCurrent()
+                        advanceTimeBy(PRODUCTS_QUERY_TIMEOUT_MS + 1)
+                        runCurrent()
+                        assertTrue(job.await().exceptionOrNull() is BillingError.Timeout)
+                    }
+
+                    Then("no fetch is left running in the connection's scope") {
+                        assertEquals(before, scopeJob.children.count())
+                        assertEquals(6, fake.productListeners.size)
                     }
                 }
             }
