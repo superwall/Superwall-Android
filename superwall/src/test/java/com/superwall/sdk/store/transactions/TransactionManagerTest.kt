@@ -612,6 +612,60 @@ class TransactionManagerTest {
             }
         }
 
+    @Test
+    fun purchase_externalController_recordsTheProductBought() =
+        runTest {
+            Given("an external purchase controller that completes a purchase") {
+                val productId = "sub:monthly:sw-auto"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                    }
+                val product = mockStoreProduct(productId, rawProduct)
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                } returns PurchaseResult.Purchased()
+                every { factory.makeHasExternalPurchaseController() } returns true
+                every { factory.makeHasInternalPurchaseController() } returns false
+
+                When("the purchase returns straight to the caller") {
+                    transactionManager.purchase(TransactionManager.PurchaseSource.ExternalPurchase(product))
+
+                    Then("the product bought is recorded") {
+                        coVerify(exactly = 1) { storeManager.recordPurchasedProduct(product, any()) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_cancelled_recordsNothing() =
+        runTest {
+            Given("a purchase that gets cancelled") {
+                val productId = "sub:monthly:sw-auto"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                    }
+                val product = mockStoreProduct(productId, rawProduct)
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                } returns PurchaseResult.Cancelled()
+
+                When("the purchase finishes") {
+                    transactionManager.purchase(TransactionManager.PurchaseSource.ExternalPurchase(product))
+
+                    Then("nothing is recorded") {
+                        coVerify(exactly = 0) { storeManager.recordPurchasedProduct(any(), any()) }
+                    }
+                }
+            }
+        }
+
     // endregion
 
     // region product replacement

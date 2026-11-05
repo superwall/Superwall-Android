@@ -477,6 +477,20 @@ internal object LastWebEntitlementsFetchDate : Storable<Long> {
         get() = Long.serializer()
 }
 
+/**
+ * The full product ID bought with each Play purchase token. Play's `Purchase` only names the
+ * subscription, so this is how a purchase keeps its base plan. It's app-specific because the
+ * purchase outlives the current user.
+ */
+internal object PurchasedProductIdsByToken : Storable<Map<String, String>> {
+    override val key: String
+        get() = "store.purchasedProductIdsByToken"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Map<String, String>>
+        get() = MapSerializer(String.serializer(), String.serializer())
+}
+
 internal object StoredTransactionHistory : Storable<com.superwall.sdk.store.abstractions.product.receipt.UserTransactionHistory> {
     override val key: String
         get() = "store.userTransactionHistory"

@@ -2,6 +2,7 @@ package com.superwall.sdk.store.abstractions.product.receipt
 
 import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.billing.BillingBackedStore
+import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.billing.Store
 import com.superwall.sdk.billing.StorePurchase
 import com.superwall.sdk.billing.google.PlayPurchases
@@ -16,12 +17,14 @@ import com.superwall.sdk.models.customer.SubscriptionTransaction
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.storage.LatestDeviceCustomerInfo
 import com.superwall.sdk.storage.PlayEntitlementHoldDates
+import com.superwall.sdk.storage.PurchasedProductIdsByToken
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredTransactionHistory
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 data class InAppPurchase(
     var productIdentifier: String,
@@ -113,6 +116,19 @@ class ReceiptManager internal constructor(
     private val latestSubscriptionState: MutableStateFlow<LatestSubscriptionState> =
         MutableStateFlow(LatestSubscriptionState.UNKNOWN)
 
+    private data class UnmatchedPurchase(
+        val fullProductId: String,
+        val tokensBeforePurchase: Set<String>,
+    )
+
+    // Products bought, by raw product ID, until the store returns their purchase token.
+    private val unmatchedPurchases = ConcurrentHashMap<String, UnmatchedPurchase>()
+
+    /** Every purchase token the store has returned in this session. */
+    @Volatile
+    internal var knownPurchaseTokens: Set<String> = emptySet()
+        private set
+
     val purchases: Set<String>
         get() = _purchases.map { it.productIdentifier }.toSet()
 
@@ -131,6 +147,95 @@ class ReceiptManager internal constructor(
         // Load purchases and build enriched entitlements
         loadPurchases(serverEntitlementsByProductId)
     }
+
+    /**
+     * Remembers the product that was just bought, since this is the only time its base plan is
+     * known: the store's purchase only names the subscription.
+     *
+     * @param tokensBeforePurchase The [knownPurchaseTokens] from before the purchase started
+     */
+    internal suspend fun recordPurchasedProduct(
+        fullProductId: String,
+        tokensBeforePurchase: Set<String>,
+    ) {
+        val ids = DecomposedProductIds.from(fullProductId)
+        if (ids.basePlanId == null) return
+        unmatchedPurchases[ids.subscriptionId] = UnmatchedPurchase(fullProductId, tokensBeforePurchase)
+        matchPurchasedProducts(store.ownedPurchases())
+    }
+
+    /**
+     * Saves any recorded products against their purchase tokens.
+     *
+     * @return The full product ID bought with each known purchase token
+     */
+    private fun matchPurchasedProducts(allPurchases: List<StorePurchase>): Map<String, String> {
+        val stored = storage.read(PurchasedProductIdsByToken) ?: emptyMap()
+        val matched = stored.toMutableMap()
+        unmatchedPurchases.forEach { (rawId, purchase) ->
+            val token = newestPurchase(rawId, allPurchases)?.token ?: return@forEach
+            // A token from before the purchase is one the store hasn't replaced yet, as with a
+            // deferred plan change. The product bought belongs to the token that replaces it.
+            if (token !in matched && token !in purchase.tokensBeforePurchase) {
+                matched[token] = purchase.fullProductId
+                unmatchedPurchases.remove(rawId, purchase)
+            }
+        }
+        knownPurchaseTokens = knownPurchaseTokens + allPurchases.map { it.token }
+        if (matched != stored) {
+            storage.write(PurchasedProductIdsByToken, matched)
+        }
+        return matched
+    }
+
+    private fun newestPurchase(
+        rawId: String,
+        allPurchases: List<StorePurchase>,
+    ): StorePurchase? = allPurchases.filter { rawId in it.productIds }.maxByOrNull { it.purchaseTime }
+
+    private fun Map<String, Set<Entitlement>>.hasMultipleBasePlans(rawId: String): Boolean =
+        keys
+            .map { DecomposedProductIds.from(it) }
+            .filter { it.subscriptionId == rawId }
+            .distinctBy { it.basePlanType }
+            .size > 1
+
+    /**
+     * Finds a product's entitlements, falling back to the closest product under the same
+     * subscription when it isn't in the config, or when its base plan is unknown.
+     */
+    private fun Map<String, Set<Entitlement>>.entitlementsFor(productId: String): Set<Entitlement>? {
+        this[productId]?.let { return it }
+        val ids = DecomposedProductIds.from(productId)
+        val siblings = keys.filter { DecomposedProductIds.from(it).subscriptionId == ids.subscriptionId }
+        val closest =
+            siblings.firstOrNull { DecomposedProductIds.from(it).basePlanType == ids.basePlanType }
+                ?: siblings.firstOrNull()
+        return closest?.let { this[it] }
+    }
+
+    /**
+     * Removes the plan and expiry from stored transactions that may have been given the wrong
+     * plan: those under a subscription with several base plans, where nothing recorded their
+     * product being bought.
+     */
+    private fun UserTransactionHistory.withoutUnverifiedPlans(
+        serverEntitlementsByProductId: Map<String, Set<Entitlement>>,
+        purchasedProductIds: Collection<String>,
+    ): UserTransactionHistory =
+        copy(
+            transactions =
+                transactions.mapValues { (_, transaction) ->
+                    val rawId = DecomposedProductIds.from(transaction.productId).subscriptionId
+                    if (transaction.productId !in purchasedProductIds &&
+                        serverEntitlementsByProductId.hasMultipleBasePlans(rawId)
+                    ) {
+                        transaction.copy(productId = rawId, expirationDate = null)
+                    } else {
+                        transaction
+                    }
+                },
+        )
 
     suspend fun loadPurchases(serverEntitlementsByProductId: Map<String, Set<Entitlement>>): PurchaseSnapshot {
         // A read that failed tells us nothing, so keep the last known purchases, history and
@@ -167,7 +272,7 @@ class ReceiptManager internal constructor(
         }
 
         // Load existing transaction history to preserve data from expired purchases
-        val existingHistory = storage.read(StoredTransactionHistory) ?: UserTransactionHistory()
+        val storedHistory = storage.read(StoredTransactionHistory) ?: UserTransactionHistory()
 
         // 1️⃣ FIRST PASS: Collect purchases, create transaction adapters, and collect receipts
         val transactionsByEntitlement: MutableMap<String, MutableList<EntitlementTransaction>> = mutableMapOf()
@@ -177,14 +282,28 @@ class ReceiptManager internal constructor(
         // This allows us to fetch products with proper base plan/offer info
         val rawProductIds = allPurchases.flatMap { it.productIds }.toSet()
         val rawToFullProductId = mutableMapOf<String, String>()
+        val idsWithUnknownBasePlan = mutableSetOf<String>()
+        val purchasedProductIds = matchPurchasedProducts(allPurchases)
         rawProductIds.forEach { rawId ->
-            // Find the full product ID from server config that matches this raw ID
+            val purchasedId = newestPurchase(rawId, allPurchases)?.let { purchasedProductIds[it.token] }
+            // Use the product that was bought if we know it. Otherwise find the full product ID from
+            // server config that matches this raw ID, unless it could be one of several base plans.
             // Check exact match first, then fall back to prefix match
             val fullId =
-                serverEntitlementsByProductId.keys.firstOrNull { it == rawId }
-                    ?: serverEntitlementsByProductId.keys.firstOrNull { it.startsWith("$rawId:") }
+                when {
+                    purchasedId != null -> purchasedId
+                    serverEntitlementsByProductId.hasMultipleBasePlans(rawId) -> {
+                        idsWithUnknownBasePlan.add(rawId)
+                        rawId
+                    }
+                    else ->
+                        serverEntitlementsByProductId.keys.firstOrNull { it == rawId }
+                            ?: serverEntitlementsByProductId.keys.firstOrNull { it.startsWith("$rawId:") }
+                }
             rawToFullProductId[rawId] = fullId ?: rawId
         }
+        val existingHistory =
+            storedHistory.withoutUnverifiedPlans(serverEntitlementsByProductId, purchasedProductIds.values)
 
         // Fetch products using full product IDs so they have proper base plan/offer info
         val fullProductIds = rawToFullProductId.values.toSet()
@@ -192,7 +311,7 @@ class ReceiptManager internal constructor(
 
         allPurchases.forEach { purchase ->
             // Create adapters for each product in the purchase
-            val adapters = StorePurchaseTransaction.fromPurchase(purchase, productsById)
+            val adapters = StorePurchaseTransaction.fromPurchase(purchase, productsById, idsWithUnknownBasePlan)
 
             adapters.forEach { adapter ->
                 currentTransactions.add(adapter)
@@ -251,7 +370,7 @@ class ReceiptManager internal constructor(
         // Re-map historical transactions to entitlements
         val historicalTransactionsByEntitlement: MutableMap<String, MutableList<EntitlementTransaction>> = mutableMapOf()
         allTransactions.forEach { transaction ->
-            val serverEntitlements = serverEntitlementsByProductId[transaction.productId]
+            val serverEntitlements = serverEntitlementsByProductId.entitlementsFor(transaction.productId)
             serverEntitlements?.forEach { entitlement ->
                 historicalTransactionsByEntitlement
                     .getOrPut(entitlement.id) { mutableListOf() }

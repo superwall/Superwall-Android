@@ -24,6 +24,7 @@ internal class StorePurchaseTransaction(
     private val purchase: StorePurchase,
     private val product: StoreProduct?,
     override val productId: String,
+    private val isBasePlanKnown: Boolean = true,
 ) : EntitlementTransaction {
     override val transactionId: String
         get() = purchase.orderId ?: purchase.token
@@ -78,10 +79,13 @@ internal class StorePurchaseTransaction(
         /**
          * One transaction per product in [purchase]. [productsById] is keyed by raw product id;
          * a known product is matched by its full identifier, an unknown one by its raw id.
+         *
+         * @param idsWithUnknownBasePlan Raw product IDs whose purchased base plan can't be determined
          */
         fun fromPurchase(
             purchase: StorePurchase,
             productsById: Map<String, StoreProduct>,
+            idsWithUnknownBasePlan: Set<String> = emptySet(),
         ): List<StorePurchaseTransaction> =
             purchase.productIds.map { productId ->
                 val product = productsById[productId]
@@ -89,6 +93,7 @@ internal class StorePurchaseTransaction(
                     purchase = purchase,
                     product = product,
                     productId = product?.fullIdentifier ?: productId,
+                    isBasePlanKnown = productId !in idsWithUnknownBasePlan,
                 )
             }
     }
