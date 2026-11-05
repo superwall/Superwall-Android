@@ -451,6 +451,16 @@ class StoreManager internal constructor(
         receiptManager.loadPurchasedProducts(serverEntitlementsByProductId)
     }
 
+    internal val knownPurchaseTokens: Set<String>
+        get() = receiptManager.knownPurchaseTokens
+
+    internal suspend fun recordPurchasedProduct(
+        product: StoreProduct,
+        tokensBeforePurchase: Set<String>,
+    ) {
+        receiptManager.recordPurchasedProduct(product.fullIdentifier, tokensBeforePurchase)
+    }
+
     override fun cacheProduct(
         fullProductIdentifier: String,
         storeProduct: StoreProduct,
