@@ -196,4 +196,13 @@ class NotificationTokenLogicTest {
         // FCM tokens are case-sensitive, so the fixture keeps uppercase letters.
         const val TOKEN = "fGx7Q2kTRaSc:APA91bH-Ur1Xy_ZkLmN0pQ"
     }
+
+    @Test
+    fun `shouldSend resends after the clock moves back`() {
+        // Sent while the clock was 30 days ahead, then the clock was corrected.
+        val sentAt = 1_000_000_000L + 30L * NotificationTokenLogic.HEARTBEAT_INTERVAL_MS
+        val lastSent = NotificationTokenLastSent("fp", sentAt)
+
+        assertTrue(NotificationTokenLogic.shouldSend("fp", lastSent, now = 1_000_000_000L))
+    }
 }

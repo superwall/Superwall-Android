@@ -78,11 +78,25 @@ class EventsQueue(
         data: EventData,
         event: Trackable,
     ) {
-        if (!trackingAllowed(event)) return
+        launch { addIfAllowed(data, event) }
+    }
 
-        launch {
-            elements.add(data)
-        }
+    /**
+     * Enqueues [data] and returns whether the queue kept it. The tracking check and the add run
+     * together on the queue, so a [setTrackingBehavior] can't land between them.
+     */
+    internal suspend fun enqueueAccepted(
+        data: EventData,
+        event: Trackable,
+    ): Boolean = withContext(this@EventsQueue.coroutineContext) { addIfAllowed(data, event) }
+
+    private fun addIfAllowed(
+        data: EventData,
+        event: Trackable,
+    ): Boolean {
+        if (!trackingAllowed(event)) return false
+        elements.add(data)
+        return true
     }
 
     suspend fun setTrackingBehavior(behavior: EventTrackingBehavior) {

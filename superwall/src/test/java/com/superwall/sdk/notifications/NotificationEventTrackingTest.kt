@@ -13,6 +13,7 @@ import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.core_data.CoreDataManager
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -100,7 +101,7 @@ class NotificationEventTrackingTest {
                 assertEquals(true, result.parameters.audienceFilterParams["\$is_standard_event"])
             }
 
-            verify(exactly = 2) { eventsQueue.enqueue(any(), any()) }
+            coVerify(exactly = 2) { eventsQueue.enqueueAccepted(any(), any()) }
             verify(exactly = 0) { delegateAdapter.handleSuperwallEvent(any()) }
             verify(exactly = 0) { coreDataManager.saveEventData(any(), any()) }
         }
@@ -110,7 +111,7 @@ class NotificationEventTrackingTest {
         runTest {
             superwall.track(InternalSuperwallEvent.Reset).getOrThrow()
 
-            verify(exactly = 1) { eventsQueue.enqueue(any(), any()) }
+            coVerify(exactly = 1) { eventsQueue.enqueueAccepted(any(), any()) }
             verify(exactly = 1) { delegateAdapter.handleSuperwallEvent(any()) }
             verify(exactly = 1) { coreDataManager.saveEventData(any(), any()) }
         }

@@ -88,6 +88,9 @@ internal object NotificationTokenLogic {
         if (lastSent == null || lastSent.fingerprint != fingerprint) {
             return true
         }
+        // A last send in the future means the clock moved back since; resend to reset the
+        // baseline, or the heartbeat would stop until the clock caught up with it.
+        if (now < lastSent.sentAt) return true
         return now - lastSent.sentAt >= HEARTBEAT_INTERVAL_MS
     }
 

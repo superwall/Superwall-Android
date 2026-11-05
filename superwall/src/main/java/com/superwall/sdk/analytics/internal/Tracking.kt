@@ -87,17 +87,16 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
 
         val verboseEvents = existingDisableVerboseEvents ?: previousDisableVerboseEvents
 
-        if (TrackingLogic.isNotDisabledVerboseEvent(
+        val isQueued =
+            TrackingLogic.isNotDisabledVerboseEvent(
                 event = event,
                 disableVerboseEvents = verboseEvents,
                 isSandbox = dependencyContainer.makeIsSandbox(),
-            )
-        ) {
-            dependencyContainer.eventsQueue.enqueue(
-                data = eventData,
-                event = event,
-            )
-        }
+            ) &&
+                dependencyContainer.eventsQueue.enqueueAccepted(
+                    data = eventData,
+                    event = event,
+                )
         if (event is InternalSuperwallEvent.DeviceAttributes) {
             reconcileAdConsentAfterPublish(event.deviceAttributes)
         }
@@ -117,7 +116,7 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
         return@withErrorTracking TrackingResult(
             data = eventData,
             parameters = parameters,
-        )
+        ).also { it.isQueued = isQueued }
     }.toResult()
 }
 

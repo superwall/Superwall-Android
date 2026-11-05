@@ -74,7 +74,10 @@ class NotificationStorageTest {
             val manager =
                 NotificationTokenManager(
                     storage = storage,
-                    tracker = { tracked += it },
+                    tracker = {
+                        tracked += it
+                        true
+                    },
                     permissionStatus = { NotificationPermissionStatus.AUTHORIZED },
                     trackingBehavior = MutableStateFlow(EventTrackingBehavior.ALL),
                     configState =

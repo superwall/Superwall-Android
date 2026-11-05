@@ -152,7 +152,7 @@ class NotificationTrackingBehaviorTest {
         val manager =
             NotificationTokenManager(
                 storage = storage,
-                tracker = { superwall.track(it) },
+                tracker = { superwall.track(it).getOrNull()?.isQueued == true },
                 permissionStatus = { NotificationPermissionStatus.AUTHORIZED },
                 trackingBehavior = eventsQueue.trackingBehavior,
                 configState =

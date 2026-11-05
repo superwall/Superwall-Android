@@ -43,6 +43,10 @@ class NotificationTokenManagerTest {
             values[storable.key] = data
         }
 
+        override fun <T : Any> delete(storable: Storable<T>) {
+            values.remove(storable.key)
+        }
+
         override fun clean() {}
     }
 
@@ -53,6 +57,9 @@ class NotificationTokenManagerTest {
     private val trackingBehavior = MutableStateFlow(EventTrackingBehavior.ALL)
     private var identity = Identity(aliasId = "\$SuperwallAlias:alias-1", appUserId = null)
     private var nowMs = 1_000_000L
+
+    // Whether the events queue keeps what's tracked.
+    private var queueAccepts = true
     private val configState = MutableStateFlow<ConfigState>(configWithFlag(true))
 
     private val sentTokens: List<NotificationTokenPayload>
@@ -66,7 +73,10 @@ class NotificationTokenManagerTest {
     private fun manager(scope: CoroutineScope) =
         NotificationTokenManager(
             storage = storage,
-            tracker = { tracked += it },
+            tracker = {
+                tracked += it
+                queueAccepts
+            },
             permissionStatus = {
                 permissionChecks += 1
                 permission
@@ -342,4 +352,38 @@ class NotificationTokenManagerTest {
         // FCM tokens are case-sensitive, so the fixture keeps uppercase letters.
         const val TOKEN = "fGx7Q2kTRaSc:APA91bH-Ur1Xy_ZkLmN0pQ"
     }
+
+    @Test
+    fun `a registration the queue dropped isn't marked as sent`() =
+        runTest {
+            queueAccepts = false
+            val manager = managerWithToken()
+
+            assertEquals(1, sentTokens.size)
+            assertNull(storage.read(StoredNotificationTokenLastSent))
+
+            queueAccepts = true
+            manager.refresh()
+            runCurrent()
+
+            assertEquals(2, sentTokens.size)
+            assertEquals(nowMs, storage.read(StoredNotificationTokenLastSent)?.sentAt)
+        }
+
+    @Test
+    fun `tracking moving off ALL re-sends a registration the queue may have dropped`() =
+        runTest {
+            val manager = manager(backgroundScope)
+            manager.listen(identityChanges = emptyFlow(), appForegrounded = emptyFlow())
+            manager.setPushToken(TOKEN)
+            runCurrent()
+            assertEquals(1, sentTokens.size)
+
+            // Moving off ALL empties the queue, possibly before the registration was flushed.
+            trackingBehavior.value = EventTrackingBehavior.SUPERWALL_ONLY
+            runCurrent()
+
+            assertEquals(2, sentTokens.size)
+            assertEquals(nowMs, storage.read(StoredNotificationTokenLastSent)?.sentAt)
+        }
 }

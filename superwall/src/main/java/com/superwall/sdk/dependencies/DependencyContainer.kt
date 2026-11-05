@@ -1155,7 +1155,7 @@ class DependencyContainer internal constructor(
         notificationTokenManager =
             NotificationTokenManager(
                 storage = storage,
-                tracker = { track(it) },
+                tracker = { trackEvent(it).getOrNull()?.isQueued == true },
                 permissionStatus = {
                     NotificationPermissionStatus.from(userPermissions.hasPermission(PermissionType.NOTIFICATION))
                 },

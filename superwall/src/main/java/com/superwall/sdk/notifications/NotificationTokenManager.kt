@@ -33,7 +33,8 @@ import kotlinx.coroutines.launch
  */
 internal class NotificationTokenManager(
     private val storage: Storage,
-    private val tracker: suspend (Trackable) -> Unit,
+    /** Tracks the event and returns whether the events queue kept it. */
+    private val tracker: suspend (Trackable) -> Boolean,
     private val permissionStatus: () -> NotificationPermissionStatus,
     /** The events queue's own tracking behavior, which decides whether a tracked event is kept. */
     private val trackingBehavior: StateFlow<EventTrackingBehavior>,
@@ -78,11 +79,21 @@ internal class NotificationTokenManager(
             identityChanges.distinctUntilChanged().collect { refresh() }
         }
         scope.launch {
-            trackingBehavior
-                .map { it != EventTrackingBehavior.NONE }
-                .distinctUntilChanged()
-                .filter { it }
-                .collect { refresh() }
+            var previous: EventTrackingBehavior? = null
+            trackingBehavior.collect { behavior ->
+                // The queue drops what it holds whenever tracking moves off ALL, which may include
+                // a registration already marked as sent. Forget it so it's sent again; this is
+                // queued before the refresh below, so the two can't swap.
+                val queueWasCleared = previous != null && behavior != EventTrackingBehavior.ALL
+                if (queueWasCleared) {
+                    tasks.addTask { storage.delete(StoredNotificationTokenLastSent) }
+                }
+                val trackingTurnedOn = previous == null || previous == EventTrackingBehavior.NONE
+                if (behavior != EventTrackingBehavior.NONE && (trackingTurnedOn || queueWasCleared)) {
+                    refresh()
+                }
+                previous = behavior
+            }
         }
         scope.launch {
             appForegrounded.collect { refresh() }
@@ -142,7 +153,8 @@ internal class NotificationTokenManager(
         val lastSent = storage.read(StoredNotificationTokenLastSent)
         if (!NotificationTokenLogic.shouldSend(fingerprint, lastSent, now())) return
 
-        tracker(PrivateSuperwallEvents.NotificationToken(payload))
+        // Only a registration the queue kept counts as sent; a dropped one goes on the next refresh.
+        if (!tracker(PrivateSuperwallEvents.NotificationToken(payload))) return
         storage.write(StoredNotificationTokenLastSent, NotificationTokenLastSent(fingerprint, now()))
     }
 
