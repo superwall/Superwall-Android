@@ -199,6 +199,7 @@ internal data class TransactionState(
                     }
 
                 runInline(PrepareToPurchase(product, source))
+                val tokensBeforePurchase = dependencies.storeManager.knownPurchaseTokens
                 val outcome =
                     resolveReplacement(product, source).fold(
                         onSuccess = { replacement ->
@@ -212,6 +213,11 @@ internal data class TransactionState(
                         },
                         onFailure = { replacementLookupFailed(product) },
                     )
+
+                // Play's purchase only names the subscription, so remember which base plan was bought.
+                if (outcome is PurchaseResult.Purchased) {
+                    dependencies.storeManager.recordPurchasedProduct(product, tokensBeforePurchase)
+                }
 
                 // An external-only controller owns the rest of the purchase's lifecycle.
                 if (!isExternalOnly(source)) {
