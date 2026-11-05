@@ -19,6 +19,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
 - Deprecates the unused iOS-port types `com.superwall.sdk.billing.StoreProductType`, `StoreKit`, `StoreKitManagerInterface`, `ProductPurchaser`, `TransactionRestorer`, `Purchasing` and `TransactionVerifierFactory`. They will be removed in a future release. `GetProductsResponse` is unchanged.
 
+## Fixes
+- Fixes `CustomerInfo` and entitlements naming the first configured base plan, with an expiry based on that plan's period, when a Google Play subscription has several base plans. The SDK now saves the product that was bought against its purchase token. When it can't know the plan, such as after a reinstall or for a purchase made before this fix, `productId` and `latestProductId` are the Play subscription ID and the expiry dates are `null`. Those users keep their access, and a plan that was recorded now also decides which entitlements the purchase unlocks.
+
 ## 2.9.0
 
 ## Enhancements
