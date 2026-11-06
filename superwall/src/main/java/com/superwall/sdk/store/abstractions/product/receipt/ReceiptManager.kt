@@ -21,6 +21,7 @@ import com.superwall.sdk.storage.PurchasedProductIdsByToken
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredTransactionHistory
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -333,7 +334,7 @@ class ReceiptManager internal constructor(
             }
 
             // Collect receipt for original transaction
-            val txnId = purchase.orderId ?: purchase.token
+            val txnId = GoogleBillingPurchaseTransaction.originalOrderId(purchase.orderId) ?: purchase.token
             if (!originalTransactionIds.contains(txnId)) {
                 transactionReceipts.add(
                     TransactionReceipt(
