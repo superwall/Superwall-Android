@@ -496,19 +496,19 @@ class WebPaywallRedeemer(
         userId: UserId?,
         deviceId: DeviceVendorId,
     ) = withErrorTracking {
-        val webCustomerInfo = fetchWebCustomerInfo(userId, deviceId)
+        val webCustomerInfo = fetchWebCustomerInfo(userId, deviceId) ?: entitlementsOnlyCustomerInfo(userId)
         saveFetchedCustomerInfo(webCustomerInfo)
         webCustomerInfo.entitlements.toSet()
     }
 
     /**
-     * Fetches the user's web customer info without saving it. A failed request throws, so it is
-     * never mistaken for a user without entitlements.
+     * Fetches the user's web customer info without saving it, or `null` when the backend returned
+     * none. A failed request throws, so it is never mistaken for a user without entitlements.
      */
     private suspend fun fetchWebCustomerInfo(
         userId: UserId?,
         deviceId: DeviceVendorId,
-    ): CustomerInfo {
+    ): CustomerInfo? {
         val webEntitlementsResult =
             if (userId == null) {
                 network.webEntitlementsByDeviceID(deviceId)
@@ -521,34 +521,30 @@ class WebPaywallRedeemer(
                 is Either.Failure -> throw webEntitlementsResult.error
             }
 
-        // Extract CustomerInfo from response or construct from entitlements
-        val webCustomerInfo =
-            webEntitlementsResponse.customerInfo ?: run {
-                // Fallback for backward compatibility
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.customerInfo,
-                    message = "Backend didn't return customerInfo, constructing from entitlements",
-                )
-                CustomerInfo(
-                    subscriptions = emptyList(),
-                    nonSubscriptions = emptyList(),
-                    userId = userId?.value ?: "",
-                    entitlements = emptyList(),
-                    isPlaceholder = false,
-                )
-            }
-
+        val webCustomerInfo = webEntitlementsResponse.customerInfo
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.customerInfo,
             message =
-                "Fetched web CustomerInfo: ${webCustomerInfo.subscriptions.size} subs, " +
-                    "${webCustomerInfo.nonSubscriptions.size} non-subs",
+                if (webCustomerInfo == null) {
+                    "Backend didn't return customerInfo, constructing from entitlements"
+                } else {
+                    "Fetched web CustomerInfo: ${webCustomerInfo.subscriptions.size} subs, " +
+                        "${webCustomerInfo.nonSubscriptions.size} non-subs"
+                },
         )
-
         return webCustomerInfo
     }
+
+    /** The customer info of a backend that returns none, kept for backward compatibility. */
+    private fun entitlementsOnlyCustomerInfo(userId: UserId?) =
+        CustomerInfo(
+            subscriptions = emptyList(),
+            nonSubscriptions = emptyList(),
+            userId = userId?.value ?: "",
+            entitlements = emptyList(),
+            isPlaceholder = false,
+        )
 
     private fun saveFetchedCustomerInfo(webCustomerInfo: CustomerInfo) {
         storage.write(LatestWebCustomerInfo, webCustomerInfo)
@@ -618,7 +614,7 @@ class WebPaywallRedeemer(
                 onFailure = {
                     it.printStackTrace()
                 },
-                onSuccess = { webCustomerInfo ->
+                onSuccess = { fetched ->
                     if (currentUser() != requestedFor) {
                         Logger.debug(
                             logLevel = LogLevel.debug,
@@ -627,6 +623,7 @@ class WebPaywallRedeemer(
                         )
                         return@fold
                     }
+                    val webCustomerInfo = fetched ?: entitlementsOnlyCustomerInfo(requestedFor.first)
                     val newEntitlements = webCustomerInfo.entitlements.toSet()
                     Logger.debug(
                         logLevel = LogLevel.debug,
@@ -639,7 +636,7 @@ class WebPaywallRedeemer(
                     val applied =
                         applyInOrder(sentAt) {
                             saveFetchedCustomerInfo(webCustomerInfo)
-                            applyFetchedEntitlements(newEntitlements)
+                            applyFetchedEntitlements(newEntitlements, fetched)
                         }
                     if (!applied) {
                         Logger.debug(
@@ -667,7 +664,16 @@ class WebPaywallRedeemer(
         }
     }
 
-    private fun applyFetchedEntitlements(newEntitlements: Set<Entitlement>) {
+    /**
+     * Saves fetched entitlements into the redemption cache and publishes them. When the backend
+     * returned the whole [fetchedCustomerInfo], it replaces the cached one, so its subscriptions
+     * and purchases are current too: an external purchase controller's customer info is built from
+     * that cache. The cached redemption codes are kept either way.
+     */
+    private fun applyFetchedEntitlements(
+        newEntitlements: Set<Entitlement>,
+        fetchedCustomerInfo: CustomerInfo?,
+    ) {
         val latestRedeemResponse =
             storage.read(LatestRedemptionResponse)
         val existingWebEntitlements =
@@ -676,7 +682,7 @@ class WebPaywallRedeemer(
         // Update customerInfo with new entitlements if response exists
         if (latestRedeemResponse != null) {
             val updatedCustomerInfo =
-                latestRedeemResponse.customerInfo?.copy(
+                fetchedCustomerInfo ?: latestRedeemResponse.customerInfo?.copy(
                     entitlements = newEntitlements.toList(),
                 ) ?: CustomerInfo(
                     subscriptions = emptyList(),

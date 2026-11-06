@@ -15,6 +15,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
+import com.superwall.sdk.models.internal.ErrorInfo
 import com.superwall.sdk.models.internal.PurchaserInfo
 import com.superwall.sdk.models.internal.RedemptionInfo
 import com.superwall.sdk.models.internal.RedemptionOwnership
@@ -672,6 +673,59 @@ class WebPaywallRedeemerTest {
                         verify(exactly = 0) { storage.write(LatestRedemptionResponse, any()) }
                         verify(exactly = 0) { storage.write(LatestWebCustomerInfo, any()) }
                         assertTrue(webEntitlement !in mutableEntitlements)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a refresh replaces the cached transactions an external purchase controller reads`() =
+        runTest(testDispatcher) {
+            Given("a cached custom store subscription that the server has since refunded") {
+                val storage = InMemoryStorage()
+
+                fun subscription(isActive: Boolean) =
+                    com.superwall.sdk.models.customer.SubscriptionTransaction(
+                        transactionId = "custom_tx",
+                        productId = "custom|pro",
+                        purchaseDate = java.util.Date(1_000),
+                        willRenew = isActive,
+                        isRevoked = !isActive,
+                        isInGracePeriod = false,
+                        isInBillingRetryPeriod = false,
+                        isActive = isActive,
+                        expirationDate = java.util.Date(2_000),
+                    )
+
+                fun customerInfo(isActive: Boolean) =
+                    CustomerInfo(
+                        subscriptions = listOf(subscription(isActive)),
+                        nonSubscriptions = emptyList(),
+                        userId = "test_user",
+                        entitlements = if (isActive) listOf(webEntitlement) else emptyList(),
+                        isPlaceholder = false,
+                    )
+                val code = RedemptionResult.Error("code_1", ErrorInfo("expired"))
+                storage.write(
+                    LatestRedemptionResponse,
+                    WebRedemptionResponse(codes = listOf(code), customerInfo = customerInfo(isActive = true)),
+                )
+                coEvery {
+                    network.webEntitlementsByUserId(any(), any())
+                } returns Either.Success(WebEntitlements(customerInfo = customerInfo(isActive = false)))
+                redeemer = redeemerWithoutReferral(storage)
+                testScheduler.advanceUntilIdle()
+
+                When("the entitlements are refreshed") {
+                    redeemer.refreshWebEntitlements()
+
+                    Then("an external purchase controller's customer info no longer shows the subscription as active") {
+                        val merged = CustomerInfo.forExternalPurchaseController(storage, SubscriptionStatus.Inactive)
+                        assertTrue(merged.activeSubscriptionProductIds.isEmpty())
+                        assertTrue(merged.subscriptions.single().isRevoked)
+                    }
+                    And("the cached redemption codes are kept") {
+                        assertEquals(listOf(code), storage.read(LatestRedemptionResponse)?.codes)
                     }
                 }
             }
