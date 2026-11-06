@@ -11936,6 +11936,7 @@ public abstract interface class com/superwall/sdk/paywall/view/webview/PaywallWe
 	public abstract fun getMessageHandler ()Lcom/superwall/sdk/paywall/view/webview/messaging/PaywallMessageHandler;
 	public abstract fun getOnScrollChangeListener ()Lcom/superwall/sdk/paywall/view/webview/PaywallWebUI$OnScrollChangeListener;
 	public abstract fun onPause ()V
+	public abstract fun onPaywallReady ()V
 	public abstract fun onResume ()V
 	public abstract fun onView (Lkotlin/jvm/functions/Function1;)V
 	public abstract fun scrollBy (II)V
@@ -11947,6 +11948,7 @@ public abstract interface class com/superwall/sdk/paywall/view/webview/PaywallWe
 
 public final class com/superwall/sdk/paywall/view/webview/PaywallWebUI$DefaultImpls {
 	public static fun onPause (Lcom/superwall/sdk/paywall/view/webview/PaywallWebUI;)V
+	public static fun onPaywallReady (Lcom/superwall/sdk/paywall/view/webview/PaywallWebUI;)V
 	public static fun onResume (Lcom/superwall/sdk/paywall/view/webview/PaywallWebUI;)V
 	public static synthetic fun setup-I6ILcro$default (Lcom/superwall/sdk/paywall/view/webview/PaywallWebUI;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
@@ -11974,6 +11976,7 @@ public final class com/superwall/sdk/paywall/view/webview/SWWebView : android/we
 	public fun loadUrl (Ljava/lang/String;)V
 	public fun onCreateInputConnection (Landroid/view/inputmethod/EditorInfo;)Landroid/view/inputmethod/InputConnection;
 	public fun onPause ()V
+	public fun onPaywallReady ()V
 	public fun onResume ()V
 	public fun onTouchEvent (Landroid/view/MotionEvent;)Z
 	public fun onView (Lkotlin/jvm/functions/Function1;)V

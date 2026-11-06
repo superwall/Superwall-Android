@@ -211,6 +211,10 @@ class SWWebView internal constructor(
     internal var renderingPaused = false
         private set
 
+    // Whether the loaded page reached PaywallLoadingState.Ready. Cleared on every (re)load, so a
+    // page detached mid-load keeps running until it is ready instead of getting stuck half-loaded.
+    private var paywallReady = false
+
     private fun pauseRendering() {
         if (viewDestroyed) return
         renderingPaused = true
@@ -224,6 +228,7 @@ class SWWebView internal constructor(
     }
 
     override fun onPaywallReady() {
+        paywallReady = true
         if (!isAttachedToWindow) pauseRendering()
     }
 
@@ -248,7 +253,7 @@ class SWWebView internal constructor(
     override fun onDetachedFromWindow() {
         if (!viewDestroyed) evaluateJavascript(MediaPlaybackScript.build(false), null)
         super.onDetachedFromWindow()
-        pauseRendering()
+        if (paywallReady) pauseRendering()
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
@@ -280,6 +285,7 @@ class SWWebView internal constructor(
 
     internal fun prepareWebview() {
         // A reload (a config refresh of a cached paywall) must render until it is ready again.
+        paywallReady = false
         if (renderingPaused) resumeRendering()
         addJavascriptInterface(messageHandler, "SWAndroid")
 

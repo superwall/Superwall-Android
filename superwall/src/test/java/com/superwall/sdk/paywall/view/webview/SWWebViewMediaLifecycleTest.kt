@@ -66,7 +66,7 @@ class SWWebViewMediaLifecycleTest {
     fun `a preload stops rendering once it is ready and off screen`() {
         val controller = Robolectric.buildActivity(Activity::class.java).setup()
         val activity = controller.get()
-        val webView = SWWebView(activity, mockk(relaxed = true), options = { PaywallOptions() })
+        val webView = testSWWebView(activity)
         try {
             // A preload renders while it loads (it needs its timers to render and accept templates), and
             // stops once it is ready while still off screen. A host resume does not wake it before attach.
@@ -100,6 +100,29 @@ class SWWebViewMediaLifecycleTest {
             activity.setContentView(webView)
             shadowOf(Looper.getMainLooper()).idle()
             assertFalse(webView.renderingPaused)
+        } finally {
+            controller.pause().stop().destroy()
+            webView.destroy()
+        }
+    }
+
+    @Test
+    fun `a page detached before it is ready keeps rendering until ready`() {
+        val controller = Robolectric.buildActivity(Activity::class.java).setup()
+        val activity = controller.get()
+        val webView = testSWWebView(activity)
+        try {
+            // Presented while still loading, then dismissed back into the cache before it was ready.
+            webView.prepareWebview()
+            activity.setContentView(webView)
+            shadowOf(Looper.getMainLooper()).idle()
+            activity.setContentView(View(activity))
+            shadowOf(Looper.getMainLooper()).idle()
+            // Pausing now would stop its timers and leave it half-loaded.
+            assertFalse(webView.renderingPaused)
+
+            webView.onPaywallReady()
+            assertTrue(webView.renderingPaused)
         } finally {
             controller.pause().stop().destroy()
             webView.destroy()
