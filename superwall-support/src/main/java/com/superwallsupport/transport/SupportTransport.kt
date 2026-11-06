@@ -326,7 +326,7 @@ class SupportTransport internal constructor(
                 }
                 throw error
             }
-            if (stopped) return
+            if (stopped) throw SupportTransportException.NotStarted()
             startWanted = false
             backoff = configuration.backoffInitialMillis
             httpBusy = true
@@ -615,6 +615,11 @@ class SupportTransport internal constructor(
             // OkHttp reports a close frame without a code as 1005; 1006 is an abnormal close.
             val reported = socket.closeCode?.takeUnless { it == 1005 || it == 1006 }
             if (generation == this.generation) dropped(reported ?: closeCodeFor(lastErrorCode), error.message ?: "closed")
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (other: Exception) {
+            // Anything else while handling a frame: drop this socket and retry, never a dead reader.
+            if (generation == this.generation) dropped(null, other.javaClass.simpleName)
         }
     }
 
@@ -728,7 +733,8 @@ class SupportTransport internal constructor(
         val head = readyHead ?: return
         if (state != SupportConnectionState.CatchingUp || log.cursor < head) return
         state = SupportConnectionState.Live
-        consecutiveResyncs = 0
+        // consecutiveResyncs is not reset here: a server that answers ready then resync must
+        // keep backing off. Only an accepted entry resets it.
         liveSince = now()
     }
 
@@ -741,7 +747,6 @@ class SupportTransport internal constructor(
     ) {
         closeSocket(reason)
         val cursorBefore = log.cursor
-        val epochBefore = logEpoch
         httpBusy = true
         state = SupportConnectionState.CatchingUp
         try {
@@ -758,7 +763,7 @@ class SupportTransport internal constructor(
             httpBusy = false
         }
         // An HTTP read that moved nothing (bad data) must not loop ready → read → connect.
-        val noProgress = readsHttp && log.cursor == cursorBefore && logEpoch == epochBefore
+        val noProgress = readsHttp && log.cursor == cursorBefore
         if (useBackoff || noProgress) scheduleRetry() else connect()
     }
 
@@ -769,6 +774,7 @@ class SupportTransport internal constructor(
         socket?.close(SupportCloseCode.NORMAL, reason)
         socket = null
         readyHead = null
+        liveSince = null
     }
 
     private fun dropped(
@@ -922,8 +928,9 @@ class SupportTransport internal constructor(
     /** Retries a failed send by hand, with the same `clientMessageId`. */
     fun retry(clientMessageId: String) =
         post {
-            // Stopped for good: it can't be sent from here.
+            // Stopped for good, or from another conversation: it can't be sent from here.
             if (stopped) return@post
+            if (queue.all.firstOrNull { it.clientMessageId == clientMessageId }?.conversationId != session?.conversationId) return@post
             queue.update(clientMessageId) { it.copy(state = PendingMessage.State.PENDING, failure = null) }
             emit(SupportTransportEvent.PendingChanged)
             flushSends(resetBackoff = true)
