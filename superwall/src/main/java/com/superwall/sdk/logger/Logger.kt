@@ -1,8 +1,8 @@
 package com.superwall.sdk.logger
 
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
+import com.superwall.sdk.dependencies.SuperwallGraph
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -51,18 +51,14 @@ interface Loggable {
             logLevel: LogLevel,
             scope: LogScope,
         ): Boolean {
-            var logging: SuperwallOptions.Logging = SuperwallOptions.Logging()
-            if (Superwall.initialized) {
-                logging = Superwall.instance.options.logging
-            }
+            val logging: SuperwallOptions.Logging =
+                SuperwallGraph.container?.let { it.configManager.options.logging }
+                    ?: SuperwallOptions.Logging()
             if (logging.level == LogLevel.none) {
                 return false
             }
             val exceedsCurrentLogLevel = logLevel.level >= logging.level.level
-            val isInScope = logging.scopes.contains(scope)
-            val allLogsActive = logging.scopes.contains(LogScope.all)
-
-            return exceedsCurrentLogLevel && (isInScope || allLogsActive)
+            return exceedsCurrentLogLevel && scope.isEnabledBy(logging.scopes)
         }
 
         // True when a delegate will consume the log or it will be printed,
@@ -93,15 +89,13 @@ interface Loggable {
             info: Map<String, Any>?,
             error: Throwable?,
         ) {
-            if (Superwall.initialized) {
-                Superwall.instance.dependencyContainer.delegateAdapter.handleLog(
-                    level = logLevel.toString(),
-                    scope = scope.toString(),
-                    message = message,
-                    info = info,
-                    error = error,
-                )
-            }
+            SuperwallGraph.container?.delegateAdapter?.handleLog(
+                level = logLevel.toString(),
+                scope = scope.toString(),
+                message = message,
+                info = info,
+                error = error,
+            )
 
             if (!shouldPrint(logLevel, scope)) {
                 return

@@ -17,7 +17,6 @@ import android.view.Display
 import androidx.core.content.ContextCompat
 import androidx.core.os.ConfigurationCompat
 import com.superwall.sdk.BuildConfig
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.Tier
@@ -35,7 +34,7 @@ import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.StorefrontCountryFactory
 import com.superwall.sdk.identity.IdentityInfo
-import com.superwall.sdk.identity.setUserAttributes
+import com.superwall.sdk.identity.cleanAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -87,14 +86,15 @@ enum class InterfaceStyle(
     DARK("Dark"),
 }
 
-class DeviceHelper(
+class DeviceHelper internal constructor(
     private val context: Context,
     val storage: LocalStorage,
     val network: SuperwallAPI,
     val factory: Factory,
-    private val classifier: DeviceClassifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
-    private val tcfAdConsent: () -> AdConsent.Custom? = { null },
-    private val ipCollector: DeviceIpCollector? = null,
+    private val classifier: DeviceClassifier,
+    private val tcfAdConsent: () -> AdConsent.Custom?,
+    private val ipCollector: DeviceIpCollector?,
+    private val subscriptionStatus: () -> SubscriptionStatus?,
 ) {
     interface Factory :
         IdentityInfoFactory,
@@ -631,7 +631,7 @@ class DeviceHelper(
 
     private val subscriptionStatusString: String?
         get() =
-            Superwall.instance.subscriptionStatus.value?.let {
+            subscriptionStatus()?.let {
                 when (it) {
                     is SubscriptionStatus.Active -> "ACTIVE"
                     is SubscriptionStatus.Inactive -> "INACTIVE"
@@ -659,7 +659,7 @@ class DeviceHelper(
             fontSize.toString(),
             fontScale.toString(),
             isLowPowerModeEnabled,
-            Superwall.instance.entitlements.active
+            factory.activeEntitlements()
                 .sortedBy { it.id }
                 .joinToString(",") { "${it.id}:${it.type.raw}" },
             subscriptionStatusString ?: "null",
@@ -721,10 +721,10 @@ class DeviceHelper(
             localDateTime = volatileFields.localDateTime,
             isSandbox = isSandbox.toString(),
             activeEntitlements =
-                Superwall.instance.entitlements.active
+                factory.activeEntitlements()
                     .map { it.id },
             activeEntitlementsObject =
-                Superwall.instance.entitlements.active
+                factory.activeEntitlements()
                     .map { mapOf("identifier" to it.id, "type" to it.type.raw) },
             subscriptionStatus = subscriptionStatusString,
             activeProducts = factory.activeProductIds(),
@@ -870,8 +870,9 @@ class DeviceHelper(
         maxRetry: Int,
         timeout: Duration,
     ): Either<Enrichment, NetworkError> {
+        val identityManager = factory.makeIdentityManager()
         val userAttributes =
-            factory.makeIdentityManager().userAttributes.mapValues {
+            identityManager.userAttributes.mapValues {
                 it.value.convertToJsonElement()
             }
 
@@ -889,10 +890,10 @@ class DeviceHelper(
             }.then {
                 storage.write(LatestEnrichment, it)
                 it.user.let {
-                    Superwall.instance.setUserAttributes(it.toMap())
+                    identityManager.mergeUserAttributes(cleanAttributes(it.toMap()))
                 }
                 it.device.let {
-                    Superwall.instance.setUserAttributes(it.toMap())
+                    identityManager.mergeUserAttributes(cleanAttributes(it.toMap()))
                 }
             }
     }

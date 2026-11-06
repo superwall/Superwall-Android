@@ -62,7 +62,7 @@ fun Superwall.getPaywallSync(
     request: PresentationRequest,
     onStateChanged: (PaywallState) -> Unit = {},
 ): Either<PaywallView, Throwable> {
-    val scope = Superwall.instance.ioScope
+    val scope = ioScope
     val publisher = MutableSharedFlow<PaywallState>()
     scope.launch {
         publisher.collectLatest {

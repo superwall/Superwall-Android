@@ -4,6 +4,7 @@ import TemplateLogic
 import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
+import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -791,6 +792,135 @@ class PaywallViewTest {
             sendMessages = sendMessages,
             redeemer = redeemer,
         )
+    }
+
+    /**
+     * Presents [view] in a real [SuperwallPaywallActivity], driven by Robolectric up to resumed.
+     * The publisher buffers, so the teardown's Dismissed emit never suspends.
+     */
+    private fun presentInActivity(
+        view: PaywallView,
+        statePublisher: MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>,
+    ): org.robolectric.android.controller.ActivityController<SuperwallPaywallActivity> {
+        view.controller.updateState(
+            PaywallViewState.Updates.SetRequest(
+                req = mockk(relaxed = true),
+                publisher = statePublisher,
+                occurrence = null,
+                experiment = null,
+            ),
+        )
+        view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+        val container =
+            mockk<com.superwall.sdk.dependencies.DependencyContainer>(relaxed = true) {
+                every { makeViewRegistry().retrieveView("paywall-key") } returns view
+            }
+        com.superwall.sdk.dependencies.SuperwallGraph.attach(container)
+        val intent =
+            android.content.Intent(context, SuperwallPaywallActivity::class.java)
+                .putExtra("viewKey", "paywall-key")
+        val activityController =
+            org.robolectric.Robolectric.buildActivity(SuperwallPaywallActivity::class.java, intent)
+        activityController.get().setTheme(androidx.appcompat.R.style.Theme_AppCompat)
+        activityController.create().start().resume()
+        idleMainLooper()
+        return activityController
+    }
+
+    private fun idleMainLooper() {
+        org.robolectric.Shadows
+            .shadowOf(android.os.Looper.getMainLooper())
+            .idle()
+    }
+
+    private fun dismissedStates(
+        publisher: MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>,
+    ) = publisher.replayCache.filterIsInstance<com.superwall.sdk.paywall.presentation.internal.state.PaywallState.Dismissed>()
+
+    @Test
+    fun activityFinishedWhileStopped_runsFinishingTeardown_andClearsActiveKey() {
+        Given("a paywall presented in SuperwallPaywallActivity that was backgrounded (non-finishing stop)") {
+            clearMocks(delegateAdapter, answers = false)
+            val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+            val view = makePaywallView(cache)
+            val statePublisher =
+                MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                    replay = 1,
+                    extraBufferCapacity = 8,
+                )
+            val trackedEvents =
+                java.util.Collections.synchronizedList(
+                    mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                )
+            val backgroundCloseLatch = CountDownLatch(1)
+            captureTrackedEvents(trackedEvents, backgroundCloseLatch)
+            val activityController = presentInActivity(view, statePublisher)
+            try {
+                activityController.pause().stop()
+                idleMainLooper()
+                verify(exactly = 0) { cache.activePaywallVcKey = null }
+                assertTrue("Expected paywall_close on the background stop", backgroundCloseLatch.await(2, TimeUnit.SECONDS))
+
+                When("the system finishes the stopped activity, so it only gets onDestroy") {
+                    activityController.get().finish()
+                    activityController.destroy()
+                    idleMainLooper()
+
+                    Then("the paywall is dismissed and no longer the active paywall") {
+                        verify { cache.activePaywallVcKey = null }
+                        verify(exactly = 1) { delegateAdapter.willDismissPaywall(any()) }
+                        verify(exactly = 1) { delegateAdapter.didDismissPaywall(any()) }
+                        assertEquals(1, dismissedStates(statePublisher).size)
+                        assertFalse(view.state.isPresented)
+                    }
+
+                    And("paywall_close is tracked only once, when the paywall left the screen") {
+                        // Give a second close, tracked on the IO scope, time to show up.
+                        Thread.sleep(500)
+                        assertEquals(
+                            "Expected one PaywallClose, got $trackedEvents",
+                            1,
+                            trackedEvents.count {
+                                it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallClose
+                            },
+                        )
+                    }
+                }
+            } finally {
+                com.superwall.sdk.dependencies.SuperwallGraph
+                    .detach(com.superwall.sdk.dependencies.SuperwallGraph.container)
+            }
+        }
+    }
+
+    @Test
+    fun activityFinishedWhileVisible_runsFinishingTeardownOnce() {
+        Given("a paywall presented in SuperwallPaywallActivity") {
+            clearMocks(delegateAdapter, answers = false)
+            val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+            val view = makePaywallView(cache)
+            val statePublisher =
+                MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                    replay = 1,
+                    extraBufferCapacity = 8,
+                )
+            val activityController = presentInActivity(view, statePublisher)
+            try {
+                When("the visible activity finishes and goes through pause, stop and destroy") {
+                    activityController.get().finish()
+                    activityController.pause().stop().destroy()
+                    idleMainLooper()
+
+                    Then("the finishing teardown runs once") {
+                        verify { cache.activePaywallVcKey = null }
+                        verify(exactly = 1) { delegateAdapter.didDismissPaywall(any()) }
+                    }
+                }
+            } finally {
+                com.superwall.sdk.dependencies.SuperwallGraph
+                    .detach(com.superwall.sdk.dependencies.SuperwallGraph.container)
+            }
+        }
     }
 
     private fun captureTrackedEvents(

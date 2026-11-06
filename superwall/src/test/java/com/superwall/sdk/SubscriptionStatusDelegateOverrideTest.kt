@@ -5,11 +5,14 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.StoredSubscriptionStatus
+import com.superwall.sdk.store.SubscriptionStatusManager
+import com.superwall.sdk.store.SubscriptionStatusObserver
 import com.superwall.sdk.store.makeEntitlements
 import io.mockk.every
 import io.mockk.mockk
@@ -31,7 +34,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * entitlements before the rest of the app sees the status.
  *
  * It is not a documented API, but apps depend on it, so these tests run the
- * real status listener from [Superwall] against real [com.superwall.sdk.store.Entitlements]
+ * real status listener ([SubscriptionStatusObserver]) and status setter ([SubscriptionStatusManager]) against real [com.superwall.sdk.store.Entitlements]
  * and a real [SuperwallDelegateAdapter]. Only the dependency container around
  * them is mocked.
  */
@@ -52,12 +55,20 @@ class SubscriptionStatusDelegateOverrideTest {
         storage = mockk(relaxed = true)
         every { storage.read(any<Storable<Any>>()) } returns null
 
+        val delegateAdapter = SuperwallDelegateAdapter()
+        val entitlements = makeEntitlements(storage, ioScope)
         val container = mockk<DependencyContainer>(relaxed = true)
         every { container.storage } returns storage
         every { container.ioScope() } returns ioScope
-        every { container.delegateAdapter } returns SuperwallDelegateAdapter()
-        every { container.entitlements } returns makeEntitlements(storage, ioScope)
+        every { container.delegateAdapter } returns delegateAdapter
+        every { container.entitlements } returns entitlements
         every { container.testMode.isTestMode } returns false
+        every { container.subscriptionStatusManager } returns
+            SubscriptionStatusManager(
+                entitlements = { entitlements },
+                isTestMode = { false },
+                hasExternalPurchaseController = { false },
+            )
 
         superwall =
             Superwall(
@@ -72,10 +83,15 @@ class SubscriptionStatusDelegateOverrideTest {
             isAccessible = true
             set(superwall, container)
         }
-        Superwall::class.java.getDeclaredMethod("addListeners").apply {
-            isAccessible = true
-            invoke(superwall)
-        }
+        SubscriptionStatusObserver(
+            scope = ioScope,
+            subscriptionStatus = entitlements.status,
+            customerInfo = MutableStateFlow(CustomerInfo.empty()),
+            storage = storage,
+            delegate = { delegateAdapter },
+            track = {},
+            recheckPreload = {},
+        ).start()
     }
 
     @After

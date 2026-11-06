@@ -2,6 +2,8 @@
 
 package com.superwall.sdk.store
 
+import com.superwall.sdk.store.testmode.noTestModeModal
+
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.superwall.sdk.And
@@ -28,23 +30,12 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestModeBillingUnavailableIntegrationTest {
-    @Before
-    fun setup() {
-        GoogleBillingWrapper.clearProductsCache()
-    }
-
-    @After
-    fun tearDown() {
-        GoogleBillingWrapper.clearProductsCache()
-    }
 
     private fun billingResult(
         code: Int,
@@ -77,7 +68,7 @@ class TestModeBillingUnavailableIntegrationTest {
     }
 
     private fun makeActiveTestMode(): TestMode {
-        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false)
+        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false, showModal = noTestModeModal)
         testMode.evaluateTestMode(
             config = mockk(relaxed = true),
             bundleId = "com.app",

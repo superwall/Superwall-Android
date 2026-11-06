@@ -10,6 +10,8 @@ import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
+import com.superwall.sdk.notifications.NotificationTokenLastSent
+import com.superwall.sdk.notifications.NotificationTokenState
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.testmode.FreeTrialOverride
 import com.superwall.sdk.store.testmode.ui.EntitlementSelection
@@ -185,6 +187,37 @@ object IsEligibleForMMPInstallAttributionMatch : Storable<Boolean> {
 
     override val serializer: KSerializer<Boolean>
         get() = Boolean.serializer()
+}
+
+/**
+ * The device's latest push token, its notification permission and whether the app has
+ * opted it out of Superwall notifications.
+ *
+ * Device-scoped, so it survives [com.superwall.sdk.Superwall.reset]: the token belongs to
+ * the install, and the opt-out is the app's choice for the device. It's only ever sent in a
+ * `notification_token` event, never as a user or device attribute.
+ */
+internal object StoredNotificationTokenState : Storable<NotificationTokenState> {
+    override val key: String
+        get() = "store.notificationTokenState"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<NotificationTokenState>
+        get() = NotificationTokenState.serializer()
+}
+
+/** The last `notification_token` sent, so an unchanged state is only re-sent once a day. */
+internal object StoredNotificationTokenLastSent : Storable<NotificationTokenLastSent> {
+    override val key: String
+        get() = "store.notificationTokenLastSent"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<NotificationTokenLastSent>
+        get() = NotificationTokenLastSent.serializer()
 }
 
 object DidTrackFirstSeen : Storable<Boolean> {
@@ -452,6 +485,22 @@ internal object StoredTestModeSettings : Storable<TestModeSettings> {
         get() = TestModeSettings.serializer()
 }
 
+/**
+ * For each Play entitlement Play last reported as active: the latest time it can still be
+ * active without Play saying so again (when Play last confirmed it, plus one subscription period).
+ *
+ * Play gives the client no expiry date, so this only bounds how long a subscriber stays active
+ * through a failed read. It is never shown as the entitlement's expiry.
+ */
+internal object PlayEntitlementHoldDates : Storable<Map<String, Long>> {
+    override val key: String
+        get() = "store.playEntitlementHoldDates"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Map<String, Long>>
+        get() = MapSerializer(String.serializer(), Long.serializer())
+}
+
 internal object LastWebEntitlementsFetchDate : Storable<Long> {
     override val key: String
         get() = "store.lastWebEntitlementsFetchDate"
@@ -459,6 +508,20 @@ internal object LastWebEntitlementsFetchDate : Storable<Long> {
         get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
     override val serializer: KSerializer<Long>
         get() = Long.serializer()
+}
+
+/**
+ * The full product ID bought with each Play purchase token. Play's `Purchase` only names the
+ * subscription, so this is how a purchase keeps its base plan. It's app-specific because the
+ * purchase outlives the current user.
+ */
+internal object PurchasedProductIdsByToken : Storable<Map<String, String>> {
+    override val key: String
+        get() = "store.purchasedProductIdsByToken"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Map<String, String>>
+        get() = MapSerializer(String.serializer(), String.serializer())
 }
 
 internal object StoredTransactionHistory : Storable<com.superwall.sdk.store.abstractions.product.receipt.UserTransactionHistory> {

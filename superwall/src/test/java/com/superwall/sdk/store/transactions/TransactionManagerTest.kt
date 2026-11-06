@@ -4,6 +4,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -55,7 +56,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.Date
-import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManagerTest {
     @MockK(relaxed = true)
@@ -91,6 +91,7 @@ class TransactionManagerTest {
     private var webEntitlementsValue: Set<Entitlement> = emptySet()
     private val entitlementsMap = mutableMapOf<String, Set<Entitlement>>()
     private var refreshReceiptCalled = false
+    private var backendNotifications = 0
     private var showRestoreDialogCalled = false
 
     @Before
@@ -105,6 +106,7 @@ class TransactionManagerTest {
         transactionCompleteTrialFlags.clear()
         transactionCompleteProductIds.clear()
         refreshReceiptCalled = false
+        backendNotifications = 0
         showRestoreDialogCalled = false
         webEntitlementsValue = emptySet()
         subscriptionStatusValue = SubscriptionStatus.Active(setOf(Entitlement("test")))
@@ -127,28 +129,38 @@ class TransactionManagerTest {
 
         transactionManager =
             TransactionManager(
-                storeManager = storeManager,
-                purchaseController = purchaseController,
-                eventsQueue = eventsQueue,
-                storage = storage,
-                activityProvider = activityProvider,
-                factory = factory,
-                ioScope = ioScope,
-                track = { trackedEvents.add(it) },
-                dismiss = { id, result -> dismissCalls.add(id to result) },
-                showAlert = { alertCalls.add(it) },
-                subscriptionStatus = { subscriptionStatusValue },
-                entitlementsById = { entitlementsMap[it] ?: emptySet() },
-                allEntitlementsByProductId = { entitlementsMap },
-                webEntitlements = { webEntitlementsValue },
-                showRestoreDialogForWeb = { showRestoreDialogCalled = true },
-                refreshReceipt = { refreshReceiptCalled = true },
-                updateState = { key, update -> stateUpdates.add(key to update) },
-                notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
-                    transactionCompleteCalls.add(cacheKey to trialEndDate)
-                    transactionCompleteTrialFlags.add(didStartFreeTrial)
-                    transactionCompleteProductIds.add(id)
-                },
+                TransactionDependencies(
+                    storeManager = storeManager,
+                    purchaseController = purchaseController,
+                    eventsQueue = eventsQueue,
+                    storage = storage,
+                    activityProvider = activityProvider,
+                    factory = factory,
+                    ioScope = ioScope,
+                    track = { trackedEvents.add(it) },
+                    dismiss = { id, result -> dismissCalls.add(id to result) },
+                    showAlert = { alertCalls.add(it) },
+                    subscriptionStatus = { subscriptionStatusValue },
+                    entitlementsById = { entitlementsMap[it] ?: emptySet() },
+                    allEntitlementsByProductId = { entitlementsMap },
+                    webEntitlements = { webEntitlementsValue },
+                    showRestoreDialogForWeb = { showRestoreDialogCalled = true },
+                    refreshReceipt = { refreshReceiptCalled = true },
+                    updateState = { key, update -> stateUpdates.add(key to update) },
+                    notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
+                        transactionCompleteCalls.add(cacheKey to trialEndDate)
+                        transactionCompleteTrialFlags.add(didStartFreeTrial)
+                        transactionCompleteProductIds.add(id)
+                    },
+                    currentCustomerInfo = { CustomerInfo.empty() },
+                    notifyBackendOfReceipts = { backendNotifications++ },
+                    notifyOfTransactionAbandon = {},
+                    testMode = null,
+                    testModeTransactionHandler = null,
+                    setSubscriptionStatus = null,
+                    activeDeviceEntitlements = { emptySet() },
+                    openRestoreOnWeb = {},
+                ),
             )
     }
 
@@ -542,6 +554,120 @@ class TransactionManagerTest {
             }
         }
 
+    @Test
+    fun purchase_internalWithAutomaticController_usesThePurchaseFromTheResult() =
+        runTest {
+            Given("the automatic purchase controller returns the store purchase with its result") {
+                val productId = "product1"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                    }
+                val product = mockStoreProduct(productId, rawProduct)
+                val playPurchase =
+                    mockk<Purchase>(relaxed = true) {
+                        every { products } returns listOf(productId)
+                        every { purchaseToken } returns "token"
+                    }
+                // The wrapper recorded the Play purchase behind the neutral one its flow returned.
+                val playPurchases = com.superwall.sdk.billing.google.PlayPurchases()
+                val storePurchase = playPurchases.record(listOf(playPurchase)).single()
+                val wrapper =
+                    mockk<com.superwall.sdk.billing.GoogleBillingWrapper>(relaxed = true) {
+                        every { this@mockk.playPurchases } returns playPurchases
+                    }
+                every { storeManager.billing } returns wrapper
+                val transaction = mockk<com.superwall.sdk.store.abstractions.transactions.StoreTransaction>(relaxed = true)
+                every { storeManager.getProductFromCache(productId) } returns product
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                } returns PurchaseResult.Purchased(listOf(storePurchase))
+                every { factory.makeHasExternalPurchaseController() } returns false
+                coEvery { factory.makeStoreTransaction(playPurchase) } returns transaction
+                // The side channel never answers; the purchase must not wait on it.
+                val verifier =
+                    mockk<com.superwall.sdk.billing.GoogleBillingWrapper> {
+                        coEvery { getLatestTransaction(any()) } coAnswers { awaitCancellation() }
+                    }
+                every { factory.makeTransactionVerifier() } returns verifier
+
+                When("the purchase is made from a paywall") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(productId, mockk(relaxed = true)),
+                        )
+
+                    Then("it completes with the transaction built from the returned purchase") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        val completed =
+                            trackedEvents
+                                .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                .map { it.state }
+                                .filterIsInstance<InternalSuperwallEvent.Transaction.State.Complete>()
+                        assertEquals(1, completed.size)
+                        coVerify(exactly = 0) { verifier.getLatestTransaction(any()) }
+                        coVerify { factory.makeStoreTransaction(playPurchase) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_externalController_recordsTheProductBought() =
+        runTest {
+            Given("an external purchase controller that completes a purchase") {
+                val productId = "sub:monthly:sw-auto"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                    }
+                val product = mockStoreProduct(productId, rawProduct)
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                } returns PurchaseResult.Purchased()
+                every { factory.makeHasExternalPurchaseController() } returns true
+                every { factory.makeHasInternalPurchaseController() } returns false
+
+                When("the purchase returns straight to the caller") {
+                    transactionManager.purchase(TransactionManager.PurchaseSource.ExternalPurchase(product))
+
+                    Then("the product bought is recorded") {
+                        coVerify(exactly = 1) { storeManager.recordPurchasedProduct(product, any()) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_cancelled_recordsNothing() =
+        runTest {
+            Given("a purchase that gets cancelled") {
+                val productId = "sub:monthly:sw-auto"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                    }
+                val product = mockStoreProduct(productId, rawProduct)
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+                } returns PurchaseResult.Cancelled()
+
+                When("the purchase finishes") {
+                    transactionManager.purchase(TransactionManager.PurchaseSource.ExternalPurchase(product))
+
+                    Then("nothing is recorded") {
+                        coVerify(exactly = 0) { storeManager.recordPurchasedProduct(any(), any()) }
+                    }
+                }
+            }
+        }
+
     // endregion
 
     // region product replacement
@@ -582,6 +708,9 @@ class TransactionManagerTest {
             every { purchaseToken } returns token
             every { this@mockk.purchaseTime } returns purchaseTime
             every { purchaseState } returns state
+            every { orderId } returns "order-$token"
+            every { isAutoRenewing } returns true
+            every { isAcknowledged } returns true
         }
 
     @Test
@@ -905,6 +1034,93 @@ class TransactionManagerTest {
             }
         }
 
+    // region custom store products
+
+    private fun mockCustomProduct(productId: String): StoreProduct =
+        mockk(relaxed = true) {
+            every { fullIdentifier } returns productId
+            every { productIdentifier } returns productId
+            every { isCustomProduct } returns true
+            every { rawStoreProduct } returns null
+            every { subscriptionPeriod } returns null
+        }
+
+    private fun customPurchaseReturns(result: PurchaseResult) {
+        every { factory.makeHasExternalPurchaseController() } returns true
+        coEvery {
+            storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+        } returns result
+    }
+
+    @Test
+    fun purchase_customProductFromPaywall_asksTheBackendForEntitlements() =
+        runTest {
+            Given("a custom product the purchase controller sells through the developer's checkout") {
+                val productId = "custom|prod_1"
+                every { storeManager.getProductFromCache(productId) } returns mockCustomProduct(productId)
+                customPurchaseReturns(PurchaseResult.Purchased())
+
+                When("it is bought from a paywall") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(productId, mockk(relaxed = true)),
+                        )
+
+                    Then("the SDK fetches the entitlements the developer's server reported, once") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        assertEquals(1, backendNotifications)
+                    }
+                    And("it reports the purchase as a CUSTOM transaction") {
+                        val complete =
+                            trackedEvents
+                                .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                .single { it.state is InternalSuperwallEvent.Transaction.State.Complete }
+                        assertEquals("CUSTOM", complete.store)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_customProductOutsideAPaywall_asksTheBackendForEntitlements() =
+        runTest {
+            Given("an app that buys a custom product with Superwall.purchase") {
+                val product = mockCustomProduct("custom|prod_1")
+                customPurchaseReturns(PurchaseResult.Purchased())
+                every { factory.makeHasInternalPurchaseController() } returns false
+
+                When("the purchase controller completes it") {
+                    transactionManager.purchase(TransactionManager.PurchaseSource.ExternalPurchase(product))
+
+                    Then("the SDK fetches the entitlements once") {
+                        assertEquals(1, backendNotifications)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_customProductCancelled_doesNotAskTheBackend() =
+        runTest {
+            Given("a custom product purchase the user cancels") {
+                val productId = "custom|prod_1"
+                every { storeManager.getProductFromCache(productId) } returns mockCustomProduct(productId)
+                customPurchaseReturns(PurchaseResult.Cancelled())
+
+                When("it is bought from a paywall") {
+                    transactionManager.purchase(
+                        TransactionManager.PurchaseSource.Internal(productId, mockk(relaxed = true)),
+                    )
+
+                    Then("no entitlements are fetched") {
+                        assertEquals(0, backendNotifications)
+                    }
+                }
+            }
+        }
+
+    // endregion
+
     // endregion
 
     private fun mockStoreProduct(
@@ -919,6 +1135,7 @@ class TransactionManagerTest {
                 }
         return mockk(relaxed = true) {
             every { fullIdentifier } returns productId
+            every { productIdentifier } returns productId
             every { hasFreeTrial } returns false
             every { rawStoreProduct } returns underlyingRaw
         }
@@ -927,19 +1144,9 @@ class TransactionManagerTest {
     private fun addTransactionInProgress(
         productId: String,
         productDetails: ProductDetails,
-    ) {
-        val field = TransactionManager::class.java.getDeclaredField("transactionsInProgress")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val map = field.get(transactionManager) as ConcurrentHashMap<String, ProductDetails>
-        map[productId] = productDetails
-    }
+    ) = transactionManager.observerModeTracker.begin(ObservedPurchase(productId, productDetails))
 
-    private fun hasTransactionInProgress(productId: String): Boolean {
-        val field = TransactionManager::class.java.getDeclaredField("transactionsInProgress")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val map = field.get(transactionManager) as ConcurrentHashMap<String, ProductDetails>
-        return map.containsKey(productId)
-    }
+    private fun hasTransactionInProgress(productId: String): Boolean =
+        transactionManager.observerModeTracker.state.value.observed
+            .any { it.productId == productId }
 }

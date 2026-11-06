@@ -1,6 +1,7 @@
 package com.superwall.sdk.delegate
 
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.billing.StorePurchase
 
 sealed class InternalPurchaseResult {
     data class Purchased(
@@ -36,7 +37,15 @@ sealed class PurchaseResult {
     class Cancelled : PurchaseResult()
 
     /** The product was purchased. */
-    class Purchased : PurchaseResult()
+    class Purchased() : PurchaseResult() {
+        // The store purchases the billing flow returned, when Superwall launched the flow itself.
+        // Lets the SDK read the transaction from this result instead of a side channel.
+        internal var purchases: List<StorePurchase> = emptyList()
+
+        internal constructor(purchases: List<StorePurchase>) : this() {
+            this.purchases = purchases
+        }
+    }
 
     /**
      * The purchase is pending and requires action from the developer.

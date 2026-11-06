@@ -9,12 +9,9 @@ import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 
-data class GetProductsResponse(
-    val productsByFullId: Map<String, StoreProduct>,
-    val productItems: List<ProductItem>,
-    val paywall: Paywall? = null,
+@Deprecated(
+    message = "Unused leftover from the iOS port with no implementations. It will be removed in a future release.",
 )
-
 interface StoreKitManagerInterface {
     val productsById: Map<String, StoreProduct>
 

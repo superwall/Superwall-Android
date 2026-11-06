@@ -1,7 +1,5 @@
 package com.superwall.sdk.store
 
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.billing.BillingError
@@ -29,13 +27,13 @@ import kotlinx.coroutines.awaitAll
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 
-class StoreManager(
+// StoreKit is deprecated for SDK consumers; StoreManager keeps implementing it until it is removed.
+@Suppress("DEPRECATION")
+class StoreManager internal constructor(
     val purchaseController: InternalPurchaseController,
     val billing: Billing,
     receiptManagerFactory: () -> ReceiptManager,
-    private val track: suspend (InternalSuperwallEvent) -> Unit = {
-        Superwall.instance.track(it)
-    },
+    private val track: suspend (InternalSuperwallEvent) -> Unit,
     private val getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError> = {
         Either.Success(SuperwallProductsResponse(emptyList()))
     },
@@ -438,7 +436,7 @@ class StoreManager(
     override fun refreshReceipt() {
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
+            scope = LogScope.billing,
             message = "Refreshing Google Play receipt.",
         )
         receiptManager.refreshReceipt()
@@ -447,10 +445,25 @@ class StoreManager(
     override suspend fun loadPurchasedProducts(serverEntitlementsByProductId: Map<String, Set<Entitlement>>) {
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
+            scope = LogScope.billing,
             message = "Loading purchased products from the Google Play receipt.",
         )
         receiptManager.loadPurchasedProducts(serverEntitlementsByProductId)
+    }
+
+    /** See [ReceiptManager.reloadForNewUser]. */
+    suspend fun reloadPurchasesForNewUser(serverEntitlementsByProductId: Map<String, Set<Entitlement>>) {
+        receiptManager.reloadForNewUser(serverEntitlementsByProductId)
+    }
+
+    internal val knownPurchaseTokens: Set<String>
+        get() = receiptManager.knownPurchaseTokens
+
+    internal suspend fun recordPurchasedProduct(
+        product: StoreProduct,
+        tokensBeforePurchase: Set<String>,
+    ) {
+        receiptManager.recordPurchasedProduct(product.fullIdentifier, tokensBeforePurchase)
     }
 
     override fun cacheProduct(

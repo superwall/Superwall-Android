@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">कोई सदस्यता नहीं मिली</string>
+    <string name="superwall_restore_failed_message">हमें आपके खाते के लिए कोई सक्रिय सदस्यता नहीं मिली।</string>
+    <string name="superwall_restore_failed_close">ठीक है</string>
+    <string name="superwall_paywall_unavailable">दिखाने के लिए कोई भुगतान स्क्रीन नहीं है</string>
+</resources>

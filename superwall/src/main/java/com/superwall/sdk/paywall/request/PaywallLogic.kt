@@ -1,8 +1,6 @@
 package com.superwall.sdk.paywall.request
 
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingResult
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -56,12 +54,7 @@ object PaywallLogic {
         event: EventData?,
         trackEvent: (suspend (event: Trackable) -> Result<TrackingResult>)? = null,
     ): Throwable {
-        var _trackEvent: (suspend (event: Trackable) -> Result<TrackingResult>)? = trackEvent
-        if (_trackEvent == null) {
-            _trackEvent = { event: Trackable ->
-                Superwall.instance.track(event)
-            }
-        }
+        // `trackEvent` is kept for API compatibility: no paywall error is tracked here today.
 
 //        if (error is CustomURLSession.NetworkError && error == .notFound) {
 //        if (error is)

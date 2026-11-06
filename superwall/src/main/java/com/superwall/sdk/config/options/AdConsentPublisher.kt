@@ -20,6 +20,17 @@ internal class AdConsentPublisher(
     override val updateEventsQueue: suspend (EventTrackingBehavior) -> Unit,
     override val actor: StateActor<AdConsentContext, AdConsentState>,
 ) : AdConsentContext {
+    /**
+     * Sends the ad consent the app just set. Nothing is sent while event tracking is
+     * [EventTrackingBehavior.NONE]; turning tracking back on sends it then.
+     */
+    fun adConsentChanged() {
+        if (eventTrackingBehavior() == EventTrackingBehavior.NONE) {
+            return
+        }
+        publish()
+    }
+
     /** Applies a changed tracking behavior and re-sends the config attributes and ad consent. */
     fun trackingBehaviorChanged(
         previous: EventTrackingBehavior,

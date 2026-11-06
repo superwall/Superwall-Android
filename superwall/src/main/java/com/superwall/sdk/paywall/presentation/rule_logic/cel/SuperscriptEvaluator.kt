@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -21,7 +20,6 @@ import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValu
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.core_data.CoreDataManager
-import com.superwall.sdk.utilities.trackError
 import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -45,6 +43,7 @@ internal class SuperscriptEvaluator(
     private val ioScope: IOScope,
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
+    private val trackError: (Throwable) -> Unit,
     private val hostContext: SuperscriptHostContext =
         SuperscriptHostContext(
             json,
@@ -131,7 +130,7 @@ internal class SuperscriptEvaluator(
                                 "Unknown error ${it.getThrowable()}",
                             )
                         }
-                    Superwall.instance.trackError(e)
+                    trackError(e)
                     TriggerRuleOutcome.noMatch(
                         UnmatchedRule.Source.EXPRESSION,
                         rule.experiment.id,

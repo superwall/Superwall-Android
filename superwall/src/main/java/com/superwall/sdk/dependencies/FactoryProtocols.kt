@@ -2,9 +2,7 @@ package com.superwall.sdk.dependencies
 
 import android.app.Activity
 import com.android.billingclient.api.Purchase
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingResult
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
@@ -62,9 +60,7 @@ interface ApiFactory : JsonFactory {
     var identityManager: IdentityManager
     var appLifecycleObserver: AppLifecycleObserver
 
-    suspend fun track(event: Trackable) {
-        Superwall.instance.track(event)
-    }
+    suspend fun track(event: Trackable)
 
     suspend fun makeHeaders(
         isForDebugging: Boolean,
@@ -124,6 +120,9 @@ interface LocaleIdentifierFactory {
     fun makeLocaleIdentifier(): String?
 }
 
+@Deprecated(
+    message = "Internal SDK factory that exposes the concrete GoogleBillingWrapper. It will be replaced by a store-neutral factory and removed in a future release.",
+)
 interface TransactionVerifierFactory {
     fun makeTransactionVerifier(): GoogleBillingWrapper
 }

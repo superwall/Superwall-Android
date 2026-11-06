@@ -12,6 +12,7 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.publisher) apply true
     alias(libs.plugins.dokka)
+    alias(libs.plugins.binaryCompatibilityValidator)
 }
 true
 
@@ -34,3 +35,11 @@ extra["superwallVersion"] =
     superwallVersionFromEnv
         ?: superwallVersionFromFile
         ?: error("Missing SUPERWALL_VERSION. Set environment variable or provide version.env.")
+
+// Public API guard: `./gradlew apiCheck` fails when the public API of the SDK modules
+// changes without the matching `<module>/api/*.api` dump being updated (`./gradlew apiDump`).
+apiValidation {
+    // Only the published SDK modules are guarded; the sample and test apps have no public API.
+    // "app" matches both :app and :example:app.
+    ignoredProjects += listOf("app", "test_app")
+}

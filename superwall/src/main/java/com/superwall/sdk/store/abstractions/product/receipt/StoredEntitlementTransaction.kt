@@ -40,6 +40,8 @@ data class StoredEntitlementTransaction(
     override val isInBillingRetryPeriod: Boolean,
     @SerialName("is_active")
     override val isActive: Boolean,
+    @SerialName("is_pending")
+    override val isPending: Boolean = false,
 ) : EntitlementTransaction {
     companion object {
         /**
@@ -59,6 +61,7 @@ data class StoredEntitlementTransaction(
                 isInGracePeriod = transaction.isInGracePeriod,
                 isInBillingRetryPeriod = transaction.isInBillingRetryPeriod,
                 isActive = transaction.isActive,
+                isPending = transaction.isPending,
             )
 
         /**
@@ -71,6 +74,9 @@ data class StoredEntitlementTransaction(
             isCurrentlyActive: Boolean,
         ): StoredEntitlementTransaction =
             stored.copy(
+                // Play gives the client no expiry. Older SDK versions stored an inferred one
+                // (purchase time + period); drop it so it can't outrank the hold date.
+                expirationDate = null,
                 isActive = isCurrentlyActive,
                 // If subscription was auto-renewing but is now inactive, it won't renew
                 willRenew = if (!isCurrentlyActive) false else stored.willRenew,
@@ -106,6 +112,9 @@ data class UserTransactionHistory(
             if (current != null) {
                 // Transaction still exists in Google Play - update with fresh data
                 updatedTransactions[txnId] = StoredEntitlementTransaction.from(current)
+            } else if (stored.isPending) {
+                // A purchase that was never paid for and is gone was cancelled; it isn't history.
+                updatedTransactions.remove(txnId)
             } else {
                 // Transaction no longer returned by Google Play - mark as inactive
                 updatedTransactions[txnId] =

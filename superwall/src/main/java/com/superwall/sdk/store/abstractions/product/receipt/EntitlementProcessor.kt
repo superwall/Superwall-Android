@@ -29,8 +29,11 @@ class EntitlementProcessor {
      * @return A pair of (nonSubscriptions, subscriptions) lists
      */
     fun processTransactions(transactions: List<EntitlementTransaction>): ProcessedTransactions {
+        // A pending purchase isn't paid for yet, and the published models can't say so,
+        // so it stays out of the customer's purchase history until payment succeeds.
+        val completed = transactions.filterNot { it.isPending }
         val nonSubscriptions =
-            transactions
+            completed
                 .filter {
                     it.productType == EntitlementTransactionType.CONSUMABLE ||
                         it.productType == EntitlementTransactionType.NON_CONSUMABLE
@@ -44,7 +47,7 @@ class EntitlementProcessor {
                     )
                 }
         val subscriptions =
-            transactions
+            completed
                 .filter {
                     it.productType == EntitlementTransactionType.AUTO_RENEWABLE ||
                         it.productType == EntitlementTransactionType.NON_RENEWABLE
@@ -162,7 +165,8 @@ class EntitlementProcessor {
         val lifetimePurchase =
             transactions.find { transaction ->
                 transaction.productType == EntitlementTransactionType.NON_CONSUMABLE &&
-                    !transaction.isRevoked
+                    !transaction.isRevoked &&
+                    !transaction.isPending
             }
 
         if (lifetimePurchase != null) {
@@ -173,8 +177,8 @@ class EntitlementProcessor {
 
         // Process all transactions
         for (transaction in transactions) {
-            // Skip revoked transactions for active/expiration calculations
-            if (transaction.isRevoked) continue
+            // Skip revoked and not-yet-paid transactions for active/expiration calculations
+            if (transaction.isRevoked || transaction.isPending) continue
 
             // Check for active status - trust the transaction's isActive status
             when (transaction.productType) {

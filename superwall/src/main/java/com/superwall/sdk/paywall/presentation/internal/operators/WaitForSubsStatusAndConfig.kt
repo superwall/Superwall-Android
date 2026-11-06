@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.dependencies.DependencyContainer
@@ -48,11 +47,8 @@ internal suspend fun StateFlow<ConfigState>.configOrThrow(retriesLeft: Int = 1) 
 internal suspend fun waitForEntitlementsAndConfig(
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
-    dependencyContainer: DependencyContainer? = null,
+    dependencyContainer: DependencyContainer,
 ) {
-    @Suppress("NAME_SHADOWING")
-    val dependencyContainer = dependencyContainer ?: Superwall.instance.dependencyContainer
-
     val configState = dependencyContainer.configManager.configState
 
     // In-flight states get one retry (1s initial window, then 5s fallback).

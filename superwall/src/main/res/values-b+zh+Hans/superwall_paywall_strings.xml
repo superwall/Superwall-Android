@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">未找到订阅</string>
+    <string name="superwall_restore_failed_message">我们未能找到您账户的有效订阅。</string>
+    <string name="superwall_restore_failed_close">好</string>
+    <string name="superwall_paywall_unavailable">没有可显示的付费页面</string>
+</resources>

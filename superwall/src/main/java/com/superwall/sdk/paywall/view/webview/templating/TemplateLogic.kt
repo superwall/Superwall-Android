@@ -24,25 +24,7 @@ object TemplateLogic {
         val productsTemplate =
             ProductTemplate(
                 eventName = "products",
-                products =
-                    paywall.playStoreProducts.map {
-                        ProductItem(
-                            name = it.name,
-                            entitlements = it.entitlements.toSet(),
-                            type =
-                                it.storeProduct.let { crossProduct ->
-                                    val product = crossProduct as CrossplatformProduct.StoreProduct.PlayStore
-                                    ProductItem.StoreProductType.PlayStore(
-                                        PlayStoreProduct(
-                                            productIdentifier = product.productIdentifier,
-                                            basePlanIdentifier = product.basePlanIdentifier,
-                                            offer = product.offer,
-                                        ),
-                                    )
-                                },
-                            compositeId = it.compositeId,
-                        )
-                    },
+                products = templatedProducts(paywall),
             )
 
         val variablesTemplate =
@@ -84,6 +66,37 @@ object TemplateLogic {
         ) { "!!! Template Logic: $templatesString" }
 
         return encodeToBase64(templatesString)
+    }
+
+    /**
+     * The products the paywall page can purchase: Play Store products, plus custom store
+     * products so the page learns their ids and can send them back with a purchase.
+     */
+    internal fun templatedProducts(paywall: Paywall): List<ProductItem> {
+        val playStore =
+            paywall.playStoreProducts.map {
+                val product = it.storeProduct as CrossplatformProduct.StoreProduct.PlayStore
+                ProductItem(
+                    name = it.name,
+                    entitlements = it.entitlements.toSet(),
+                    type =
+                        ProductItem.StoreProductType.PlayStore(
+                            PlayStoreProduct(
+                                productIdentifier = product.productIdentifier,
+                                basePlanIdentifier = product.basePlanIdentifier,
+                                offer = product.offer,
+                            ),
+                        ),
+                    compositeId = it.compositeId,
+                )
+            }
+        // Custom products are cached by their product identifier, so that is the id the
+        // page must send back when purchasing one.
+        val custom =
+            paywall.productItems
+                .filter { it.type is ProductItem.StoreProductType.Custom }
+                .map { it.copy(compositeId = it.fullProductId) }
+        return playStore + custom
     }
 
 //    private fun swProductTemplate(

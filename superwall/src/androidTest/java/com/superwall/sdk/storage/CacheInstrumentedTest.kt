@@ -27,7 +27,7 @@ class CacheInstrumentedTest {
             // Clear all caches
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
             val cache = Cache(appContext, json = json, ioQueue = this.coroutineContext)
-            cache.clean()
+            cache.clearUserScope()
             cache.delete(AppUserId)
             cache.delete(AliasId)
             cache.delete(UserAttributes)
@@ -56,7 +56,7 @@ class CacheInstrumentedTest {
             cache.delete(AliasId)
             val deletedAliasId = cache.read(AliasId)
             assert(deletedAliasId == null)
-            cache.clean()
+            cache.clearUserScope()
         }
 
     @Test
@@ -84,7 +84,7 @@ class CacheInstrumentedTest {
                 println("TEST FAILED DUE AS DELETED ID IS $deletedAppUserId")
             }
 
-            cache.clean()
+            cache.clearUserScope()
         }
 
     @Test
@@ -109,7 +109,7 @@ class CacheInstrumentedTest {
             }
             val deletedUserAttributes = runBlocking { cache.read(UserAttributes) }
             assert(deletedUserAttributes == null)
-            cache.clean()
+            cache.clearUserScope()
         }
 
     @Test
@@ -136,6 +136,6 @@ class CacheInstrumentedTest {
             kotlinx.coroutines.delay(200)
             val deletedLastPaywallView = cache.read(LastPaywallView)
             assert(deletedLastPaywallView == null)
-            cache.clean()
+            cache.clearUserScope()
         }
 }

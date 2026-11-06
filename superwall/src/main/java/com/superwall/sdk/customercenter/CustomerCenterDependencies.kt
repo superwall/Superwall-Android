@@ -1,14 +1,13 @@
 package com.superwall.sdk.customercenter
 
+import com.superwall.sdk.billing.StoreProductKind
+import com.superwall.sdk.billing.google.kind
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
-import com.android.billingclient.api.BillingClient
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.delegate.RestorationResult
@@ -120,7 +119,7 @@ internal data class CustomerCenterDependencies(
                 products = LiveProductsProvider(container),
                 restore = LiveRestorer(container),
                 urlOpener = LiveUrlOpener(container.context, activity),
-                tracker = LiveEventTracker,
+                tracker = LiveEventTracker(container),
                 environment = LiveEnvironment(container, configuration.support.webManagementUrl),
             )
     }
@@ -139,7 +138,7 @@ private class LiveCustomerInfoProvider(
     private val container: DependencyContainer,
 ) : CustomerCenterCustomerInfoProviding {
     override suspend fun fetchCustomerInfo(): CustomerInfo {
-        val current = Superwall.instance.customerInfo
+        val current = container.customerInfoManager.customerInfo
         // The first read after launch can still be the placeholder. Give the real value a moment
         // to arrive rather than rendering "no purchases" for a customer who has some.
         return withTimeoutOrNull(CUSTOMER_INFO_TIMEOUT_MS) { current.first { !it.isPlaceholder } }
@@ -159,7 +158,7 @@ private class LiveCustomerInfoProvider(
     }
 
     override val updates: Flow<CustomerInfo>
-        get() = Superwall.instance.customerInfo.drop(1)
+        get() = container.customerInfoManager.customerInfo.drop(1)
 
     private companion object {
         const val CUSTOMER_INFO_TIMEOUT_MS = 5_000L
@@ -264,7 +263,7 @@ internal fun ProductDisplayInfo.Companion.from(
         localizedPrice = product.localizedPrice,
         price = product.price,
         localizedPeriod = if (product.subscriptionPeriod == null) null else product.period.takeIf { it.isNotEmpty() },
-        isAutoRenewable = details?.let { it.productType == BillingClient.ProductType.SUBS },
+        isAutoRenewable = details?.let { product.kind == StoreProductKind.Subscription },
     )
 }
 
@@ -375,9 +374,11 @@ private class LiveUrlOpener(
     }
 }
 
-private object LiveEventTracker : CustomerCenterEventTracking {
+private class LiveEventTracker(
+    private val container: DependencyContainer,
+) : CustomerCenterEventTracking {
     override suspend fun track(event: TrackableSuperwallEvent) {
-        Superwall.instance.track(event)
+        container.trackEvent(event)
     }
 }
 
@@ -389,7 +390,7 @@ private class LiveEnvironment(
     override val osVersion: String get() = container.deviceHelper.osVersion
     override val deviceModel: String get() = container.deviceHelper.model
     override val sdkVersion: String get() = container.deviceHelper.sdkVersion
-    override val userId: String get() = Superwall.instance.userId
+    override val userId: String get() = container.identityManager.userId
     override val isSandbox: Boolean get() = container.makeIsSandbox()
     override val packageName: String get() = container.context.packageName
     override val webManagementUrl: String?

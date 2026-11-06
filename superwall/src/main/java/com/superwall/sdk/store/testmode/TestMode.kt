@@ -43,7 +43,7 @@ import kotlin.time.Duration.Companion.seconds
  * `update(Updates.X)` (CAS-atomic), async work (network + modal) is
  * dispatched as [TestModeState.Actions].
  */
-class TestMode(
+class TestMode internal constructor(
     override val storage: Storage,
     override val isTestEnvironment: Boolean = Companion.isTestEnvironment,
     override val getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError> = {
@@ -64,9 +64,7 @@ class TestMode(
         apiKey: String,
         dashboardBaseUrl: String,
         savedSettings: TestModeSettings?,
-    ) -> TestModeModalResult = { activity, reason, hasPC, available, ak, db, saved ->
-        TestModeModal.show(activity, reason, hasPC, available, ak, db, saved)
-    },
+    ) -> TestModeModalResult,
     private val ioScope: CoroutineScope = IOScope(),
     override val actor: StateActor<TestModeContext, TestModeState> =
         SequentialActor(TestModeState.Inactive, ioScope),

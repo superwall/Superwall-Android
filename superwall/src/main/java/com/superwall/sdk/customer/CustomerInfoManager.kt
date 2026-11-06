@@ -8,6 +8,7 @@ import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.customer.merge
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -37,6 +38,18 @@ class CustomerInfoManager(
     private val hasExternalPurchaseController: () -> Boolean,
     private val getSubscriptionStatus: () -> SubscriptionStatus,
 ) {
+    /**
+     * The merged customer info the SDK exposes as `Superwall.customerInfo`. Each merge sets it
+     * before [updateCustomerInfo] is called.
+     */
+    internal val customerInfo: MutableStateFlow<CustomerInfo> =
+        MutableStateFlow(CustomerInfo.empty())
+
+    /** Sets [customerInfo] to the last merged value saved in storage, or empty when there is none. */
+    internal fun restoreCachedCustomerInfo() {
+        customerInfo.value = storage.read(LatestCustomerInfo) ?: CustomerInfo.empty()
+    }
+
     /**
      * Merges device and web CustomerInfo and updates the public CustomerInfo flow.
      *
@@ -104,6 +117,7 @@ class CustomerInfoManager(
 
             storage.write(LatestCustomerInfo, merged)
 
+            customerInfo.value = merged
             updateCustomerInfo(merged)
         }
     }

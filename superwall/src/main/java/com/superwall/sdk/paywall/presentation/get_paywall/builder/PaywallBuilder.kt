@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.presentation.get_paywall.builder
 import android.app.Activity
 import android.view.View
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
@@ -85,8 +86,11 @@ class PaywallBuilder(
         return this
     }
 
+    // Users build paywalls themselves, so the builder reaches the configured SDK through the graph.
+    private fun superwall(): Superwall = SuperwallGraph.requireContainer().requireOwner()
+
     suspend fun build(): Result<PaywallView> =
-        Superwall.instance
+        superwall()
             .getPaywall(placement, params, paywallOverrides, delegate!!)
             .onSuccess { newView ->
                 newView.encapsulatingActivity = WeakReference(activity)
@@ -94,7 +98,7 @@ class PaywallBuilder(
                 val loading =
                     purchaseLoadingView ?: LoadingView(
                         activity!!,
-                        loadingColor = Superwall.instance.options.paywalls.loadingColor,
+                        loadingColor = superwall().options.paywalls.loadingColor,
                     )
                 newView.setupWith(shimmer, loading)
                 newView.setupShimmer(shimmer)
@@ -109,7 +113,7 @@ class PaywallBuilder(
     ) {
         IOScope().launch {
             val res =
-                Superwall.instance
+                superwall()
                     .getPaywall(placement, params, paywallOverrides, delegate!!)
             MainScope().launch {
                 res
@@ -119,7 +123,7 @@ class PaywallBuilder(
                         val loading =
                     purchaseLoadingView ?: LoadingView(
                         activity!!,
-                        loadingColor = Superwall.instance.options.paywalls.loadingColor,
+                        loadingColor = superwall().options.paywalls.loadingColor,
                     )
                         newView.setupWith(shimmer, loading)
                         newView.setupShimmer(shimmer)
@@ -136,7 +140,7 @@ class PaywallBuilder(
     @Throws
     fun buildSync(): PaywallView {
         return runBlocking {
-            Superwall.instance
+            superwall()
                 .getPaywall(placement, params, paywallOverrides, delegate!!)
                 .onSuccess { newView ->
                     newView.encapsulatingActivity = WeakReference(activity)
@@ -144,7 +148,7 @@ class PaywallBuilder(
                     val loading =
                     purchaseLoadingView ?: LoadingView(
                         activity!!,
-                        loadingColor = Superwall.instance.options.paywalls.loadingColor,
+                        loadingColor = superwall().options.paywalls.loadingColor,
                     )
                     newView.setupWith(shimmer, loading)
                     newView.setupShimmer(shimmer)

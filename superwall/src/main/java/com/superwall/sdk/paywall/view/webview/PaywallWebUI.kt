@@ -18,6 +18,12 @@ interface PaywallWebUI {
 
     fun onResume() {}
 
+    /**
+     * The paywall finished loading: the page is ready and has its templates. A WebView that is
+     * off screen (a preload waiting in the cache) can stop rendering from here on.
+     */
+    fun onPaywallReady() {}
+
     fun scrollBy(
         x: Int,
         y: Int,
