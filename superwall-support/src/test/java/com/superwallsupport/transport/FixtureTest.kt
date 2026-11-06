@@ -49,7 +49,7 @@ class FixtureTest {
         fun window(entries: List<JsonElement>): EntryWindow =
             EntryWindow(
                 "conv_00000000000000000000000001",
-                entries,
+                JsonArray(entries),
                 (entries.lastOrNull() as? JsonObject)?.get("seq")?.intOrNull ?: 0,
                 false,
             )

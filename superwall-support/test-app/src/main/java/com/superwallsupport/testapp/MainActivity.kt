@@ -74,12 +74,14 @@ class MainActivity : Activity() {
         scope.launch {
             try {
                 transport.start()
-                val session = transport.read { session }!!
-                // Test app only: the host script posts into this conversation with it.
-                log("started conversation ${session.conversationId} token ${session.sessionToken}")
             } catch (error: Exception) {
-                log("start failed: $error")
+                // The transport keeps retrying on its own; wait for its session.
+                log("start failed: ${error.javaClass.simpleName}; the transport retries")
             }
+            while (transport.session == null) delay(100)
+            val session = transport.session!!
+            // Test app only: the host script posts into this conversation with it.
+            log("started conversation ${session.conversationId} token ${session.sessionToken}")
             repeat(burst) { index -> transport.send("Test message ${index + 1}") }
             if (verifyEvery > 0) {
                 while (true) {
@@ -90,15 +92,16 @@ class MainActivity : Activity() {
         }
     }
 
-    private suspend fun onEvent(event: SupportTransportEvent) {
-        val (cursor, stats) = transport.read { log.cursor to stats }
+    private fun onEvent(event: SupportTransportEvent) {
+        val cursor = transport.snapshot.value.cursor
+        val stats = transport.stats
         when (event) {
             is SupportTransportEvent.ConnectionChanged ->
                 log(
                     "state ${event.state} cursor=$cursor connects=${stats.connects} drops=${stats.drops} gaps=${stats.gaps} " +
                         "dups=${stats.duplicates} httpCatchUps=${stats.httpCatchUps} pingTimeouts=${stats.pingTimeouts}",
                 )
-            is SupportTransportEvent.PendingChanged -> log("pending ${transport.read { pendingMessages.size }}")
+            is SupportTransportEvent.PendingChanged -> log("pending ${transport.pendingMessages.size}")
             is SupportTransportEvent.Error -> log("error ${event.code} retryable=${event.retryable}")
             SupportTransportEvent.LogChanged -> Unit
         }
@@ -106,7 +109,7 @@ class MainActivity : Activity() {
 
     /** Compares what the client holds with the server's newest window. */
     private suspend fun verify() {
-        val session = transport.read { session } ?: return
+        val session = transport.session ?: return
         val window =
             runCatching {
                 kotlinx.coroutines.withContext(Dispatchers.IO) {
@@ -120,7 +123,7 @@ class MainActivity : Activity() {
                     Json { ignoreUnknownKeys = true }.decodeFromString(EntryWindow.serializer(), body)
                 }
             }.getOrNull() ?: return log("verify failed")
-        val held = transport.read { log.entries }
+        val held = transport.snapshot.value.entries
         val server = window.decodedEntries
         log("verify exact=${held == server} held=${held.map { it.seq }} server=${server.map { it.seq }}")
     }

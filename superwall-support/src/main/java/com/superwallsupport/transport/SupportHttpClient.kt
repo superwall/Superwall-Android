@@ -23,6 +23,8 @@ import kotlin.coroutines.resumeWithException
 internal class SupportHttpClient(
     baseUrl: String,
     private val client: OkHttpClient,
+    /** For presigned uploads: no overall call timeout. */
+    private val uploadClient: OkHttpClient = client,
 ) {
     private val base: HttpUrl = baseUrl.trimEnd('/').toHttpUrl()
     private val jsonType = "application/json".toMediaType()
@@ -123,7 +125,7 @@ internal class SupportHttpClient(
                 .url(upload.url)
                 .method(upload.method, bytes.toRequestBody(contentType?.toMediaType()))
         upload.headers.forEach { (name, value) -> builder.header(name, value) }
-        val response = execute(builder.build())
+        val response = execute(builder.build(), uploadClient)
         response.use {
             if (!it.isSuccessful) {
                 // Storage errors carry no wire body; a 4xx (an expired link) needs a new intent.
@@ -167,11 +169,11 @@ internal class SupportHttpClient(
                 try {
                     wireJson.decodeFromString(WireErrorBody.serializer(), text)
                 } catch (_: Exception) {
-                    // No wire body (a proxy, a crash): 5xx and 429 are worth retrying, 4xx isn't.
+                    // No wire body (a proxy, a crash): 5xx, 408, 425 and 429 are worth retrying.
                     WireErrorBody(
                         "HTTP${response.code}",
                         "HTTP ${response.code}",
-                        retryable = response.code >= 500 || response.code == 429,
+                        retryable = response.code >= 500 || response.code in setOf(408, 425, 429),
                     )
                 }
             throw SupportTransportException.Wire(error)
@@ -182,13 +184,17 @@ internal class SupportHttpClient(
             wireJson.decodeFromString(responseSerializer, text)
         } catch (error: Exception) {
             // A 2xx we can't read: retrying the same idempotent command is the safe answer.
-            throw SupportTransportException.Network("Undecodable response: ${error.message}")
+            // Only the class name: the decoder's message quotes the body (tokens, message text).
+            throw SupportTransportException.Network("Undecodable response: ${error.javaClass.simpleName}")
         }
     }
 
-    private suspend fun execute(request: Request): Response =
+    private suspend fun execute(
+        request: Request,
+        using: OkHttpClient = client,
+    ): Response =
         suspendCancellableCoroutine { continuation ->
-            val call = client.newCall(request)
+            val call = using.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(
                 object : Callback {
@@ -203,7 +209,8 @@ internal class SupportHttpClient(
                         call: Call,
                         response: Response,
                     ) {
-                        continuation.resume(response)
+                        // Cancelled meanwhile: close it rather than leak the connection.
+                        continuation.resume(response) { response.close() }
                     }
                 },
             )

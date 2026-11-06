@@ -39,7 +39,8 @@ launch --ei verifyEvery 2
 sleep 3; background; sleep 2; post 10 bg; sleep 13; foreground
 sleep 6; save 3-background-foreground
 
-# 4. Far behind: 75 messages land while backgrounded, more than the socket replay cap (60).
+# 4. Far behind: the client holds the script's entries, then 75 land while backgrounded,
+#    more than the socket replay cap (60): one HTTP catch-up.
 launch --ei verifyEvery 2
 sleep 3; background; sleep 1; post 75 far; foreground
 sleep 8; save 4-far-behind-http-catchup

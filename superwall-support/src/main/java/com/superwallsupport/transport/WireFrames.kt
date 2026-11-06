@@ -138,7 +138,9 @@ sealed class ClientFrame {
         val conversationId: String,
         val after: Long,
         val afterId: String?,
-    ) : ClientFrame()
+    ) : ClientFrame() {
+        override fun toString() = "Hello($conversationId, after=$after, token=<redacted>)"
+    }
 
     data class Typing(
         val active: Boolean,

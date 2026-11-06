@@ -68,7 +68,8 @@ internal val JsonElement.intOrNull: Long?
  * present with the wrong type (null included). Unknown keys are ignored.
  */
 private val ISO_8601 =
-    Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$")
+    // As broad as JavaScript's Date parsing for ISO forms (Schema.DateTimeUtcFromString).
+    Regex("^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d{1,9})?)?)?(Z|[+-]\\d{2}:?\\d{2})?$")
 
 internal class WireFields(
     value: JsonElement,

@@ -81,7 +81,8 @@ internal class OkHttpSupportSocket(
         reason: String,
     ) {
         closeCode = code
-        webSocket.close(code, null)
+        // Echo a plain 1000: echoing a 1005 (no status) throws.
+        webSocket.close(SupportCloseCode.NORMAL, null)
         inbox.close()
     }
 

@@ -30,14 +30,22 @@ data class PendingMessage(
 /** Pending sends in the order they were made, in one JSON file, written atomically. */
 internal class SendQueueStore(
     private val file: File?,
+    private val logger: (String) -> Unit = {},
 ) {
     private val serializer = ListSerializer(PendingMessage.serializer())
-    private var items: MutableList<PendingMessage> =
-        file
-            ?.takeIf { it.exists() }
-            ?.let { runCatching { wireJson.decodeFromString(serializer, it.readText()) }.getOrNull() }
-            ?.toMutableList()
-            ?: mutableListOf()
+    private var items: MutableList<PendingMessage> = load()
+
+    private fun load(): MutableList<PendingMessage> {
+        if (file == null || !file.exists()) return mutableListOf()
+        return try {
+            wireJson.decodeFromString(serializer, file.readText()).toMutableList()
+        } catch (error: Exception) {
+            // Unreadable (corrupt, or from another version): set it aside rather than overwrite it.
+            logger("send queue unreadable (${error.javaClass.simpleName}); kept as .unreadable")
+            file.renameTo(File(file.parentFile, file.name + ".unreadable"))
+            mutableListOf()
+        }
+    }
 
     @get:Synchronized
     val all: List<PendingMessage> get() = items.toList()
@@ -68,12 +76,17 @@ internal class SendQueueStore(
     private fun mutate(change: (MutableList<PendingMessage>) -> Unit) {
         change(items)
         val file = file ?: return
-        // Write then rename, so a crash mid-write leaves the previous file.
-        val temp = File(file.parentFile, file.name + ".tmp")
-        temp.writeText(wireJson.encodeToString(serializer, items))
-        if (!temp.renameTo(file)) {
-            file.delete()
-            temp.renameTo(file)
+        // Write then rename, so a crash mid-write leaves the previous file. A failed write
+        // (a full disk) keeps the queue in memory rather than crashing the app.
+        try {
+            val temp = File(file.parentFile, file.name + ".tmp")
+            temp.writeText(wireJson.encodeToString(serializer, items))
+            if (!temp.renameTo(file)) {
+                file.delete()
+                temp.renameTo(file)
+            }
+        } catch (error: java.io.IOException) {
+            logger("send queue not saved (${error.javaClass.simpleName})")
         }
     }
 }

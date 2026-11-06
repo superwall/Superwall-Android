@@ -275,6 +275,9 @@ data class KnownEntry(
 
     val clientMessageId: String? get() = (body as? Body.Message)?.clientMessageId
 
+    /** No message text: entries end up in logs. */
+    override fun toString() = "KnownEntry(seq=$seq, id=$id, kind=$kind)"
+
     internal companion object {
         fun decode(value: JsonElement): KnownEntry {
             val fields = WireFields(value)

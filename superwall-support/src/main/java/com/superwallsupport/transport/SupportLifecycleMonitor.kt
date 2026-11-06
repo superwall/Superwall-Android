@@ -8,6 +8,7 @@ import android.net.NetworkRequest
 import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 
@@ -34,6 +35,7 @@ class SupportLifecycleMonitor(
         object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 synchronized(available) { available.add(network) }
+                // Also on a handover (cell up before Wi-Fi is lost): the transport probes its socket.
                 transport.setNetworkAvailable(true)
             }
 
@@ -43,9 +45,18 @@ class SupportLifecycleMonitor(
             }
         }
 
-    /** Starts observing. Call on the main thread. */
+    /** Starts observing, seeding both signals with the current state. Call on the main thread. */
     fun start() {
-        ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        val lifecycle = ProcessLifecycleOwner.get().lifecycle
+        // addObserver replays only up to the current state; a process started in the
+        // background must not hold the socket.
+        transport.setForeground(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+        val active = connectivity?.activeNetwork
+        val online =
+            active != null &&
+                connectivity.getNetworkCapabilities(active)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        transport.setNetworkAvailable(online)
+        lifecycle.addObserver(lifecycleObserver)
         // registerDefaultNetworkCallback needs API 24; minSdk is 23.
         val request =
             NetworkRequest

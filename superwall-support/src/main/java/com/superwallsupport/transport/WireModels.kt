@@ -2,6 +2,7 @@ package com.superwallsupport.transport
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -65,6 +66,7 @@ data class SessionStart(
     val conversationId: String? = null,
 )
 
+/** Its [toString] never prints the token. */
 @Serializable
 data class SessionStarted(
     val protocol: String,
@@ -84,6 +86,8 @@ data class SessionStarted(
     val redirect: Redirect? = null,
     val heartbeatSeconds: Int,
 ) {
+    override fun toString() = "SessionStarted(sessionId=$sessionId, conversationId=$conversationId, sessionToken=<redacted>)"
+
     @Serializable
     data class AcceptedProof(
         val kind: String,
@@ -107,10 +111,12 @@ data class SessionStarted(
 @Serializable
 data class EntryWindow(
     val conversationId: String,
-    val entries: List<JsonElement>,
+    /** Raw; anything but an array is no entries, never a failed window (lenient.ts). */
+    @SerialName("entries") val rawEntries: JsonElement = JsonArray(emptyList()),
     val head: Long,
     val hasMore: Boolean,
 ) {
+    val entries: List<JsonElement> get() = rawEntries as? JsonArray ?: emptyList()
     val decodedEntries: List<WireEntry> get() = entries.map(WireEntry::decode)
 }
 
@@ -126,6 +132,8 @@ data class SendMessage(
     val attachments: List<AttachmentRef>? = null,
     val seenSeq: Long? = null,
 ) {
+    override fun toString() = "SendMessage($clientMessageId, ${text.length} chars)"
+
     /** The rules the server enforces, checked before a send is queued. */
     fun validate() {
         if (!WireIds.isClientMessageId(clientMessageId)) throw SupportTransportException.InvalidMessage("clientMessageId")
@@ -167,7 +175,9 @@ data class UploadIntent(
         val url: String,
         val headers: Map<String, String>,
         val expiresAt: String,
-    )
+    ) {
+        override fun toString() = "Upload($method, url=<redacted>)"
+    }
 }
 
 @Serializable
@@ -187,7 +197,9 @@ data class CardActionRequest(
     val actionId: String,
     val token: String,
     val values: JsonObject? = null,
-)
+) {
+    override fun toString() = "CardActionRequest($actionId, token=<redacted>)"
+}
 
 @Serializable
 data class CardActionAccepted(
@@ -252,4 +264,7 @@ sealed class SupportTransportException(
                 is Network -> true
                 else -> false
             }
+
+    /** How long the server asked us to wait (`RateLimited.retryAfterMs`). */
+    val retryAfterMillis: Long? get() = (this as? Wire)?.body?.retryAfterMs
 }

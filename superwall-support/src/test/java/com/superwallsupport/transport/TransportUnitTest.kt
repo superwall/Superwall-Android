@@ -2,6 +2,7 @@ package com.superwallsupport.transport
 
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -239,6 +240,104 @@ class TransportUnitTest {
             transport.stop()
         }
 
+    @Test
+    fun errorFrameDecidesWhenTheCloseCodeIsMissing() =
+        runBlocking {
+            val transport = transport()
+            transport.start()
+            waitUntil("socket") { sockets.made.size == 1 }
+            sockets.latest.deliver("""{"type":"error","code":"conversation_not_found","message":"Gone","retryable":false}""")
+            delay(50)
+            sockets.latest.closeFromServer(null)
+            waitUntil("stopped") { transport.state == SupportConnectionState.Stopped("not_found") }
+        }
+
+    @Test
+    fun noSecondSocketDuringHttpCatchUp() =
+        runBlocking {
+            http.windowEntries = listOf(1)
+            val transport = transport()
+            transport.start()
+            waitUntil("socket") { sockets.made.size == 1 }
+            http.windowEntries = (1L..100L).toList()
+            http.entriesDelayMillis = 300
+            sockets.latest.deliver(ready(1, 100))
+            waitUntil("catching up") { transport.state == SupportConnectionState.CatchingUp }
+            transport.setForeground(true)
+            transport.setNetworkAvailable(false)
+            transport.setNetworkAvailable(true)
+            delay(50)
+            assertEquals(1, sockets.made.size)
+            waitUntil("caught up and reconnected") { sockets.made.size == 2 }
+            assertEquals(100L, transport.read { log.cursor })
+            delay(100)
+            assertEquals(2, sockets.made.size)
+            transport.stop()
+        }
+
+    @Test
+    fun staleScrollBackIsDropped() =
+        runBlocking {
+            http.windowEntries = (50L..59L).toList()
+            http.hasMore = true
+            val transport = transport()
+            transport.start()
+            waitUntil("socket") { sockets.made.size == 1 }
+            http.beforeDelayMillis = 400
+            val older = launch { transport.loadOlder() }
+            delay(50)
+            http.windowEntries = listOf(100, 101, 102)
+            sockets.latest.deliver("""{"type":"resync","reason":"boundary_mismatch","head":102}""")
+            older.join()
+            waitUntil("reconnected") { sockets.made.size == 2 }
+            assertEquals(listOf(100L, 101L, 102L), transport.snapshot.value.entries.map { it.seq })
+            transport.stop()
+        }
+
+    @Test
+    fun redirectStops() =
+        runBlocking {
+            http.redirectSessions = true
+            val transport = transport()
+            try {
+                transport.start()
+                throw AssertionError("expected a redirect")
+            } catch (error: SupportTransportException.Redirected) {
+                assertEquals("https://help.test", error.url)
+            }
+            assertEquals(SupportConnectionState.Stopped("redirect"), transport.state)
+            assertEquals(0, sockets.made.size)
+        }
+
+    /** Opened while the server is down: start throws, then keeps trying on its own. */
+    @Test
+    fun failedStartRetriesByItself() =
+        runBlocking {
+            http.failSessions = 2
+            val transport = transport()
+            try {
+                transport.start()
+                throw AssertionError("expected the first start to fail")
+            } catch (_: SupportTransportException) {
+            }
+            waitUntil("connected on its own") { sockets.made.size == 1 }
+            assertEquals(1, http.sessionsStarted)
+            transport.stop()
+        }
+
+    /** A caller cancelled mid-start (the user left the screen) can't leave it half started. */
+    @Test
+    fun startSurvivesTheCallerBeingCancelled() =
+        runBlocking {
+            http.sessionDelayMillis = 300
+            val transport = transport()
+            val caller = launch { transport.start() }
+            delay(50)
+            caller.cancel()
+            waitUntil("connected anyway") { sockets.made.size == 1 }
+            transport.stop()
+        }
+
     /** The network dies between session start and the first window: start still connects. */
     @Test
     fun firstWindowFailureStillConnects() =
@@ -297,7 +396,7 @@ class FakeSocket : SupportSocket {
         inbox.trySend(text)
     }
 
-    fun closeFromServer(code: Int) {
+    fun closeFromServer(code: Int?) {
         closeCode = code
         inbox.close()
     }
@@ -320,6 +419,18 @@ class StubHttp : Interceptor {
 
     @Volatile var failEntries = 0
 
+    @Volatile var hasMore = false
+
+    @Volatile var entriesDelayMillis = 0L
+
+    @Volatile var beforeDelayMillis = 0L
+
+    @Volatile var sessionDelayMillis = 0L
+
+    @Volatile var redirectSessions = false
+
+    @Volatile var failSessions = 0
+
     @Volatile var rejectSends = false
     val calls = CopyOnWriteArrayList<String>()
     val sendIds = CopyOnWriteArrayList<String>()
@@ -328,9 +439,22 @@ class StubHttp : Interceptor {
 
     @Volatile var uploaded: String? = null
 
-    @Synchronized
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
+        // Delays happen outside the lock, so other calls proceed meanwhile.
+        val path0 = request.url.encodedPath
+        when {
+            path0 == "/v1/sessions" && sessionDelayMillis > 0 -> Thread.sleep(sessionDelayMillis)
+            path0.endsWith("/entries") && (request.url.queryParameter("before") != null) && beforeDelayMillis > 0 ->
+                Thread.sleep(beforeDelayMillis)
+            path0.endsWith("/entries") && request.url.queryParameter("before") == null && entriesDelayMillis > 0 ->
+                Thread.sleep(entriesDelayMillis)
+        }
+        return respond(request)
+    }
+
+    @Synchronized
+    private fun respond(request: okhttp3.Request): Response {
         val url = request.url
         val body = request.body?.let { Buffer().also(it::writeTo).readUtf8() } ?: ""
         calls.add(
@@ -339,6 +463,15 @@ class StubHttp : Interceptor {
         val path = url.encodedPath
         val (code, json) =
             when {
+                request.method == "POST" && path == "/v1/sessions" && failSessions > 0 -> {
+                    failSessions -= 1
+                    503 to """{"_tag":"WireUnavailable","message":"Down"}"""
+                }
+                request.method == "POST" && path == "/v1/sessions" && redirectSessions -> {
+                    sessionsStarted += 1
+                    200 to
+                        """{"protocol":"superwall-support/1","sessionId":"sess_01M6R13Q96S0JV0S92F7TEJ3CH","sessionToken":"tok_r","expiresAt":"2026-11-06T09:55:23.174Z","applicationId":1,"conversationId":"${TransportUnitTest.CONVERSATION}","proofs":[],"caps":{"ui":{"v":1,"elements":{}},"cards":[],"actions":[]},"consentRequired":false,"theme":{},"human":{"available":false},"heartbeatSeconds":0,"redirect":{"reason":"sdk_blocked","url":"https://help.test"}}"""
+                }
                 request.method == "POST" && path == "/v1/sessions" -> {
                     sessionsStarted += 1
                     200 to
@@ -359,7 +492,7 @@ class StubHttp : Interceptor {
                                 ),
                             )
                             put("head", windowEntries.lastOrNull() ?: 0)
-                            put("hasMore", false)
+                            put("hasMore", hasMore)
                         }.toString()
                 path.endsWith("/messages") -> {
                     val id = (parseJson(body) as JsonObject)["clientMessageId"]!!.stringOrNull!!
