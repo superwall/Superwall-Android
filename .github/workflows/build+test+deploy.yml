@@ -71,9 +71,10 @@ jobs:
         path: "superwall/build/version.json"
         prop_path: "version"
 
-    # Only try to publish if we're on main
+    # Only try to publish from main, on a push or a manual dispatch (a squash
+    # commit carrying [skip ci] never starts a push run, so dispatch is the fallback)
     - name: Check if tag exists
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
       id: check-tag
       run: |
         EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
@@ -83,7 +84,7 @@ jobs:
     # if the tag was pushed but the release creation failed, the next push
     # to main still creates the missing release.
     - name: Check if release exists
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
       id: check-release
       run: |
         STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -129,7 +130,7 @@ jobs:
         fi
 
     - name: Tag
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
           sudo git config --global user.name 'Jake'
