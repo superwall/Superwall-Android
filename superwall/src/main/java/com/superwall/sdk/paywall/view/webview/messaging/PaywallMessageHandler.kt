@@ -283,12 +283,25 @@ class PaywallMessageHandler(
 
             is PaywallMessage.OpenDeepLink -> openDeepLink(message.url.toString())
             is PaywallMessage.Restore -> restorePurchases()
-            is PaywallMessage.Purchase ->
-                purchaseProduct(
-                    withId = message.productId,
-                    shouldDismiss = message.shouldDismiss,
-                    replacementMode = message.replacementMode,
-                )
+            is PaywallMessage.Purchase -> {
+                val productId =
+                    message.productId ?: paywall.productItems
+                        .firstOrNull { it.name == message.product }
+                        ?.fullProductId
+                if (productId == null) {
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.paywallView,
+                        "Purchase requested for product \"${message.product}\", but the paywall has no product with that name.",
+                    )
+                } else {
+                    purchaseProduct(
+                        withId = productId,
+                        shouldDismiss = message.shouldDismiss,
+                        replacementMode = message.replacementMode,
+                    )
+                }
+            }
 
             is PaywallMessage.PaywallOpen,
             is PaywallMessage.PaywallClose,

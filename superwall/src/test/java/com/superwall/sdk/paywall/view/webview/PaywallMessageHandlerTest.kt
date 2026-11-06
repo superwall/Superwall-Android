@@ -12,6 +12,7 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
@@ -564,6 +565,71 @@ class PaywallMessageHandlerTest {
         }
 
     @Test
+    fun purchase_without_productId_resolves_custom_product_from_reference_name() =
+        runTest {
+            Given("a paywall with a custom store product named primary") {
+                val paywall =
+                    Paywall.stub().apply {
+                        _productItemsV3 =
+                            listOf(
+                                CrossplatformProduct(
+                                    compositeId = "sw-composite-custom",
+                                    storeProduct = CrossplatformProduct.StoreProduct.Custom("com.example.yearly"),
+                                    entitlements = emptyList(),
+                                    name = "primary",
+                                ),
+                            )
+                    }
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                val delegate =
+                    object : FakeDelegate(state) {
+                        val events = mutableListOf<PaywallWebEvent>()
+
+                        override fun eventDidOccur(paywallWebEvent: PaywallWebEvent) {
+                            events.add(paywallWebEvent)
+                        }
+                    }
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                When("a purchase message arrives without a product identifier") {
+                    handler.handle(PaywallMessage.Purchase(product = "primary", productId = null, shouldDismiss = true))
+
+                    Then("the purchase starts with the custom product's identifier") {
+                        val purchaseEvent = delegate.events.filterIsInstance<PaywallWebEvent.InitiatePurchase>().single()
+                        assertEquals("com.example.yearly", purchaseEvent.productId)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_without_productId_for_unknown_reference_does_not_start_purchase() =
+        runTest {
+            Given("a paywall without a product named missing") {
+                val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+                val delegate =
+                    object : FakeDelegate(state) {
+                        val events = mutableListOf<PaywallWebEvent>()
+
+                        override fun eventDidOccur(paywallWebEvent: PaywallWebEvent) {
+                            events.add(paywallWebEvent)
+                        }
+                    }
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                When("a purchase message arrives without a product identifier") {
+                    handler.handle(PaywallMessage.Purchase(product = "missing", productId = null, shouldDismiss = true))
+
+                    Then("no purchase starts") {
+                        assertEquals(emptyList<PaywallWebEvent>(), delegate.events.filterIsInstance<PaywallWebEvent.InitiatePurchase>())
+                    }
+                }
+            }
+        }
+
+    @Test
     fun transactionComplete_emits_event_to_webview() =
         runTest {
             Given("a ready handler and delegate") {
@@ -784,7 +850,7 @@ class PaywallMessageHandlerTest {
         }
 
     @Test
-    fun parsePageView_missingRequiredField_fails() =
+    fun parsePageView_missingRequiredField_isSkipped() =
         runTest {
             Given("a wrapped message with page_view missing required page_node_id") {
                 val json =
@@ -808,8 +874,8 @@ class PaywallMessageHandlerTest {
                 When("the message is parsed") {
                     val result = parseWrappedPaywallMessages(json)
 
-                    Then("parsing fails") {
-                        assert(result.isFailure)
+                    Then("the page_view is skipped") {
+                        assertEquals(emptyList<PaywallMessage>(), result.getOrThrow().payload.messages)
                     }
                 }
             }
