@@ -4,6 +4,7 @@ import TemplateLogic
 import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
+import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -847,11 +848,18 @@ class PaywallViewTest {
                     replay = 1,
                     extraBufferCapacity = 8,
                 )
+            val trackedEvents =
+                java.util.Collections.synchronizedList(
+                    mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                )
+            val backgroundCloseLatch = CountDownLatch(1)
+            captureTrackedEvents(trackedEvents, backgroundCloseLatch)
             val activityController = presentInActivity(view, statePublisher)
             try {
                 activityController.pause().stop()
                 idleMainLooper()
                 verify(exactly = 0) { cache.activePaywallVcKey = null }
+                assertTrue("Expected paywall_close on the background stop", backgroundCloseLatch.await(2, TimeUnit.SECONDS))
 
                 When("the system finishes the stopped activity, so it only gets onDestroy") {
                     activityController.get().finish()
@@ -864,6 +872,18 @@ class PaywallViewTest {
                         verify(exactly = 1) { delegateAdapter.didDismissPaywall(any()) }
                         assertEquals(1, dismissedStates(statePublisher).size)
                         assertFalse(view.state.isPresented)
+                    }
+
+                    And("paywall_close is tracked only once, when the paywall left the screen") {
+                        // Give a second close, tracked on the IO scope, time to show up.
+                        Thread.sleep(500)
+                        assertEquals(
+                            "Expected one PaywallClose, got $trackedEvents",
+                            1,
+                            trackedEvents.count {
+                                it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallClose
+                            },
+                        )
                     }
                 }
             } finally {

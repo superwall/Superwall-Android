@@ -598,8 +598,13 @@ class PaywallView internal constructor(
         // Ensure we stop listening to state changes when being destroyed
         stopStateListener()
 
-        ioScope.launch {
-            trackClose()
+        // A paywall closed for background already tracked its paywall_close when it left the
+        // screen. It is torn down without coming back, e.g. its activity was finished while
+        // stopped, so tracking another close would count the same close twice.
+        if (!state.closedForBackground) {
+            ioScope.launch {
+                trackClose()
+            }
         }
 
         // Reset spinner
