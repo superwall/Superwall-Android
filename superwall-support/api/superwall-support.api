@@ -1,0 +1,1792 @@
+public final class com/superwallsupport/transport/AttachmentRef {
+	public static final field Companion Lcom/superwallsupport/transport/AttachmentRef$Companion;
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/superwallsupport/transport/AttachmentRef;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/AttachmentRef;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/AttachmentRef;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttachmentId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/AttachmentRef$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/AttachmentRef$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/AttachmentRef;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/AttachmentRef;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/AttachmentRef$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/AttachmentUrl {
+	public static final field Companion Lcom/superwallsupport/transport/AttachmentUrl$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/AttachmentUrl;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/AttachmentUrl;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/AttachmentUrl;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExpiresAt ()Ljava/lang/String;
+	public final fun getUrl ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/AttachmentUrl$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/AttachmentUrl$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/AttachmentUrl;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/AttachmentUrl;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/AttachmentUrl$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/CardActionAccepted {
+	public static final field Companion Lcom/superwallsupport/transport/CardActionAccepted$Companion;
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/superwallsupport/transport/CardActionAccepted;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/CardActionAccepted;Ljava/util/List;ILjava/lang/Object;)Lcom/superwallsupport/transport/CardActionAccepted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntries ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/CardActionAccepted$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/CardActionAccepted$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/CardActionAccepted;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/CardActionAccepted;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/CardActionAccepted$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/CardActionRequest {
+	public static final field Companion Lcom/superwallsupport/transport/CardActionRequest$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonObject;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonObject;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lkotlinx/serialization/json/JsonObject;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonObject;)Lcom/superwallsupport/transport/CardActionRequest;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/CardActionRequest;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonObject;ILjava/lang/Object;)Lcom/superwallsupport/transport/CardActionRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionId ()Ljava/lang/String;
+	public final fun getToken ()Ljava/lang/String;
+	public final fun getValues ()Lkotlinx/serialization/json/JsonObject;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/CardActionRequest$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/CardActionRequest$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/CardActionRequest;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/CardActionRequest;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/CardActionRequest$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/CardEnvelope {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonArray;Lkotlinx/serialization/json/JsonObject;Ljava/util/Map;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/util/Map;
+	public final fun component11 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()I
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Lkotlinx/serialization/json/JsonArray;
+	public final fun component9 ()Lkotlinx/serialization/json/JsonObject;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonArray;Lkotlinx/serialization/json/JsonObject;Ljava/util/Map;Ljava/lang/String;)Lcom/superwallsupport/transport/CardEnvelope;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/CardEnvelope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonArray;Lkotlinx/serialization/json/JsonObject;Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/CardEnvelope;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActions ()Ljava/util/Map;
+	public final fun getBind ()Lkotlinx/serialization/json/JsonObject;
+	public final fun getCard ()Ljava/lang/String;
+	public final fun getExpiresAt ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getNodes ()Lkotlinx/serialization/json/JsonArray;
+	public final fun getResolvedText ()Ljava/lang/String;
+	public final fun getState ()Ljava/lang/String;
+	public final fun getText ()Ljava/lang/String;
+	public final fun getTpl ()Ljava/lang/String;
+	public final fun getUi ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class com/superwallsupport/transport/ClientFrame {
+	public static final field Companion Lcom/superwallsupport/transport/ClientFrame$Companion;
+	public final fun encoded ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ClientFrame$Companion {
+	public final fun decode (Ljava/lang/String;)Lcom/superwallsupport/transport/ClientFrame;
+}
+
+public final class com/superwallsupport/transport/ClientFrame$Hello : com/superwallsupport/transport/ClientFrame {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)Lcom/superwallsupport/transport/ClientFrame$Hello;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ClientFrame$Hello;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/ClientFrame$Hello;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAfter ()J
+	public final fun getAfterId ()Ljava/lang/String;
+	public final fun getConversationId ()Ljava/lang/String;
+	public final fun getSessionToken ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ClientFrame$Ping : com/superwallsupport/transport/ClientFrame {
+	public static final field INSTANCE Lcom/superwallsupport/transport/ClientFrame$Ping;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ClientFrame$Typing : com/superwallsupport/transport/ClientFrame {
+	public fun <init> (Z)V
+	public final fun component1 ()Z
+	public final fun copy (Z)Lcom/superwallsupport/transport/ClientFrame$Typing;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ClientFrame$Typing;ZILjava/lang/Object;)Lcom/superwallsupport/transport/ClientFrame$Typing;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActive ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ConversationLog {
+	public fun <init> ()V
+	public final fun entry (J)Lcom/superwallsupport/transport/WireEntry;
+	public final fun getConversationId ()Ljava/lang/String;
+	public final fun getCursor ()J
+	public final fun getCursorId ()Ljava/lang/String;
+	public final fun getEntries ()Ljava/util/List;
+	public final fun getHasOlder ()Z
+	public final fun getOldestSeq ()Ljava/lang/Long;
+	public final fun getPresence ()Ljava/util/List;
+	public final fun getStatus ()Ljava/lang/String;
+	public final fun getStatusEtaSeconds ()Ljava/lang/Integer;
+	public final fun getTail ()Lcom/superwallsupport/transport/TailState;
+}
+
+public abstract class com/superwallsupport/transport/DecodedFrame {
+}
+
+public final class com/superwallsupport/transport/DecodedFrame$Frame : com/superwallsupport/transport/DecodedFrame {
+	public fun <init> (Lcom/superwallsupport/transport/ServerFrame;)V
+	public final fun component1 ()Lcom/superwallsupport/transport/ServerFrame;
+	public final fun copy (Lcom/superwallsupport/transport/ServerFrame;)Lcom/superwallsupport/transport/DecodedFrame$Frame;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/DecodedFrame$Frame;Lcom/superwallsupport/transport/ServerFrame;ILjava/lang/Object;)Lcom/superwallsupport/transport/DecodedFrame$Frame;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFrame ()Lcom/superwallsupport/transport/ServerFrame;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/DecodedFrame$Ignored : com/superwallsupport/transport/DecodedFrame {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/superwallsupport/transport/DecodedFrame$Ignored;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/DecodedFrame$Ignored;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/DecodedFrame$Ignored;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntryAttachment {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()J
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)Lcom/superwallsupport/transport/EntryAttachment;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntryAttachment;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/EntryAttachment;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBytes ()J
+	public final fun getFilename ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getMime ()Ljava/lang/String;
+	public final fun getStatus ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntryAuthor {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Double;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/Double;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Double;)Lcom/superwallsupport/transport/EntryAuthor;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntryAuthor;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Double;ILjava/lang/Object;)Lcom/superwallsupport/transport/EntryAuthor;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAvatarUrl ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/String;
+	public final fun getUserId ()Ljava/lang/Double;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class com/superwallsupport/transport/EntryBlock {
+}
+
+public final class com/superwallsupport/transport/EntryBlock$Code : com/superwallsupport/transport/EntryBlock {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/superwallsupport/transport/EntryBlock$Code;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntryBlock$Code;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/EntryBlock$Code;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntryBlock$ListBlock : com/superwallsupport/transport/EntryBlock {
+	public fun <init> (ZLjava/util/List;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (ZLjava/util/List;)Lcom/superwallsupport/transport/EntryBlock$ListBlock;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntryBlock$ListBlock;ZLjava/util/List;ILjava/lang/Object;)Lcom/superwallsupport/transport/EntryBlock$ListBlock;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getItems ()Ljava/util/List;
+	public final fun getOrdered ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntryBlock$Paragraph : com/superwallsupport/transport/EntryBlock {
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/superwallsupport/transport/EntryBlock$Paragraph;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntryBlock$Paragraph;Ljava/util/List;ILjava/lang/Object;)Lcom/superwallsupport/transport/EntryBlock$Paragraph;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSpans ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntryBlock$Quote : com/superwallsupport/transport/EntryBlock {
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/superwallsupport/transport/EntryBlock$Quote;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntryBlock$Quote;Ljava/util/List;ILjava/lang/Object;)Lcom/superwallsupport/transport/EntryBlock$Quote;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSpans ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class com/superwallsupport/transport/EntryFrameOutcome {
+}
+
+public final class com/superwallsupport/transport/EntryFrameOutcome$Accept : com/superwallsupport/transport/EntryFrameOutcome {
+	public static final field INSTANCE Lcom/superwallsupport/transport/EntryFrameOutcome$Accept;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntryFrameOutcome$Duplicate : com/superwallsupport/transport/EntryFrameOutcome {
+	public static final field INSTANCE Lcom/superwallsupport/transport/EntryFrameOutcome$Duplicate;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntryFrameOutcome$Gap : com/superwallsupport/transport/EntryFrameOutcome {
+	public fun <init> (JJ)V
+	public final fun component1 ()J
+	public final fun component2 ()J
+	public final fun copy (JJ)Lcom/superwallsupport/transport/EntryFrameOutcome$Gap;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntryFrameOutcome$Gap;JJILjava/lang/Object;)Lcom/superwallsupport/transport/EntryFrameOutcome$Gap;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExpected ()J
+	public final fun getPrev ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class com/superwallsupport/transport/EntrySpan {
+}
+
+public final class com/superwallsupport/transport/EntrySpan$Link : com/superwallsupport/transport/EntrySpan {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/EntrySpan$Link;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntrySpan$Link;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/EntrySpan$Link;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHref ()Ljava/lang/String;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntrySpan$Text : com/superwallsupport/transport/EntrySpan {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Lcom/superwallsupport/transport/EntrySpan$Text;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntrySpan$Text;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/superwallsupport/transport/EntrySpan$Text;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMarks ()Ljava/util/List;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/EntryWindow {
+	public static final field Companion Lcom/superwallsupport/transport/EntryWindow$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/util/List;JZ)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()J
+	public final fun component4 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/util/List;JZ)Lcom/superwallsupport/transport/EntryWindow;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/EntryWindow;Ljava/lang/String;Ljava/util/List;JZILjava/lang/Object;)Lcom/superwallsupport/transport/EntryWindow;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConversationId ()Ljava/lang/String;
+	public final fun getDecodedEntries ()Ljava/util/List;
+	public final fun getEntries ()Ljava/util/List;
+	public final fun getHasMore ()Z
+	public final fun getHead ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/EntryWindow$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/EntryWindow$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/EntryWindow;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/EntryWindow;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/EntryWindow$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/KnownEntry {
+	public fun <init> (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/EntryAuthor;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Lcom/superwallsupport/transport/KnownEntry$Body;)V
+	public final fun component1 ()J
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Lcom/superwallsupport/transport/KnownEntry$Body;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lcom/superwallsupport/transport/EntryAuthor;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Z
+	public final fun copy (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/EntryAuthor;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Lcom/superwallsupport/transport/KnownEntry$Body;)Lcom/superwallsupport/transport/KnownEntry;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/EntryAuthor;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Lcom/superwallsupport/transport/KnownEntry$Body;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAuthor ()Lcom/superwallsupport/transport/EntryAuthor;
+	public final fun getAutomationLevel ()Ljava/lang/String;
+	public final fun getBody ()Lcom/superwallsupport/transport/KnownEntry$Body;
+	public final fun getClientMessageId ()Ljava/lang/String;
+	public final fun getConversationId ()Ljava/lang/String;
+	public final fun getCreatedAt ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getRedacted ()Z
+	public final fun getSeq ()J
+	public final fun getText ()Ljava/lang/String;
+	public final fun getVisibility ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class com/superwallsupport/transport/KnownEntry$Body {
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$Card : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Lcom/superwallsupport/transport/CardEnvelope;)V
+	public final fun component1 ()Lcom/superwallsupport/transport/CardEnvelope;
+	public final fun copy (Lcom/superwallsupport/transport/CardEnvelope;)Lcom/superwallsupport/transport/KnownEntry$Body$Card;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$Card;Lcom/superwallsupport/transport/CardEnvelope;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$Card;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCard ()Lcom/superwallsupport/transport/CardEnvelope;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$CardResponse : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/KnownEntry$Body$CardResponse;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$CardResponse;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$CardResponse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionId ()Ljava/lang/String;
+	public final fun getCardId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$Handoff : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lcom/superwallsupport/transport/KnownEntry$Body$Handoff;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$Handoff;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$Handoff;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEtaSeconds ()Ljava/lang/Integer;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getTo ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$Message : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Lcom/superwallsupport/transport/KnownEntry$Body$Message;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$Message;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$Message;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttachments ()Ljava/util/List;
+	public final fun getBlocks ()Ljava/util/List;
+	public final fun getClientMessageId ()Ljava/lang/String;
+	public final fun getMentions ()Ljava/util/List;
+	public final fun getTurnId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$Resolution : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/KnownEntry$Body$Resolution;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$Resolution;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$Resolution;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionId ()Ljava/lang/String;
+	public final fun getOutcome ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$StatusChange : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/KnownEntry$Body$StatusChange;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$StatusChange;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$StatusChange;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFrom ()Ljava/lang/String;
+	public final fun getTo ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$SystemNotice : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/superwallsupport/transport/KnownEntry$Body$SystemNotice;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$SystemNotice;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$SystemNotice;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$ToolCall : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lkotlinx/serialization/json/JsonElement;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;)Lcom/superwallsupport/transport/KnownEntry$Body$ToolCall;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$ToolCall;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$ToolCall;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getArgs ()Lkotlinx/serialization/json/JsonElement;
+	public final fun getCallId ()Ljava/lang/String;
+	public final fun getState ()Ljava/lang/String;
+	public final fun getTarget ()Ljava/lang/String;
+	public final fun getTool ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/KnownEntry$Body$ToolResult : com/superwallsupport/transport/KnownEntry$Body {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/KnownEntry$Body$ToolResult;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/KnownEntry$Body$ToolResult;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/KnownEntry$Body$ToolResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCallId ()Ljava/lang/String;
+	public final fun getStatus ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/MarkRead {
+	public static final field Companion Lcom/superwallsupport/transport/MarkRead$Companion;
+	public fun <init> (J)V
+	public final fun component1 ()J
+	public final fun copy (J)Lcom/superwallsupport/transport/MarkRead;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/MarkRead;JILjava/lang/Object;)Lcom/superwallsupport/transport/MarkRead;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSeq ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/MarkRead$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/MarkRead$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/MarkRead;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/MarkRead;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/MarkRead$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/PendingMessage {
+	public static final field Companion Lcom/superwallsupport/transport/PendingMessage$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;JILcom/superwallsupport/transport/PendingMessage$State;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;JILcom/superwallsupport/transport/PendingMessage$State;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()J
+	public final fun component6 ()I
+	public final fun component7 ()Lcom/superwallsupport/transport/PendingMessage$State;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;JILcom/superwallsupport/transport/PendingMessage$State;Ljava/lang/String;)Lcom/superwallsupport/transport/PendingMessage;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/PendingMessage;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;JILcom/superwallsupport/transport/PendingMessage$State;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/PendingMessage;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttachmentIds ()Ljava/util/List;
+	public final fun getAttempts ()I
+	public final fun getClientMessageId ()Ljava/lang/String;
+	public final fun getConversationId ()Ljava/lang/String;
+	public final fun getCreatedAtMillis ()J
+	public final fun getFailure ()Ljava/lang/String;
+	public final fun getState ()Lcom/superwallsupport/transport/PendingMessage$State;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/PendingMessage$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/PendingMessage$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/PendingMessage;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/PendingMessage;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/PendingMessage$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/PendingMessage$State : java/lang/Enum {
+	public static final field Companion Lcom/superwallsupport/transport/PendingMessage$State$Companion;
+	public static final field FAILED Lcom/superwallsupport/transport/PendingMessage$State;
+	public static final field PENDING Lcom/superwallsupport/transport/PendingMessage$State;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/superwallsupport/transport/PendingMessage$State;
+	public static fun values ()[Lcom/superwallsupport/transport/PendingMessage$State;
+}
+
+public final class com/superwallsupport/transport/PendingMessage$State$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/PresenceParticipant {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/PresenceParticipant;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/PresenceParticipant;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/PresenceParticipant;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAvatarUrl ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getState ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SendAccepted {
+	public static final field Companion Lcom/superwallsupport/transport/SendAccepted$Companion;
+	public fun <init> (Lkotlinx/serialization/json/JsonElement;Z)V
+	public final fun component1 ()Lkotlinx/serialization/json/JsonElement;
+	public final fun component2 ()Z
+	public final fun copy (Lkotlinx/serialization/json/JsonElement;Z)Lcom/superwallsupport/transport/SendAccepted;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SendAccepted;Lkotlinx/serialization/json/JsonElement;ZILjava/lang/Object;)Lcom/superwallsupport/transport/SendAccepted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDuplicate ()Z
+	public final fun getEntry ()Lkotlinx/serialization/json/JsonElement;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SendAccepted$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SendAccepted$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SendAccepted;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SendAccepted;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SendAccepted$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SendMessage {
+	public static final field Companion Lcom/superwallsupport/transport/SendMessage$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/Long;)Lcom/superwallsupport/transport/SendMessage;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SendMessage;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/Long;ILjava/lang/Object;)Lcom/superwallsupport/transport/SendMessage;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttachments ()Ljava/util/List;
+	public final fun getClientMessageId ()Ljava/lang/String;
+	public final fun getSeenSeq ()Ljava/lang/Long;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public final fun validate ()V
+}
+
+public synthetic class com/superwallsupport/transport/SendMessage$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SendMessage$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SendMessage;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SendMessage;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SendMessage$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public abstract class com/superwallsupport/transport/ServerFrame {
+	public static final field Companion Lcom/superwallsupport/transport/ServerFrame$Companion;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Companion {
+	public final fun getKNOWN_TYPES ()Ljava/util/Set;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Entry : com/superwallsupport/transport/ServerFrame {
+	public fun <init> (JJLkotlinx/serialization/json/JsonElement;)V
+	public final fun component1 ()J
+	public final fun component2 ()J
+	public final fun component3 ()Lkotlinx/serialization/json/JsonElement;
+	public final fun copy (JJLkotlinx/serialization/json/JsonElement;)Lcom/superwallsupport/transport/ServerFrame$Entry;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ServerFrame$Entry;JJLkotlinx/serialization/json/JsonElement;ILjava/lang/Object;)Lcom/superwallsupport/transport/ServerFrame$Entry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntry ()Lkotlinx/serialization/json/JsonElement;
+	public final fun getPrev ()J
+	public final fun getSeq ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Error : com/superwallsupport/transport/ServerFrame {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Z)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Z)Lcom/superwallsupport/transport/ServerFrame$Error;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ServerFrame$Error;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lcom/superwallsupport/transport/ServerFrame$Error;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getRetryable ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Pong : com/superwallsupport/transport/ServerFrame {
+	public static final field INSTANCE Lcom/superwallsupport/transport/ServerFrame$Pong;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Presence : com/superwallsupport/transport/ServerFrame {
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/superwallsupport/transport/ServerFrame$Presence;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ServerFrame$Presence;Ljava/util/List;ILjava/lang/Object;)Lcom/superwallsupport/transport/ServerFrame$Presence;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getParticipants ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Ready : com/superwallsupport/transport/ServerFrame {
+	public fun <init> (Ljava/lang/String;JJ)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun copy (Ljava/lang/String;JJ)Lcom/superwallsupport/transport/ServerFrame$Ready;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ServerFrame$Ready;Ljava/lang/String;JJILjava/lang/Object;)Lcom/superwallsupport/transport/ServerFrame$Ready;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAfter ()J
+	public final fun getConversationId ()Ljava/lang/String;
+	public final fun getHead ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Resync : com/superwallsupport/transport/ServerFrame {
+	public fun <init> (Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun copy (Ljava/lang/String;J)Lcom/superwallsupport/transport/ServerFrame$Resync;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ServerFrame$Resync;Ljava/lang/String;JILjava/lang/Object;)Lcom/superwallsupport/transport/ServerFrame$Resync;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHead ()J
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Status : com/superwallsupport/transport/ServerFrame {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;)Lcom/superwallsupport/transport/ServerFrame$Status;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ServerFrame$Status;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/superwallsupport/transport/ServerFrame$Status;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEtaSeconds ()Ljava/lang/Integer;
+	public final fun getState ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$Tail : com/superwallsupport/transport/ServerFrame {
+	public fun <init> (Ljava/lang/String;ILjava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;ILjava/lang/String;)Lcom/superwallsupport/transport/ServerFrame$Tail;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ServerFrame$Tail;Ljava/lang/String;ILjava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/ServerFrame$Tail;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMessageId ()Ljava/lang/String;
+	public final fun getOffset ()I
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ServerFrame$TailCancel : com/superwallsupport/transport/ServerFrame {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/ServerFrame$TailCancel;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ServerFrame$TailCancel;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/ServerFrame$TailCancel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMessageId ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SessionStart {
+	public static final field Companion Lcom/superwallsupport/transport/SessionStart$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/util/List;Ljava/util/List;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/superwallsupport/transport/SupportSdk;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lcom/superwallsupport/transport/SupportCapabilities;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/util/List;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/util/List;Ljava/util/List;Ljava/lang/String;)Lcom/superwallsupport/transport/SessionStart;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SessionStart;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/SessionStart;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getApiKey ()Ljava/lang/String;
+	public final fun getAppTools ()Ljava/util/List;
+	public final fun getCapabilities ()Lcom/superwallsupport/transport/SupportCapabilities;
+	public final fun getConversationId ()Ljava/lang/String;
+	public final fun getLocale ()Ljava/lang/String;
+	public final fun getProofs ()Ljava/util/List;
+	public final fun getProtocol ()Ljava/lang/String;
+	public final fun getSdk ()Lcom/superwallsupport/transport/SupportSdk;
+	public final fun getStorefront ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SessionStart$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SessionStart$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SessionStart;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SessionStart;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStart$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStarted {
+	public static final field Companion Lcom/superwallsupport/transport/SessionStarted$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/util/List;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;Lcom/superwallsupport/transport/SessionStarted$Human;Lcom/superwallsupport/transport/SessionStarted$Redirect;I)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/util/List;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;Lcom/superwallsupport/transport/SessionStarted$Human;Lcom/superwallsupport/transport/SessionStarted$Redirect;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Z
+	public final fun component11 ()Lkotlinx/serialization/json/JsonObject;
+	public final fun component12 ()Lcom/superwallsupport/transport/SessionStarted$Human;
+	public final fun component13 ()Lcom/superwallsupport/transport/SessionStarted$Redirect;
+	public final fun component14 ()I
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()J
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Lcom/superwallsupport/transport/SupportCapabilities;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/util/List;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;Lcom/superwallsupport/transport/SessionStarted$Human;Lcom/superwallsupport/transport/SessionStarted$Redirect;I)Lcom/superwallsupport/transport/SessionStarted;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SessionStarted;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/util/List;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/lang/String;ZLkotlinx/serialization/json/JsonObject;Lcom/superwallsupport/transport/SessionStarted$Human;Lcom/superwallsupport/transport/SessionStarted$Redirect;IILjava/lang/Object;)Lcom/superwallsupport/transport/SessionStarted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getApplicationId ()J
+	public final fun getCaps ()Lcom/superwallsupport/transport/SupportCapabilities;
+	public final fun getConsentRequired ()Z
+	public final fun getConversationId ()Ljava/lang/String;
+	public final fun getDisclosure ()Ljava/lang/String;
+	public final fun getExpiresAt ()Ljava/lang/String;
+	public final fun getHeartbeatSeconds ()I
+	public final fun getHuman ()Lcom/superwallsupport/transport/SessionStarted$Human;
+	public final fun getProofs ()Ljava/util/List;
+	public final fun getProtocol ()Ljava/lang/String;
+	public final fun getRedirect ()Lcom/superwallsupport/transport/SessionStarted$Redirect;
+	public final fun getSessionId ()Ljava/lang/String;
+	public final fun getSessionToken ()Ljava/lang/String;
+	public final fun getTheme ()Lkotlinx/serialization/json/JsonObject;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SessionStarted$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SessionStarted$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SessionStarted;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SessionStarted;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStarted$AcceptedProof {
+	public static final field Companion Lcom/superwallsupport/transport/SessionStarted$AcceptedProof$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/SessionStarted$AcceptedProof;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SessionStarted$AcceptedProof;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/SessionStarted$AcceptedProof;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExpiresAt ()Ljava/lang/String;
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getLevel ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SessionStarted$AcceptedProof$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SessionStarted$AcceptedProof$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SessionStarted$AcceptedProof;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SessionStarted$AcceptedProof;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStarted$AcceptedProof$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStarted$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStarted$Human {
+	public static final field Companion Lcom/superwallsupport/transport/SessionStarted$Human$Companion;
+	public fun <init> (ZLjava/lang/Integer;)V
+	public synthetic fun <init> (ZLjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/Integer;
+	public final fun copy (ZLjava/lang/Integer;)Lcom/superwallsupport/transport/SessionStarted$Human;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SessionStarted$Human;ZLjava/lang/Integer;ILjava/lang/Object;)Lcom/superwallsupport/transport/SessionStarted$Human;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAvailable ()Z
+	public final fun getEtaSeconds ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SessionStarted$Human$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SessionStarted$Human$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SessionStarted$Human;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SessionStarted$Human;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStarted$Human$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStarted$Redirect {
+	public static final field Companion Lcom/superwallsupport/transport/SessionStarted$Redirect$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/SessionStarted$Redirect;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SessionStarted$Redirect;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/SessionStarted$Redirect;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getUrl ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SessionStarted$Redirect$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SessionStarted$Redirect$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SessionStarted$Redirect;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SessionStarted$Redirect;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SessionStarted$Redirect$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportAppTool {
+	public static final field Companion Lcom/superwallsupport/transport/SupportAppTool$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/SupportAppTool;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportAppTool;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/SupportAppTool;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getSchemaHash ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SupportAppTool$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportAppTool$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SupportAppTool;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SupportAppTool;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportAppTool$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportCapabilities {
+	public static final field Companion Lcom/superwallsupport/transport/SupportCapabilities$Companion;
+	public fun <init> (Lcom/superwallsupport/transport/SupportCapabilities$Ui;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/Boolean;)V
+	public synthetic fun <init> (Lcom/superwallsupport/transport/SupportCapabilities$Ui;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/superwallsupport/transport/SupportCapabilities$Ui;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/lang/Boolean;
+	public final fun copy (Lcom/superwallsupport/transport/SupportCapabilities$Ui;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/Boolean;)Lcom/superwallsupport/transport/SupportCapabilities;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportCapabilities;Lcom/superwallsupport/transport/SupportCapabilities$Ui;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/Boolean;ILjava/lang/Object;)Lcom/superwallsupport/transport/SupportCapabilities;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActions ()Ljava/util/List;
+	public final fun getAttachments ()Ljava/lang/Boolean;
+	public final fun getCards ()Ljava/util/List;
+	public final fun getEntryKinds ()Ljava/util/List;
+	public final fun getUi ()Lcom/superwallsupport/transport/SupportCapabilities$Ui;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SupportCapabilities$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportCapabilities$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SupportCapabilities;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SupportCapabilities;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportCapabilities$Companion {
+	public final fun getTEXT_ONLY ()Lcom/superwallsupport/transport/SupportCapabilities;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportCapabilities$Ui {
+	public static final field Companion Lcom/superwallsupport/transport/SupportCapabilities$Ui$Companion;
+	public fun <init> (ILjava/util/Map;)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/util/Map;
+	public final fun copy (ILjava/util/Map;)Lcom/superwallsupport/transport/SupportCapabilities$Ui;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportCapabilities$Ui;ILjava/util/Map;ILjava/lang/Object;)Lcom/superwallsupport/transport/SupportCapabilities$Ui;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getElements ()Ljava/util/Map;
+	public final fun getV ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SupportCapabilities$Ui$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportCapabilities$Ui$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SupportCapabilities$Ui;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SupportCapabilities$Ui;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportCapabilities$Ui$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportCloseCode {
+	public static final field BAD_HELLO I
+	public static final field GOING_AWAY I
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportCloseCode;
+	public static final field INTERNAL_ERROR I
+	public static final field NORMAL I
+	public static final field NOT_FOUND I
+	public static final field PROTOCOL_UNSUPPORTED I
+	public static final field RESYNC I
+	public static final field SESSION_INVALID I
+	public static final field TRY_LATER I
+}
+
+public abstract class com/superwallsupport/transport/SupportConnectionState {
+}
+
+public final class com/superwallsupport/transport/SupportConnectionState$CatchingUp : com/superwallsupport/transport/SupportConnectionState {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportConnectionState$CatchingUp;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportConnectionState$Connecting : com/superwallsupport/transport/SupportConnectionState {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportConnectionState$Connecting;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportConnectionState$Idle : com/superwallsupport/transport/SupportConnectionState {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportConnectionState$Idle;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportConnectionState$Live : com/superwallsupport/transport/SupportConnectionState {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportConnectionState$Live;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportConnectionState$Offline : com/superwallsupport/transport/SupportConnectionState {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportConnectionState$Offline;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportConnectionState$Stopped : com/superwallsupport/transport/SupportConnectionState {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/superwallsupport/transport/SupportConnectionState$Stopped;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportConnectionState$Stopped;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/SupportConnectionState$Stopped;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportConnectionState$WaitingToRetry : com/superwallsupport/transport/SupportConnectionState {
+	public fun <init> (J)V
+	public final fun component1 ()J
+	public final fun copy (J)Lcom/superwallsupport/transport/SupportConnectionState$WaitingToRetry;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportConnectionState$WaitingToRetry;JILjava/lang/Object;)Lcom/superwallsupport/transport/SupportConnectionState$WaitingToRetry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportLifecycleMonitor {
+	public fun <init> (Landroid/content/Context;Lcom/superwallsupport/transport/SupportTransport;)V
+	public final fun start ()V
+	public final fun stop ()V
+}
+
+public final class com/superwallsupport/transport/SupportProof {
+	public static final field Companion Lcom/superwallsupport/transport/SupportProof$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/SupportProof;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportProof;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/SupportProof;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SupportProof$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportProof$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SupportProof;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SupportProof;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportProof$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportSdk {
+	public static final field Companion Lcom/superwallsupport/transport/SupportSdk$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/SupportSdk;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/SupportSdk;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAddonVersion ()Ljava/lang/String;
+	public final fun getPlatform ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/SupportSdk$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportSdk$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/SupportSdk;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/SupportSdk;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/SupportSdk$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public abstract interface class com/superwallsupport/transport/SupportSocket {
+	public abstract fun close (ILjava/lang/String;)V
+	public abstract fun getCloseCode ()Ljava/lang/Integer;
+	public abstract fun receive (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun send (Ljava/lang/String;)Z
+}
+
+public final class com/superwallsupport/transport/SupportSocket$Closed : java/lang/Exception {
+	public fun <init> (Ljava/lang/Integer;Ljava/lang/String;)V
+	public final fun getCode ()Ljava/lang/Integer;
+}
+
+public abstract interface class com/superwallsupport/transport/SupportSocketFactory {
+	public abstract fun make (Ljava/lang/String;)Lcom/superwallsupport/transport/SupportSocket;
+}
+
+public final class com/superwallsupport/transport/SupportTransport {
+	public fun <init> (Lcom/superwallsupport/transport/SupportTransport$Configuration;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Lcom/superwallsupport/transport/SupportTransport$Configuration;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun attachmentUrl (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun cardAction (Ljava/lang/String;Lcom/superwallsupport/transport/CardActionRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun discard (Ljava/lang/String;)V
+	public final fun dropConnectionForTesting ()V
+	public final fun getConfiguration ()Lcom/superwallsupport/transport/SupportTransport$Configuration;
+	public final fun getLog ()Lcom/superwallsupport/transport/ConversationLog;
+	public final fun getPendingMessages ()Ljava/util/List;
+	public final fun getSession ()Lcom/superwallsupport/transport/SessionStarted;
+	public final fun getState ()Lcom/superwallsupport/transport/SupportConnectionState;
+	public final fun getStats ()Lcom/superwallsupport/transport/SupportTransport$Stats;
+	public final fun loadOlder (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun markRead (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun read (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun retry (Ljava/lang/String;)V
+	public final fun send (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun send$default (Lcom/superwallsupport/transport/SupportTransport;Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun setEventHandler (Lkotlin/jvm/functions/Function1;)V
+	public final fun setForeground (Z)V
+	public final fun setNetworkAvailable (Z)V
+	public final fun setTyping (Z)V
+	public final fun start (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun start$default (Lcom/superwallsupport/transport/SupportTransport;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun stop (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun toolCallResult (Ljava/lang/String;Lcom/superwallsupport/transport/ToolCallResultRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun uploadAttachment ([BLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun uploadAttachment$default (Lcom/superwallsupport/transport/SupportTransport;[BLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class com/superwallsupport/transport/SupportTransport$Configuration {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/util/List;JJIIJJJLjava/io/File;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/util/List;JJIIJJJLjava/io/File;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()I
+	public final fun component11 ()I
+	public final fun component12 ()J
+	public final fun component13 ()J
+	public final fun component14 ()J
+	public final fun component15 ()Ljava/io/File;
+	public final fun component16 ()Lkotlin/jvm/functions/Function1;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/superwallsupport/transport/SupportSdk;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lcom/superwallsupport/transport/SupportCapabilities;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()J
+	public final fun component9 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/util/List;JJIIJJJLjava/io/File;Lkotlin/jvm/functions/Function1;)Lcom/superwallsupport/transport/SupportTransport$Configuration;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportTransport$Configuration;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportSdk;Ljava/lang/String;Ljava/lang/String;Lcom/superwallsupport/transport/SupportCapabilities;Ljava/util/List;JJIIJJJLjava/io/File;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/superwallsupport/transport/SupportTransport$Configuration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getApiKey ()Ljava/lang/String;
+	public final fun getBackoffInitialMillis ()J
+	public final fun getBackoffMaxMillis ()J
+	public final fun getBaseUrl ()Ljava/lang/String;
+	public final fun getCapabilities ()Lcom/superwallsupport/transport/SupportCapabilities;
+	public final fun getDropAfterAcceptingForTesting ()Lkotlin/jvm/functions/Function1;
+	public final fun getLocale ()Ljava/lang/String;
+	public final fun getPingDeadlineMillis ()J
+	public final fun getPingIntervalMillis ()J
+	public final fun getProofs ()Ljava/util/List;
+	public final fun getSdk ()Lcom/superwallsupport/transport/SupportSdk;
+	public final fun getSendBackoffMaxMillis ()J
+	public final fun getSendQueueFile ()Ljava/io/File;
+	public final fun getSocketReplayCap ()I
+	public final fun getStorefront ()Ljava/lang/String;
+	public final fun getWindowSize ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportTransport$Stats {
+	public fun <init> ()V
+	public fun <init> (IIIIIIII)V
+	public synthetic fun <init> (IIIIIIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()I
+	public final fun component7 ()I
+	public final fun component8 ()I
+	public final fun copy (IIIIIIII)Lcom/superwallsupport/transport/SupportTransport$Stats;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportTransport$Stats;IIIIIIIIILjava/lang/Object;)Lcom/superwallsupport/transport/SupportTransport$Stats;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConnects ()I
+	public final fun getDrops ()I
+	public final fun getDuplicates ()I
+	public final fun getGaps ()I
+	public final fun getHttpCatchUps ()I
+	public final fun getIgnoredFrames ()I
+	public final fun getPingTimeouts ()I
+	public final fun getResyncs ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class com/superwallsupport/transport/SupportTransportEvent {
+}
+
+public final class com/superwallsupport/transport/SupportTransportEvent$ConnectionChanged : com/superwallsupport/transport/SupportTransportEvent {
+	public fun <init> (Lcom/superwallsupport/transport/SupportConnectionState;)V
+	public final fun component1 ()Lcom/superwallsupport/transport/SupportConnectionState;
+	public final fun copy (Lcom/superwallsupport/transport/SupportConnectionState;)Lcom/superwallsupport/transport/SupportTransportEvent$ConnectionChanged;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportTransportEvent$ConnectionChanged;Lcom/superwallsupport/transport/SupportConnectionState;ILjava/lang/Object;)Lcom/superwallsupport/transport/SupportTransportEvent$ConnectionChanged;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getState ()Lcom/superwallsupport/transport/SupportConnectionState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportTransportEvent$Error : com/superwallsupport/transport/SupportTransportEvent {
+	public fun <init> (Ljava/lang/String;Z)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun copy (Ljava/lang/String;Z)Lcom/superwallsupport/transport/SupportTransportEvent$Error;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/SupportTransportEvent$Error;Ljava/lang/String;ZILjava/lang/Object;)Lcom/superwallsupport/transport/SupportTransportEvent$Error;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getRetryable ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportTransportEvent$LogChanged : com/superwallsupport/transport/SupportTransportEvent {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportTransportEvent$LogChanged;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportTransportEvent$PendingChanged : com/superwallsupport/transport/SupportTransportEvent {
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportTransportEvent$PendingChanged;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class com/superwallsupport/transport/SupportTransportException : java/lang/Exception {
+	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun isRetryable ()Z
+}
+
+public final class com/superwallsupport/transport/SupportTransportException$AttachmentTooLarge : com/superwallsupport/transport/SupportTransportException {
+	public fun <init> (I)V
+	public final fun getMax ()I
+}
+
+public final class com/superwallsupport/transport/SupportTransportException$InvalidMessage : com/superwallsupport/transport/SupportTransportException {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class com/superwallsupport/transport/SupportTransportException$MessageTooLong : com/superwallsupport/transport/SupportTransportException {
+	public fun <init> (I)V
+	public final fun getMax ()I
+}
+
+public final class com/superwallsupport/transport/SupportTransportException$Network : com/superwallsupport/transport/SupportTransportException {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class com/superwallsupport/transport/SupportTransportException$NotStarted : com/superwallsupport/transport/SupportTransportException {
+	public fun <init> ()V
+}
+
+public final class com/superwallsupport/transport/SupportTransportException$Redirected : com/superwallsupport/transport/SupportTransportException {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getUrl ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/SupportTransportException$Wire : com/superwallsupport/transport/SupportTransportException {
+	public fun <init> (Lcom/superwallsupport/transport/WireErrorBody;)V
+	public final fun getBody ()Lcom/superwallsupport/transport/WireErrorBody;
+}
+
+public final class com/superwallsupport/transport/SupportWire {
+	public static final field DEFAULT_WINDOW I
+	public static final field INSTANCE Lcom/superwallsupport/transport/SupportWire;
+	public static final field MAX_ATTACHMENT_BYTES I
+	public static final field MAX_MESSAGE_LENGTH I
+	public static final field MAX_WINDOW I
+	public static final field PING_FRAME Ljava/lang/String;
+	public static final field PROTOCOL Ljava/lang/String;
+	public static final field REDACTED_TEXT Ljava/lang/String;
+	public final fun getKNOWN_ENTRY_KINDS ()Ljava/util/Set;
+}
+
+public final class com/superwallsupport/transport/TailState {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/TailState;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/TailState;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/TailState;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMessageId ()Ljava/lang/String;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/ToolCallResultRequest {
+	public static final field Companion Lcom/superwallsupport/transport/ToolCallResultRequest$Companion;
+	public fun <init> (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;)V
+	public synthetic fun <init> (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lkotlinx/serialization/json/JsonElement;
+	public final fun copy (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;)Lcom/superwallsupport/transport/ToolCallResultRequest;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/ToolCallResultRequest;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;ILjava/lang/Object;)Lcom/superwallsupport/transport/ToolCallResultRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getData ()Lkotlinx/serialization/json/JsonElement;
+	public final fun getStatus ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/ToolCallResultRequest$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/ToolCallResultRequest$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/ToolCallResultRequest;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/ToolCallResultRequest;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/ToolCallResultRequest$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/UploadCompleted {
+	public static final field Companion Lcom/superwallsupport/transport/UploadCompleted$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/superwallsupport/transport/UploadCompleted;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/UploadCompleted;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/UploadCompleted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttachmentId ()Ljava/lang/String;
+	public final fun getStatus ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/UploadCompleted$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/UploadCompleted$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/UploadCompleted;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/UploadCompleted;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/UploadCompleted$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/UploadIntent {
+	public static final field Companion Lcom/superwallsupport/transport/UploadIntent$Companion;
+	public fun <init> (Ljava/lang/String;Lcom/superwallsupport/transport/UploadIntent$Upload;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/superwallsupport/transport/UploadIntent$Upload;
+	public final fun copy (Ljava/lang/String;Lcom/superwallsupport/transport/UploadIntent$Upload;)Lcom/superwallsupport/transport/UploadIntent;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/UploadIntent;Ljava/lang/String;Lcom/superwallsupport/transport/UploadIntent$Upload;ILjava/lang/Object;)Lcom/superwallsupport/transport/UploadIntent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttachmentId ()Ljava/lang/String;
+	public final fun getUpload ()Lcom/superwallsupport/transport/UploadIntent$Upload;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/UploadIntent$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/UploadIntent$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/UploadIntent;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/UploadIntent;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/UploadIntent$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/UploadIntent$Upload {
+	public static final field Companion Lcom/superwallsupport/transport/UploadIntent$Upload$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)Lcom/superwallsupport/transport/UploadIntent$Upload;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/UploadIntent$Upload;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/UploadIntent$Upload;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExpiresAt ()Ljava/lang/String;
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getMethod ()Ljava/lang/String;
+	public final fun getUrl ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/UploadIntent$Upload$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/UploadIntent$Upload$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/UploadIntent$Upload;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/UploadIntent$Upload;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/UploadIntent$Upload$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/UploadRequest {
+	public static final field Companion Lcom/superwallsupport/transport/UploadRequest$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()J
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)Lcom/superwallsupport/transport/UploadRequest;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/UploadRequest;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;ILjava/lang/Object;)Lcom/superwallsupport/transport/UploadRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBytes ()J
+	public final fun getFilename ()Ljava/lang/String;
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getMime ()Ljava/lang/String;
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/UploadRequest$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/UploadRequest$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/UploadRequest;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/UploadRequest;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/UploadRequest$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/WireDecodeIssue : java/lang/Exception {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun getPath ()Ljava/lang/String;
+}
+
+public abstract class com/superwallsupport/transport/WireEntry {
+	public static final field Companion Lcom/superwallsupport/transport/WireEntry$Companion;
+	public final fun getClientMessageId ()Ljava/lang/String;
+	public abstract fun getFallbackText ()Ljava/lang/String;
+	public abstract fun getId ()Ljava/lang/String;
+	public abstract fun getKind ()Ljava/lang/String;
+	public abstract fun getSeq ()Ljava/lang/Long;
+}
+
+public final class com/superwallsupport/transport/WireEntry$Companion {
+	public final fun decode (Lkotlinx/serialization/json/JsonElement;)Lcom/superwallsupport/transport/WireEntry;
+	public final fun decodeAll (Lkotlinx/serialization/json/JsonElement;)Ljava/util/List;
+}
+
+public final class com/superwallsupport/transport/WireEntry$Failed : com/superwallsupport/transport/WireEntry {
+	public fun <init> (Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Lkotlinx/serialization/json/JsonElement;)V
+	public final fun component1 ()Ljava/lang/Long;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Z
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Lkotlinx/serialization/json/JsonElement;
+	public final fun copy (Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Lkotlinx/serialization/json/JsonElement;)Lcom/superwallsupport/transport/WireEntry$Failed;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/WireEntry$Failed;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Lkotlinx/serialization/json/JsonElement;ILjava/lang/Object;)Lcom/superwallsupport/transport/WireEntry$Failed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFallbackText ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
+	public final fun getIssue ()Ljava/lang/String;
+	public fun getKind ()Ljava/lang/String;
+	public final fun getRaw ()Lkotlinx/serialization/json/JsonElement;
+	public final fun getRedacted ()Z
+	public fun getSeq ()Ljava/lang/Long;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/WireEntry$Known : com/superwallsupport/transport/WireEntry {
+	public fun <init> (Lcom/superwallsupport/transport/KnownEntry;Lkotlinx/serialization/json/JsonObject;)V
+	public final fun component1 ()Lcom/superwallsupport/transport/KnownEntry;
+	public final fun component2 ()Lkotlinx/serialization/json/JsonObject;
+	public final fun copy (Lcom/superwallsupport/transport/KnownEntry;Lkotlinx/serialization/json/JsonObject;)Lcom/superwallsupport/transport/WireEntry$Known;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/WireEntry$Known;Lcom/superwallsupport/transport/KnownEntry;Lkotlinx/serialization/json/JsonObject;ILjava/lang/Object;)Lcom/superwallsupport/transport/WireEntry$Known;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntry ()Lcom/superwallsupport/transport/KnownEntry;
+	public fun getFallbackText ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
+	public fun getKind ()Ljava/lang/String;
+	public final fun getRaw ()Lkotlinx/serialization/json/JsonObject;
+	public fun getSeq ()Ljava/lang/Long;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/WireEntry$Unknown : com/superwallsupport/transport/WireEntry {
+	public fun <init> (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonObject;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Lkotlinx/serialization/json/JsonObject;
+	public final fun copy (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonObject;)Lcom/superwallsupport/transport/WireEntry$Unknown;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/WireEntry$Unknown;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonObject;ILjava/lang/Object;)Lcom/superwallsupport/transport/WireEntry$Unknown;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFallbackText ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
+	public fun getKind ()Ljava/lang/String;
+	public final fun getRaw ()Lkotlinx/serialization/json/JsonObject;
+	public fun getSeq ()Ljava/lang/Long;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/superwallsupport/transport/WireErrorBody {
+	public static final field Companion Lcom/superwallsupport/transport/WireErrorBody$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Boolean;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lcom/superwallsupport/transport/WireErrorBody;
+	public static synthetic fun copy$default (Lcom/superwallsupport/transport/WireErrorBody;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lcom/superwallsupport/transport/WireErrorBody;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getRedirect ()Ljava/lang/String;
+	public final fun getRetryAfterMs ()Ljava/lang/Long;
+	public final fun getRetryable ()Ljava/lang/Boolean;
+	public final fun getTag ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isRetryable ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public synthetic class com/superwallsupport/transport/WireErrorBody$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/superwallsupport/transport/WireErrorBody$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/superwallsupport/transport/WireErrorBody;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/superwallsupport/transport/WireErrorBody;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/WireErrorBody$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/superwallsupport/transport/WireFrameDecoder {
+	public static final field INSTANCE Lcom/superwallsupport/transport/WireFrameDecoder;
+	public final fun decode (Ljava/lang/String;)Lcom/superwallsupport/transport/DecodedFrame;
+	public final fun decode (Lkotlinx/serialization/json/JsonElement;)Lcom/superwallsupport/transport/DecodedFrame;
+}
+
+public final class com/superwallsupport/transport/WireResume {
+	public static final field INSTANCE Lcom/superwallsupport/transport/WireResume;
+	public final fun applyEntryFrame (JJJ)Lcom/superwallsupport/transport/EntryFrameOutcome;
+	public final fun applyTail (Lcom/superwallsupport/transport/TailState;Ljava/lang/String;ILjava/lang/String;)Lcom/superwallsupport/transport/TailState;
+}
+

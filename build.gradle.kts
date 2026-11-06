@@ -41,5 +41,5 @@ extra["superwallVersion"] =
 apiValidation {
     // Only the published SDK modules are guarded; the sample and test apps have no public API.
     // "app" matches both :app and :example:app.
-    ignoredProjects += listOf("app", "test_app")
+    ignoredProjects += listOf("app", "test_app", "support-transport-test-app")
 }
