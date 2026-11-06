@@ -57,6 +57,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
@@ -808,9 +809,32 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         super.onStop()
 
         val paywallVc = paywallView() ?: return
+        val finishing = isFinishing
+        if (finishing) finishingTeardownStarted = true
 
         mainScope.launch {
-            paywallVc.destroyed(forceCleanup = isFinishing)
+            paywallVc.destroyed(forceCleanup = finishing)
+        }
+    }
+
+    // Whether the finishing teardown (PaywallView.destroyed(forceCleanup = true)) has started.
+    private var finishingTeardownStarted = false
+
+    /**
+     * Runs the finishing teardown when the activity was finished after it was already stopped,
+     * for example when the app's task is cleared from the background. Then onStop ran without
+     * isFinishing and only marked the paywall closed for background, so without this the SDK
+     * keeps treating the paywall as presented and every later register() fails with
+     * "Paywall Already Presented".
+     */
+    private fun tearDownIfFinishedWhileStopped() {
+        if (!isFinishing || finishingTeardownStarted) return
+        val paywallVc = paywallView() ?: return
+        finishingTeardownStarted = true
+        paywallVc.beforeOnDestroy(forceCleanup = true)
+        // Undispatched, so the teardown starts before cleanup() below clears the view's callback.
+        mainScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            paywallVc.destroyed(forceCleanup = true)
         }
     }
 
@@ -825,6 +849,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     override fun onDestroy() {
         notifications.release()
         super.onDestroy()
+        tearDownIfFinishedWhileStopped()
 
         val content = contentView as? ViewGroup?
         if (content != null && content is CoordinatorLayout) {
