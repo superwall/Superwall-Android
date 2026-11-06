@@ -59,6 +59,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -68,6 +69,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.collections.map
 
 class Superwall(
@@ -273,6 +275,40 @@ class Superwall(
      * @return The current CustomerInfo containing purchase and subscription data.
      */
     fun getCustomerInfo(): CustomerInfo = customerInfo.value
+
+    /**
+     * Fetches the user's entitlements from Superwall and returns the updated [CustomerInfo].
+     *
+     * Unlike [getCustomerInfo], which returns the cached value, this asks Superwall for the latest
+     * entitlements, even if they were fetched recently. Use it when your server has just reported a
+     * purchase to Superwall, for example one of a custom product sold through your own checkout, and
+     * you want the device to reflect it now.
+     *
+     * The fetched entitlements update [customerInfo] and [entitlements]. If the fetch fails, this
+     * returns the current [customerInfo]. In test mode nothing is fetched.
+     *
+     * The SDK already refreshes entitlements after a custom product purchase that your
+     * [com.superwall.sdk.delegate.subscription_controller.PurchaseController] reports as purchased,
+     * and when the app returns to the foreground.
+     */
+    suspend fun refreshCustomerInfo(): CustomerInfo {
+        if (dependencyContainer.testMode.isTestMode) return getCustomerInfo()
+        return withContext(Dispatchers.IO) {
+            dependencyContainer.reedemer.refreshWebEntitlements()
+            dependencyContainer.customerInfoManager.mergeCustomerInfo()
+        }
+    }
+
+    /**
+     * Fetches the user's entitlements from Superwall and passes the updated [CustomerInfo] to
+     * [onRefreshed], which is called on a background thread. See the suspending
+     * [refreshCustomerInfo] for details.
+     */
+    fun refreshCustomerInfo(onRefreshed: (CustomerInfo) -> Unit) {
+        ioScope.launch {
+            onRefreshed(refreshCustomerInfo())
+        }
+    }
 
     /**
      * Sets the Java delegate that handles Superwall lifecycle events.

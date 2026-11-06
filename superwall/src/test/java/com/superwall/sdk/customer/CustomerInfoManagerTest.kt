@@ -102,6 +102,29 @@ class CustomerInfoManagerTest {
         }
 
     @Test
+    fun `mergeCustomerInfo merges on the calling thread and returns the result`() {
+        val webEntitlement = Entitlement("custom_pro", isActive = true)
+        val webInfo =
+            CustomerInfo(
+                subscriptions = emptyList(),
+                nonSubscriptions = emptyList(),
+                userId = "user123",
+                entitlements = listOf(webEntitlement),
+                isPlaceholder = false,
+            )
+        every { storage.read(LatestDeviceCustomerInfo) } returns null
+        every { storage.read(LatestWebCustomerInfo) } returns webInfo
+
+        // No scheduler advance: the merge must not depend on the IO scope.
+        val merged = manager.mergeCustomerInfo()
+
+        assert(merged.entitlements == listOf(webEntitlement))
+        assert(manager.customerInfo.value == merged)
+        assert(customerInfoFlow.value == merged)
+        verify { storage.write(LatestCustomerInfo, merged) }
+    }
+
+    @Test
     fun `updateMergedCustomerInfo uses device info when web is blank`() =
         runTest(testDispatcher) {
             val deviceInfo =

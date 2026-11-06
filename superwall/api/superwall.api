@@ -93,6 +93,8 @@ public final class com/superwall/sdk/Superwall : com/superwall/sdk/paywall/view/
 	public final fun purchase-gIAlu-s (Lcom/superwall/sdk/store/abstractions/product/StoreProduct;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun purchase-gIAlu-s (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun refreshConfiguration ()V
+	public final fun refreshCustomerInfo (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun refreshCustomerInfo (Lkotlin/jvm/functions/Function1;)V
 	public final fun reset ()V
 	public final fun restorePurchases (Lkotlin/jvm/functions/Function1;)Lkotlinx/coroutines/Job;
 	public final fun restorePurchases-IoAF18A (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -4096,6 +4098,7 @@ public final class com/superwall/sdk/dependencies/DependencyContainer : com/supe
 	public fun internallyGetPresentationResult (Lcom/superwall/sdk/analytics/internal/trackable/Trackable;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun internallySetSubscriptionStatus (Lcom/superwall/sdk/models/entitlements/SubscriptionStatus;)V
 	public fun ioScope ()Lcom/superwall/sdk/misc/IOScope;
+	public fun isInForeground ()Z
 	public fun isPaymentSheetOpen ()Z
 	public fun isPaywallVisible (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun isTabletMinWidth ()Z
@@ -15326,6 +15329,7 @@ public abstract interface class com/superwall/sdk/web/WebPaywallRedeemer$Factory
 	public abstract fun getPaywallInfo ()Lcom/superwall/sdk/paywall/presentation/PaywallInfo;
 	public abstract fun getUserId-P5Wmf0A ()Ljava/lang/String;
 	public abstract fun internallySetSubscriptionStatus (Lcom/superwall/sdk/models/entitlements/SubscriptionStatus;)V
+	public abstract fun isInForeground ()Z
 	public abstract fun isPaymentSheetOpen ()Z
 	public abstract fun isPaywallVisible (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun isWebToAppEnabled ()Z
@@ -15341,6 +15345,7 @@ public abstract interface class com/superwall/sdk/web/WebPaywallRedeemer$Factory
 
 public final class com/superwall/sdk/web/WebPaywallRedeemer$Factory$DefaultImpls {
 	public static fun currentTimeMillis (Lcom/superwall/sdk/web/WebPaywallRedeemer$Factory;)J
+	public static fun isInForeground (Lcom/superwall/sdk/web/WebPaywallRedeemer$Factory;)Z
 	public static fun scheduleTrialNotifications (Lcom/superwall/sdk/web/WebPaywallRedeemer$Factory;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
