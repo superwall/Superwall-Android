@@ -4,6 +4,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Transaction.TransactionSource
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.models.product.Store
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -41,6 +42,12 @@ internal object TransactionAnalytics {
 
     private fun isObserverMode(purchaseSource: PurchaseSource) = purchaseSource is PurchaseSource.ObserverMode
 
+    /**
+     * The store a transaction event reports. Custom products are sold through the developer's own
+     * checkout, so they report `CUSTOM` rather than Google Play, which would count them as Play revenue.
+     */
+    fun storeOf(product: StoreProduct?): String = if (product?.isCustomProduct == true) Store.CUSTOM.name else Store.PLAY_STORE.name
+
     fun start(
         product: StoreProduct,
         purchaseSource: PurchaseSource,
@@ -54,6 +61,7 @@ internal object TransactionAnalytics {
         isObserved = isObserverMode(purchaseSource),
         demandScore = demand.score,
         demandTier = demand.tier,
+        store = storeOf(product),
     )
 
     fun abandon(
@@ -69,6 +77,7 @@ internal object TransactionAnalytics {
         isObserved = isObserverMode(purchaseSource),
         demandScore = demand.score,
         demandTier = demand.tier,
+        store = storeOf(product),
     )
 
     /**
@@ -105,6 +114,7 @@ internal object TransactionAnalytics {
         isObserved = isObservedForFailure(purchaseSource, observesPurchases),
         demandScore = demand.score,
         demandTier = demand.tier,
+        store = storeOf(product),
     )
 
     private fun isObservedForFailure(
@@ -129,6 +139,7 @@ internal object TransactionAnalytics {
         isObserved = isObserverMode(purchaseSource),
         demandScore = demand.score,
         demandTier = demand.tier,
+        store = storeOf(product),
         userAttributes = userAttributes,
         storefrontCountryCode = storefrontCountryCode,
     )
@@ -168,6 +179,7 @@ internal object TransactionAnalytics {
         isObserved = observesPurchases,
         demandScore = demand.score,
         demandTier = demand.tier,
+        store = storeOf(product),
     )
 
     fun restoreStart(paywallInfo: PaywallInfo) =
