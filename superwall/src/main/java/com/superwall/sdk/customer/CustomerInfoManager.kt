@@ -67,58 +67,62 @@ class CustomerInfoManager(
      * The merge is performed asynchronously on the IO scope to avoid blocking the caller.
      */
     fun updateMergedCustomerInfo() {
-        ioScope.launch {
-            val merged: CustomerInfo
+        ioScope.launch { mergeCustomerInfo() }
+    }
 
-            if (hasExternalPurchaseController()) {
-                merged =
-                    CustomerInfo.forExternalPurchaseController(
-                        storage = storage,
-                        subscriptionStatus = getSubscriptionStatus(),
-                    )
+    /** Merges as [updateMergedCustomerInfo] does, on the calling thread, and returns the result. */
+    internal fun mergeCustomerInfo(): CustomerInfo {
+        val merged: CustomerInfo
 
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.superwallCore,
-                    message =
-                        "Built CustomerInfo for external controller - " +
-                            "${merged.subscriptions.size} subs, " +
-                            "${merged.entitlements.size} entitlements",
-                )
-            } else {
-                val deviceInfo = storage.read(LatestDeviceCustomerInfo) ?: CustomerInfo.empty()
-                val webInfo = storage.read(LatestWebCustomerInfo) ?: CustomerInfo.empty()
-
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.superwallCore,
-                    message =
-                        "Merging CustomerInfo - Device: ${deviceInfo.subscriptions.size} subs, " +
-                            "Web: ${webInfo.subscriptions.size} subs",
+        if (hasExternalPurchaseController()) {
+            merged =
+                CustomerInfo.forExternalPurchaseController(
+                    storage = storage,
+                    subscriptionStatus = getSubscriptionStatus(),
                 )
 
-                // Merge with optimization: skip merge if one source is blank
-                merged =
-                    when {
-                        deviceInfo.isPlaceholder && webInfo.isPlaceholder -> CustomerInfo.empty()
-                        deviceInfo.isPlaceholder -> webInfo
-                        webInfo.isPlaceholder -> deviceInfo
-                        else -> deviceInfo.merge(webInfo) // Apply priority-based merging
-                    }
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.superwallCore,
+                message =
+                    "Built CustomerInfo for external controller - " +
+                        "${merged.subscriptions.size} subs, " +
+                        "${merged.entitlements.size} entitlements",
+            )
+        } else {
+            val deviceInfo = storage.read(LatestDeviceCustomerInfo) ?: CustomerInfo.empty()
+            val webInfo = storage.read(LatestWebCustomerInfo) ?: CustomerInfo.empty()
 
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.superwallCore,
-                    message =
-                        "Merged CustomerInfo - Total: ${merged.subscriptions.size} subs, " +
-                            "${merged.entitlements.size} entitlements",
-                )
-            }
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.superwallCore,
+                message =
+                    "Merging CustomerInfo - Device: ${deviceInfo.subscriptions.size} subs, " +
+                        "Web: ${webInfo.subscriptions.size} subs",
+            )
 
-            storage.write(LatestCustomerInfo, merged)
+            // Merge with optimization: skip merge if one source is blank
+            merged =
+                when {
+                    deviceInfo.isPlaceholder && webInfo.isPlaceholder -> CustomerInfo.empty()
+                    deviceInfo.isPlaceholder -> webInfo
+                    webInfo.isPlaceholder -> deviceInfo
+                    else -> deviceInfo.merge(webInfo) // Apply priority-based merging
+                }
 
-            customerInfo.value = merged
-            updateCustomerInfo(merged)
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.superwallCore,
+                message =
+                    "Merged CustomerInfo - Total: ${merged.subscriptions.size} subs, " +
+                        "${merged.entitlements.size} entitlements",
+            )
         }
+
+        storage.write(LatestCustomerInfo, merged)
+
+        customerInfo.value = merged
+        updateCustomerInfo(merged)
+        return merged
     }
 }

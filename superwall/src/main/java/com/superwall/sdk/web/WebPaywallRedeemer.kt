@@ -9,9 +9,11 @@ import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.models.config.WebToAppConfig
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
@@ -49,8 +51,25 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 internal const val WEB_TRIAL_NOTIFICATION_TIMEOUT_MILLIS = 30_000L
+
+/**
+ * How often entitlements are fetched when the config has no web checkout settings
+ * (`web2app_config`) to say. Apps whose purchases are reported by their own server, such as custom
+ * store products, rely on it for refunds, expiries and renewals to reach a running app: a shorter
+ * interval shows them sooner and costs a request per active user each time.
+ */
+internal const val DEFAULT_ENTITLEMENTS_MAX_AGE_MS = 15 * 60 * 1000L
+
+/**
+ * How long fetched entitlements stay fresh: the web checkout settings' max age when the config has
+ * one, otherwise [DEFAULT_ENTITLEMENTS_MAX_AGE_MS].
+ */
+internal fun entitlementsMaxAgeMs(webToAppConfig: WebToAppConfig?): Long =
+    webToAppConfig?.entitlementsMaxAgeMs?.takeIf { it > 0 } ?: DEFAULT_ENTITLEMENTS_MAX_AGE_MS
 
 @Suppress("EXPOSED_PARAMETER_TYPE")
 class WebPaywallRedeemer(
@@ -108,10 +127,22 @@ class WebPaywallRedeemer(
         suspend fun scheduleTrialNotifications(notifications: List<LocalNotification>) {}
 
         fun currentTimeMillis(): Long = System.currentTimeMillis()
+
+        /** Whether the app is in the foreground. Polls skip their fetch while it isn't. */
+        fun isInForeground(): Boolean = true
     }
 
     private var pollingJob: Job? = null
     private var redemptionJob: Job? = null
+    private val isPolling = AtomicBoolean(false)
+
+    // Responses that carry entitlements are applied in order, so an older one never replaces a
+    // newer one's. A fetch or background redeem takes its place when it's sent: a slow post-purchase
+    // redeem can't overwrite a refresh requested after it. A code redemption takes its place when
+    // it arrives, because redeeming the code changed the entitlements a fetch in flight may have read.
+    private val responseOrder = AtomicLong()
+    private val lastAppliedResponse = AtomicLong()
+    private val applyMutex = Mutex()
     // Code redemptions launch independently on IOScope; hold this across track() so two
     // overlapping same-code calls cannot both observe an empty set and emit twice.
     private val trialTrackingMutex = Mutex()
@@ -234,6 +265,7 @@ class WebPaywallRedeemer(
         }
         track(Redemptions(RedemptionState.Start, redemption))
         val requestedFor = currentUser()
+        val sentAt = if (redemption is RedeemType.Code) null else responseOrder.incrementAndGet()
         network
             .redeemToken(
                 allCodes,
@@ -262,28 +294,33 @@ class WebPaywallRedeemer(
                         )
                         return@fold
                     }
-                    storage.write(LatestRedemptionResponse, it)
-                    factory.setWebEntitlements(
-                        it.customerInfo
-                            ?.entitlements
-                            ?.filter { it.isActive }
-                            ?.toSet() ?: emptySet(),
-                    )
+                    val response = it
+                    // Apply access before trial handling can wait for notification permission.
+                    val applied =
+                        applyInOrder(sentAt ?: responseOrder.incrementAndGet()) {
+                            storage.write(LatestRedemptionResponse, response)
+                            val active =
+                                response.customerInfo
+                                    ?.entitlements
+                                    ?.filter { it.isActive }
+                                    ?.toSet()
+                                    .orEmpty()
+                            factory.setWebEntitlements(active)
+                            factory.internallySetSubscriptionStatus(
+                                SubscriptionStatus.Active(active + factory.getActiveDeviceEntitlements()),
+                            )
+                        }
+                    if (!applied) {
+                        Logger.debug(
+                            logLevel = LogLevel.debug,
+                            scope = LogScope.webEntitlements,
+                            message = "Skipped a redemption response older than the entitlements already applied",
+                        )
+                    }
                     track(
                         Redemptions(
                             RedemptionState.Complete,
                             redemption,
-                        ),
-                    )
-                    // Apply access before trial handling can wait for notification permission.
-                    factory.internallySetSubscriptionStatus(
-                        SubscriptionStatus.Active(
-                            it.customerInfo
-                                ?.entitlements
-                                ?.filter { it.isActive }
-                                ?.toSet()
-                                .orEmpty() +
-                                factory.getActiveDeviceEntitlements(),
                         ),
                     )
                     val codeResult =
@@ -374,6 +411,18 @@ class WebPaywallRedeemer(
 
     private fun currentUser(): Pair<UserId?, String?> = factory.getUserId() to factory.getAliasId()
 
+    /** Runs [apply] unless a response requested after [order] has already been applied. */
+    private suspend fun applyInOrder(
+        order: Long,
+        apply: suspend () -> Unit,
+    ): Boolean =
+        applyMutex.withLock {
+            if (order < lastAppliedResponse.get()) return@withLock false
+            lastAppliedResponse.accumulateAndGet(order, ::maxOf)
+            apply()
+            true
+        }
+
     private suspend fun handleTrialRedemption(result: RedemptionResult) {
         val product = (result as? RedemptionResult.Success)?.redemptionInfo?.paywallInfo?.product ?: return
         if (product.trialPeriodDays <= 0 || !factory.isPaywallVisible()) return
@@ -433,17 +482,34 @@ class WebPaywallRedeemer(
         userId: UserId?,
         deviceId: DeviceVendorId,
     ) = withErrorTracking {
+        val webCustomerInfo = fetchWebCustomerInfo(userId, deviceId)
+        saveFetchedCustomerInfo(webCustomerInfo)
+        webCustomerInfo.entitlements.toSet()
+    }
+
+    /**
+     * Fetches the user's web customer info without saving it. A failed request throws, so it is
+     * never mistaken for a user without entitlements.
+     */
+    private suspend fun fetchWebCustomerInfo(
+        userId: UserId?,
+        deviceId: DeviceVendorId,
+    ): CustomerInfo {
         val webEntitlementsResult =
             if (userId == null) {
                 network.webEntitlementsByDeviceID(deviceId)
             } else {
                 network.webEntitlementsByUserId(userId, deviceId)
             }
-        val webEntitlementsResponse = webEntitlementsResult.getSuccess()
+        val webEntitlementsResponse =
+            when (webEntitlementsResult) {
+                is Either.Success -> webEntitlementsResult.value
+                is Either.Failure -> throw webEntitlementsResult.error
+            }
 
         // Extract CustomerInfo from response or construct from entitlements
         val webCustomerInfo =
-            webEntitlementsResponse?.customerInfo ?: run {
+            webEntitlementsResponse.customerInfo ?: run {
                 // Fallback for backward compatibility
                 Logger.debug(
                     logLevel = LogLevel.debug,
@@ -467,12 +533,12 @@ class WebPaywallRedeemer(
                     "${webCustomerInfo.nonSubscriptions.size} non-subs",
         )
 
-        // Store web CustomerInfo
+        return webCustomerInfo
+    }
+
+    private fun saveFetchedCustomerInfo(webCustomerInfo: CustomerInfo) {
         storage.write(LatestWebCustomerInfo, webCustomerInfo)
         storage.write(LastWebEntitlementsFetchDate, System.currentTimeMillis())
-
-        // Return for compatibility with existing code
-        webCustomerInfo.entitlements.toSet()
     }
 
     fun clear(ownership: RedemptionOwnershipType) {
@@ -515,6 +581,8 @@ class WebPaywallRedeemer(
                 factory.getActiveDeviceEntitlements(),
             ),
         )
+        // Responses already in flight were requested for what was just cleared.
+        lastAppliedResponse.accumulateAndGet(responseOrder.incrementAndGet(), ::maxOf)
         redemptionJob?.cancel()
         redemptionJob =
             ioScope.launch {
@@ -529,12 +597,23 @@ class WebPaywallRedeemer(
      * next poll is too far off. Makes a network request, so call it off the main thread.
      */
     suspend fun refreshWebEntitlements() {
-        checkForWebEntitlements(factory.getUserId(), factory.getDeviceId())
+        val sentAt = responseOrder.incrementAndGet()
+        val requestedFor = currentUser()
+        withErrorTracking { fetchWebCustomerInfo(factory.getUserId(), factory.getDeviceId()) }
             .fold(
                 onFailure = {
                     it.printStackTrace()
                 },
-                onSuccess = { newEntitlements ->
+                onSuccess = { webCustomerInfo ->
+                    if (currentUser() != requestedFor) {
+                        Logger.debug(
+                            logLevel = LogLevel.debug,
+                            scope = LogScope.webEntitlements,
+                            message = "Dropping fetched entitlements for a user who is no longer current",
+                        )
+                        return@fold
+                    }
+                    val newEntitlements = webCustomerInfo.entitlements.toSet()
                     Logger.debug(
                         logLevel = LogLevel.debug,
                         scope = LogScope.webEntitlements,
@@ -543,59 +622,92 @@ class WebPaywallRedeemer(
                             mapOf("entitlements" to newEntitlements.map { it.id }.joinToString(",")),
                     )
 
-                    val latestRedeemResponse =
-                        storage.read(LatestRedemptionResponse)
-                    val existingWebEntitlements =
-                        latestRedeemResponse?.customerInfo?.entitlements?.toSet() ?: emptySet()
-
-                    // Update customerInfo with new entitlements if response exists
-                    if (latestRedeemResponse != null) {
-                        val updatedCustomerInfo =
-                            latestRedeemResponse.customerInfo?.copy(
-                                entitlements = newEntitlements.toList(),
-                            ) ?: CustomerInfo(
-                                subscriptions = emptyList(),
-                                nonSubscriptions = emptyList(),
-                                userId = "",
-                                entitlements = newEntitlements.toList(),
-                                isPlaceholder = false,
-                            )
-                        val updatedResponse =
-                            latestRedeemResponse.copy(
-                                customerInfo = updatedCustomerInfo,
-                            )
-                        storage.write(
-                            LatestRedemptionResponse,
-                            updatedResponse,
-                        )
-                        // Publish only what was persisted, so the cached web
-                        // entitlements always match what a cold start restores.
-                        factory.setWebEntitlements(
-                            newEntitlements.filter { it.isActive }.toSet(),
-                        )
-                    }
-
-                    // Trigger CustomerInfo merge
-                    customerInfoManager.updateMergedCustomerInfo()
-
-                    if (existingWebEntitlements.filter { it.isActive } != newEntitlements.filter { it.isActive }) {
-                        factory.internallySetSubscriptionStatus(
-                            SubscriptionStatus.Active(
-                                newEntitlements.filter { it.isActive }.toSet() + factory.getActiveDeviceEntitlements(),
-                            ),
+                    val applied =
+                        applyInOrder(sentAt) {
+                            saveFetchedCustomerInfo(webCustomerInfo)
+                            applyFetchedEntitlements(newEntitlements)
+                        }
+                    if (!applied) {
+                        Logger.debug(
+                            logLevel = LogLevel.debug,
+                            scope = LogScope.webEntitlements,
+                            message = "Skipped fetched entitlements older than the entitlements already applied",
                         )
                     }
                 },
             )
     }
 
+    /**
+     * Fetches entitlements unless they were fetched within the max age. Run when the app comes to
+     * the foreground and by the poll timer. A poll that starts while another is fetching is skipped.
+     */
+    internal suspend fun pollWebEntitlements() {
+        val lastFetch = storage.read(LastWebEntitlementsFetchDate)
+        if (lastFetch != null && factory.currentTimeMillis() - lastFetch < factory.maxAge()) return
+        if (!isPolling.compareAndSet(false, true)) return
+        try {
+            refreshWebEntitlements()
+        } finally {
+            isPolling.set(false)
+        }
+    }
+
+    private fun applyFetchedEntitlements(newEntitlements: Set<Entitlement>) {
+        val latestRedeemResponse =
+            storage.read(LatestRedemptionResponse)
+        val existingWebEntitlements =
+            latestRedeemResponse?.customerInfo?.entitlements?.toSet() ?: emptySet()
+
+        // Update customerInfo with new entitlements if response exists
+        if (latestRedeemResponse != null) {
+            val updatedCustomerInfo =
+                latestRedeemResponse.customerInfo?.copy(
+                    entitlements = newEntitlements.toList(),
+                ) ?: CustomerInfo(
+                    subscriptions = emptyList(),
+                    nonSubscriptions = emptyList(),
+                    userId = "",
+                    entitlements = newEntitlements.toList(),
+                    isPlaceholder = false,
+                )
+            val updatedResponse =
+                latestRedeemResponse.copy(
+                    customerInfo = updatedCustomerInfo,
+                )
+            storage.write(
+                LatestRedemptionResponse,
+                updatedResponse,
+            )
+            // Publish only what was persisted, so the cached web
+            // entitlements always match what a cold start restores.
+            factory.setWebEntitlements(
+                newEntitlements.filter { it.isActive }.toSet(),
+            )
+        }
+
+        // Trigger CustomerInfo merge
+        customerInfoManager.updateMergedCustomerInfo()
+
+        if (existingWebEntitlements.filter { it.isActive } != newEntitlements.filter { it.isActive }) {
+            factory.internallySetSubscriptionStatus(
+                SubscriptionStatus.Active(
+                    newEntitlements.filter { it.isActive }.toSet() + factory.getActiveDeviceEntitlements(),
+                ),
+            )
+        }
+    }
+
     private fun startPolling(maxAge: Long = factory.maxAge()) {
         pollingJob?.cancel()
         pollingJob =
             (ioScope + Dispatchers.IO).launch {
+                // A redemption just ran, so fetch now; later rounds skip while the app is in the
+                // background, where a fetch only costs a request nobody sees.
+                refreshWebEntitlements()
                 while (true) {
-                    refreshWebEntitlements()
                     delay(maxAge)
+                    if (factory.isInForeground()) pollWebEntitlements()
                 }
             }
     }

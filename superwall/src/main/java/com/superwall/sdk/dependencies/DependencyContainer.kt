@@ -45,6 +45,7 @@ import com.superwall.sdk.store.ObserverModeHandler
 import com.superwall.sdk.store.PurchaseFacade
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.getConfig
 import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.AdConsentPublisher
@@ -180,6 +181,7 @@ import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.utilities.trackError
 import com.superwall.sdk.web.DeepLinkReferrer
 import com.superwall.sdk.web.WebPaywallRedeemer
+import com.superwall.sdk.web.entitlementsMaxAgeMs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -1173,6 +1175,21 @@ class DependencyContainer internal constructor(
             appForegrounded = appLifecycleObserver.isInBackground.filter { !it }.map { },
         )
 
+        // Entitlements change outside the app: refunds, renewals and purchases a server reports,
+        // such as custom store ones. Check them when the app comes to the foreground. Until the
+        // config is retrieved the redeem it starts hasn't run, and it fetches them itself, so the
+        // foreground at launch costs no extra request. A process started in the background has
+        // its config by the time the user opens the app, so that foreground still checks.
+        ioScope.launch {
+            appLifecycleObserver.isInBackground
+                .filter { !it }
+                .collect {
+                    if (configManager.configState.value.getConfig() != null && !testMode.isTestMode) {
+                        reedemer.pollWebEntitlements()
+                    }
+                }
+        }
+
         /**
          * This loads the webview libraries in the background thread, giving us 100-200ms less lag
          * on first webview render.
@@ -1679,7 +1696,9 @@ class DependencyContainer internal constructor(
         delegateAdapter.didRedeemLink(redemptionResult)
     }
 
-    override fun maxAge(): Long = configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
+    override fun maxAge(): Long = entitlementsMaxAgeMs(configManager.config?.webToAppConfig)
+
+    override fun isInForeground(): Boolean = !appLifecycleObserver.isInBackground.value
 
     override fun getActiveDeviceEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
         entitlements.activeDeviceEntitlements

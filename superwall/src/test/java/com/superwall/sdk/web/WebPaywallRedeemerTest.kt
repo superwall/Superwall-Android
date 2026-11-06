@@ -8,6 +8,7 @@ import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.config.WebToAppConfig
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -57,6 +58,7 @@ class WebPaywallRedeemerTest {
             every { read(LatestWebCustomerInfo) } returns null
             every { write(LatestWebCustomerInfo, any()) } just Runs
             every { write(LastWebEntitlementsFetchDate, any()) } just Runs
+            every { read(LastWebEntitlementsFetchDate) } returns null
             every { read(RedeemedInstallReferrerCode) } returns null
             every { write(RedeemedInstallReferrerCode, any()) } just Runs
         }
@@ -438,6 +440,193 @@ class WebPaywallRedeemerTest {
         }
 
     @Test
+    fun `entitlements stay fresh for the web checkout max age, else 15 minutes`() {
+        Given("configs with and without web checkout settings") {
+            val withMaxAge = WebToAppConfig().apply { entitlementsMaxAgeMs = 60_000L }
+            val zeroMaxAge = WebToAppConfig().apply { entitlementsMaxAgeMs = 0L }
+            Then("the web checkout max age wins, and anything else falls back to 15 minutes") {
+                assertEquals(60_000L, entitlementsMaxAgeMs(withMaxAge))
+                assertEquals(15 * 60 * 1000L, entitlementsMaxAgeMs(null))
+                // A zero max age would make the poll loop spin, so it falls back too.
+                assertEquals(15 * 60 * 1000L, entitlementsMaxAgeMs(zeroMaxAge))
+            }
+        }
+    }
+
+    @Test
+    fun `a poll within the max age of the last fetch fetches nothing`() =
+        runTest(testDispatcher) {
+            Given("entitlements fetched a minute ago and a 15 minute max age") {
+                maxAge = { DEFAULT_ENTITLEMENTS_MAX_AGE_MS }
+                every { storage.read(LastWebEntitlementsFetchDate) } returns System.currentTimeMillis() - 60_000L
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("the app comes to the foreground and polls") {
+                    redeemer.pollWebEntitlements()
+
+                    Then("no request is made") {
+                        coVerify(exactly = 0) { network.webEntitlementsByUserId(any(), any()) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a poll after the max age fetches the entitlements`() =
+        runTest(testDispatcher) {
+            Given("entitlements fetched 16 minutes ago and a 15 minute max age") {
+                maxAge = { DEFAULT_ENTITLEMENTS_MAX_AGE_MS }
+                every { storage.read(LastWebEntitlementsFetchDate) } returns System.currentTimeMillis() - 16 * 60_000L
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("the app comes to the foreground and polls") {
+                    redeemer.pollWebEntitlements()
+
+                    Then("the entitlements are fetched once and applied") {
+                        coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+                        assertTrue(webEntitlement in mutableEntitlements)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a poll with no fetch on record fetches the entitlements`() =
+        runTest(testDispatcher) {
+            Given("entitlements never fetched on this install") {
+                every { storage.read(LastWebEntitlementsFetchDate) } returns null
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("the app polls") {
+                    redeemer.pollWebEntitlements()
+
+                    Then("the entitlements are fetched") {
+                        coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a slow redeem doesn't overwrite a refresh requested after it`() =
+        runTest(testDispatcher) {
+            Given("a background redeem whose response arrives after a later refresh applied") {
+                val stale = Entitlement("stale_entitlement")
+                val response = redemptionResponse(stale)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } coAnswers {
+                    // While the redeem is in flight, the app asks for fresh entitlements.
+                    redeemer.refreshWebEntitlements()
+                    Either.Success(response)
+                }
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("the redeem's response arrives") {
+                    redeemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+
+                    Then("the refresh's entitlements stay and the redeem's are not saved") {
+                        assertTrue(webEntitlement in mutableEntitlements)
+                        assertTrue(stale !in mutableEntitlements)
+                        verify(exactly = 0) { storage.write(LatestRedemptionResponse, response) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a code redemption is applied even when a fetch was sent before it arrived`() =
+        runTest(testDispatcher) {
+            Given("a code redemption that arrives after a fetch was sent") {
+                val redeemed = Entitlement("redeemed_entitlement")
+                val response = redemptionResponse(redeemed)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } coAnswers {
+                    redeemer.refreshWebEntitlements()
+                    Either.Success(response)
+                }
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("the code's response arrives") {
+                    redeemer.redeem(WebPaywallRedeemer.RedeemType.Code("code_1"))
+
+                    Then("it is saved, since redeeming the code changed the entitlements") {
+                        verify(exactly = 1) { storage.write(LatestRedemptionResponse, response) }
+                        assertTrue(redeemed in mutableEntitlements)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a failed poll keeps the entitlements the user has`() =
+        runTest(testDispatcher) {
+            Given("a user with a web entitlement whose entitlements fetch fails, as when offline") {
+                val stored = redemptionResponse(webEntitlement)
+                every { storage.read(LatestRedemptionResponse) } returns stored
+                coEvery {
+                    network.webEntitlementsByUserId(any(), any())
+                } returns Either.Failure(NetworkError.Unknown(Error("offline")))
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("the app comes to the foreground and polls") {
+                    redeemer.pollWebEntitlements()
+
+                    Then("the stored entitlements and fetch time are left alone") {
+                        verify(exactly = 0) { storage.write(LatestRedemptionResponse, any()) }
+                        verify(exactly = 0) { storage.write(LatestWebCustomerInfo, any()) }
+                        verify(exactly = 0) { storage.write(LastWebEntitlementsFetchDate, any()) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a refresh whose user changed in flight is dropped`() =
+        runTest(testDispatcher) {
+            Given("a refresh in flight when the app identifies a different user") {
+                val stored = redemptionResponse(normalEntitlement)
+                every { storage.read(LatestRedemptionResponse) } returns stored
+                coEvery {
+                    network.webEntitlementsByUserId(any(), any())
+                } coAnswers {
+                    getUserId = { UserId("someone_else") }
+                    Either.Success(
+                        WebEntitlements(
+                            customerInfo =
+                                CustomerInfo(
+                                    subscriptions = emptyList(),
+                                    nonSubscriptions = emptyList(),
+                                    userId = "test_user",
+                                    entitlements = listOf(webEntitlement),
+                                    isPlaceholder = false,
+                                ),
+                        ),
+                    )
+                }
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("its response arrives") {
+                    redeemer.refreshWebEntitlements()
+
+                    Then("the previous user's entitlements aren't saved for the new one") {
+                        verify(exactly = 0) { storage.write(LatestRedemptionResponse, any()) }
+                        verify(exactly = 0) { storage.write(LatestWebCustomerInfo, any()) }
+                        assertTrue(webEntitlement !in mutableEntitlements)
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `test failed referral check`() =
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with failing referral check") {
@@ -599,10 +788,12 @@ class WebPaywallRedeemerTest {
                             DeviceVendorId(VendorId("test_device")),
                         )
 
-                    Then("it should return an empty list") {
-                        assert(result is Either.Success)
-                        val entitlements = (result as Either.Success).value
-                        assert(entitlements.isEmpty())
+                    Then("it fails instead of reporting a user without entitlements") {
+                        assertTrue(result is Either.Failure)
+                    }
+                    And("nothing is saved, so the next poll fetches again") {
+                        verify(exactly = 0) { storage.write(LatestWebCustomerInfo, any()) }
+                        verify(exactly = 0) { storage.write(LastWebEntitlementsFetchDate, any()) }
                     }
                 }
             }
