@@ -21,7 +21,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.util.Collections
-import java.util.UUID
 
 /**
  * Intent extras (adb shell am start ... --es/--ei/--ez):
@@ -62,7 +61,8 @@ class MainActivity : Activity() {
                     apiKey = apiKey,
                     sdk = SupportSdk("android", "test", addonVersion = "transport-m1"),
                     locale = resources.configuration.locales[0].toLanguageTag(),
-                    proofs = listOf(SupportProof("install_secret", UUID.randomUUID().toString())),
+                    // 256 random bits, as inbox-api requires of an install secret.
+                    proofs = listOf(SupportProof("install_secret", installSecret())),
                     sendQueueFile = File(filesDir, "send-queue.json").also { it.delete() },
                     dropAfterAcceptingForTesting = if (dropEverySeq) { seq -> dropped.add(seq) } else null,
                 ),
@@ -135,6 +135,11 @@ class MainActivity : Activity() {
         lines.insert(0, line + "\n")
         if (lines.length > 8000) lines.setLength(8000)
         view.text = lines
+    }
+
+    private fun installSecret(): String {
+        val bytes = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+        return android.util.Base64.encodeToString(bytes, android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
     }
 
     override fun onDestroy() {

@@ -98,7 +98,11 @@ internal class WireFields(
 
     fun long(key: String): Long = value(key).intOrNull ?: throw fail(key, "Expected an integer")
 
-    fun int(key: String): Int = long(key).toInt()
+    fun int(key: String): Int {
+        val value = long(key)
+        if (value < Int.MIN_VALUE || value > Int.MAX_VALUE) throw fail(key, "Integer out of range")
+        return value.toInt()
+    }
 
     fun optionalInt(key: String): Int? = if (has(key)) int(key) else null
 

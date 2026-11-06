@@ -239,6 +239,9 @@ class SupportTransport internal constructor(
     private var pingJob: Job? = null
     private var consecutiveGaps = 0
     private var consecutiveResyncs = 0
+
+    /** When the socket went live: a drop after a ping interval starts backoff over. */
+    private var liveSince: Long? = null
     private var sendJob: Job? = null
     private var sendBackoff = configuration.backoffInitialMillis
 
@@ -296,7 +299,11 @@ class SupportTransport internal constructor(
             stopped = false
             try {
                 startSession(conversationId)
-            } catch (error: SupportTransportException) {
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (other: Exception) {
+                // Anything at all ends as a retryable start or a reported failure, never silence.
+                val error = other as? SupportTransportException ?: SupportTransportException.Network(other.javaClass.simpleName)
                 if (stopped) throw error
                 if (error.isRetryable) {
                     // Opened offline, or the server is down: keep trying without the caller.
@@ -476,9 +483,13 @@ class SupportTransport internal constructor(
         session = started
         if (switched && previous != null) {
             // The old conversation's queued sends can't go anywhere now: fail them visibly.
-            queue.all.filter { it.conversationId == previous && it.state == PendingMessage.State.PENDING }.forEach { item ->
+            val stranded = queue.all.filter { it.conversationId == previous && it.state == PendingMessage.State.PENDING }
+            stranded.forEach { item ->
                 queue.update(item.clientMessageId) { it.copy(state = PendingMessage.State.FAILED, failure = "conversation_changed") }
             }
+            if (stranded.isNotEmpty()) emit(SupportTransportEvent.Error("conversation_changed", false))
+            emit(SupportTransportEvent.PendingChanged)
+            emit(SupportTransportEvent.LogChanged)
         }
         // The socket was closed for the old conversation: open one for the new one.
         if (switched && this.started) connect()
@@ -656,6 +667,7 @@ class SupportTransport internal constructor(
                     EntryFrameOutcome.Accept -> {
                         consecutiveGaps = 0
                         consecutiveResyncs = 0
+                        sessionRenewals = 0
                         // Progress: the path works, so a drop after this retries from the first step.
                         backoff = configuration.backoffInitialMillis
                         log.entry(frame.seq)?.clientMessageId?.let { id ->
@@ -716,8 +728,8 @@ class SupportTransport internal constructor(
         val head = readyHead ?: return
         if (state != SupportConnectionState.CatchingUp || log.cursor < head) return
         state = SupportConnectionState.Live
-        backoff = configuration.backoffInitialMillis
-        sessionRenewals = 0
+        consecutiveResyncs = 0
+        liveSince = now()
     }
 
     /** Drops this socket, runs [work] (an HTTP read), then reconnects. No socket opens meanwhile. */
@@ -764,6 +776,14 @@ class SupportTransport internal constructor(
         reason: String,
     ) {
         stats = stats.copy(drops = stats.drops + 1)
+        // A server that accepts and drops at once keeps backing off; a socket that lasted resets it.
+        liveSince?.let {
+            if (now() - it >= configuration.pingIntervalMillis) {
+                backoff = configuration.backoffInitialMillis
+                sessionRenewals = 0
+            }
+        }
+        liveSince = null
         logger("socket dropped: code ${closeCode ?: "none"}, $reason")
         closeSocket("dropped")
         when (closeCode) {
@@ -944,7 +964,8 @@ class SupportTransport internal constructor(
                 val accepted = authenticated { token, id -> http.sendMessage(token, id, message) }
                 sendBackoff = configuration.backoffInitialMillis
                 queue.remove(next.clientMessageId)
-                log.holdOutOfBand(WireEntry.decode(accepted.entry))
+                // Only into the log of the conversation it was sent to.
+                if (session?.conversationId == conversationId) log.holdOutOfBand(WireEntry.decode(accepted.entry))
                 emit(SupportTransportEvent.PendingChanged)
                 emit(SupportTransportEvent.LogChanged)
             } catch (error: SupportTransportException) {
@@ -999,8 +1020,9 @@ class SupportTransport internal constructor(
         cardId: String,
         request: CardActionRequest,
     ) = withContext(confined) {
+        val conversationId = session?.conversationId
         val accepted = withRetries { authenticated { token, _ -> http.cardAction(token, cardId, request) } }
-        accepted.entries.forEach { log.holdOutOfBand(WireEntry.decode(it)) }
+        if (session?.conversationId == conversationId) accepted.entries.forEach { log.holdOutOfBand(WireEntry.decode(it)) }
         emit(SupportTransportEvent.LogChanged)
     }
 
