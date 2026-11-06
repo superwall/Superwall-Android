@@ -248,7 +248,7 @@ class TransportUnitTest {
             waitUntil("socket") { sockets.made.size == 1 }
             sockets.latest.deliver("""{"type":"error","code":"conversation_not_found","message":"Gone","retryable":false}""")
             delay(50)
-            sockets.latest.closeFromServer(null)
+            sockets.latest.closeFromServer(1005)
             waitUntil("stopped") { transport.state == SupportConnectionState.Stopped("not_found") }
         }
 
@@ -321,6 +321,21 @@ class TransportUnitTest {
             } catch (_: SupportTransportException) {
             }
             waitUntil("connected on its own") { sockets.made.size == 1 }
+            assertEquals(1, http.sessionsStarted)
+            transport.stop()
+        }
+
+    /** Two starts at once share one: both return with the session, one session is made. */
+    @Test
+    fun concurrentStartsShareOne() =
+        runBlocking {
+            http.sessionDelayMillis = 200
+            val transport = transport()
+            val first = launch { transport.start() }
+            val second = launch { transport.start() }
+            first.join()
+            second.join()
+            assertTrue(transport.session != null)
             assertEquals(1, http.sessionsStarted)
             transport.stop()
         }

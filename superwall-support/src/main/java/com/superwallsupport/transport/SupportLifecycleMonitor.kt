@@ -41,7 +41,9 @@ class SupportLifecycleMonitor(
 
             override fun onLost(network: Network) {
                 val none = synchronized(available) { available.remove(network); available.isEmpty() }
-                if (none) transport.setNetworkAvailable(false)
+                // Another network remains (Wi-Fi lost, cell up): the socket may have been on the
+                // lost one, so "still available" makes the transport probe it.
+                transport.setNetworkAvailable(!none)
             }
         }
 
@@ -67,6 +69,7 @@ class SupportLifecycleMonitor(
     }
 
     fun stop() {
+        synchronized(available) { available.clear() }
         Handler(Looper.getMainLooper()).post {
             ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
         }

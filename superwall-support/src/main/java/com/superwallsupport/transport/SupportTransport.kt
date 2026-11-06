@@ -28,7 +28,7 @@ sealed class SupportTransportEvent {
         val state: SupportConnectionState,
     ) : SupportTransportEvent()
 
-    /** Entries, the tail, status or presence changed. Read [SupportTransport.log]. */
+    /** Entries, the tail, status or presence changed. Read [SupportTransport.snapshot]. */
     data object LogChanged : SupportTransportEvent()
 
     /** A pending send was added, retried, confirmed or failed. */
@@ -209,7 +209,6 @@ class SupportTransport internal constructor(
     private var foreground = true
     private var networkAvailable = true
     private var started = false
-    private var starting = false
     private var stopped = false
 
     /** A start that failed retryably: retried on backoff, and at once on network or foreground. */
@@ -223,6 +222,9 @@ class SupportTransport internal constructor(
     /** Bumped whenever the log is replaced, so a scroll-back in flight is dropped. */
     private var logEpoch = 0
     private var sessionRenewals = 0
+
+    /** A 4001 renewal is running: no socket opens with the old token meanwhile. */
+    private var renewing = false
 
     /** The last `error` frame on this socket, for a close that comes without a code. */
     private var lastErrorCode: String? = null
@@ -264,29 +266,61 @@ class SupportTransport internal constructor(
      */
     suspend fun start(conversationId: String? = null) {
         // Runs in the transport's own scope: a caller cancelled mid-start (the user left
-        // the screen) can't leave it half started.
-        scope.async { startInScope(conversationId) }.await()
+        // the screen) can't leave it half started. A start already running (the background
+        // retry, or another caller) is shared rather than skipped.
+        val deferred =
+            try {
+                withContext(confined) {
+                    if (started) return@withContext null
+                    startInFlight ?: scope.async { startInScope(conversationId) }.also { startInFlight = it }
+                }
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                throw SupportTransportException.NotStarted()
+            } ?: return
+        try {
+            deferred.await()
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            // stop() cancelled the transport mid-start: report it as not started, not as a
+            // cancellation of the caller's own coroutine.
+            if (stopped) throw SupportTransportException.NotStarted()
+            throw error
+        }
     }
 
+    private var startInFlight: kotlinx.coroutines.Deferred<Unit>? = null
+
     private suspend fun startInScope(conversationId: String?) {
-        if (started || starting) return
-        starting = true
         startRetryJob?.cancel()
         try {
             stopped = false
             try {
                 startSession(conversationId)
             } catch (error: SupportTransportException) {
+                if (stopped) throw error
                 if (error.isRetryable) {
                     // Opened offline, or the server is down: keep trying without the caller.
                     startWanted = true
                     startConversationId = conversationId
-                    state = if (networkAvailable) SupportConnectionState.WaitingToRetry(backoff) else SupportConnectionState.Offline
+                    state =
+                        when {
+                            !foreground -> SupportConnectionState.Idle
+                            networkAvailable -> SupportConnectionState.WaitingToRetry(backoff)
+                            else -> SupportConnectionState.Offline
+                        }
                     scheduleStartRetry()
+                } else {
+                    // Not worth retrying (a 4xx, a redirect): say so and stop asking.
+                    if (startWanted && error !is SupportTransportException.Redirected) {
+                        startWanted = false
+                        state = SupportConnectionState.Stopped("start_failed")
+                    }
+                    emit(SupportTransportEvent.Error((error as? SupportTransportException.Wire)?.body?.tag ?: error.javaClass.simpleName, false))
                 }
                 throw error
             }
+            if (stopped) return
             startWanted = false
+            backoff = configuration.backoffInitialMillis
             httpBusy = true
             try {
                 reloadNewestWindow()
@@ -299,7 +333,7 @@ class SupportTransport internal constructor(
             connect()
             flushSends()
         } finally {
-            starting = false
+            startInFlight = null
         }
     }
 
@@ -318,9 +352,11 @@ class SupportTransport internal constructor(
     }
 
     private suspend fun retryStart() {
-        if (!startWanted || started || stopped) return
+        if (!startWanted || started || stopped || startInFlight != null) return
+        val deferred = scope.async { startInScope(startConversationId) }
+        startInFlight = deferred
         try {
-            startInScope(startConversationId)
+            deferred.await()
         } catch (_: SupportTransportException) {
             // Scheduled again inside when it is still retryable.
         }
@@ -389,6 +425,8 @@ class SupportTransport internal constructor(
 
     private fun probeOrConnect() {
         backoff = configuration.backoffInitialMillis
+        // Still connecting: its handshake has no frame to answer with yet, so don't probe it.
+        if (state == SupportConnectionState.Connecting) return
         val current = socket
         // A socket that survived may be dead without knowing it: ping now and check the deadline.
         if (current != null) sendPing(current, generation) else connect()
@@ -422,13 +460,16 @@ class SupportTransport internal constructor(
             stopForGood("redirect")
             throw SupportTransportException.Redirected(it.url)
         }
+        val switched = session != null && session?.conversationId != started.conversationId
         if (session?.conversationId != started.conversationId) {
             // A new conversation: the old socket and log belong to the old one.
-            if (session != null) closeSocket("new conversation")
+            if (switched) closeSocket("new conversation")
             log.reset(started.conversationId)
             logEpoch += 1
         }
         session = started
+        // The socket was closed for the old conversation: open one for the new one.
+        if (switched && this.started) connect()
         logger("session started, conversation ${started.conversationId}")
     }
 
@@ -440,7 +481,8 @@ class SupportTransport internal constructor(
         } catch (error: SupportTransportException.Wire) {
             if (error.body.tag != "SessionInvalid" && error.body.tag != "HTTP401") throw error
             startSession(current.conversationId)
-            val renewed = session ?: throw SupportTransportException.NotStarted()
+            // Never replay a command against another conversation: a message for A must not land in B.
+            val renewed = session?.takeIf { it.conversationId == current.conversationId } ?: throw error
             call(renewed.sessionToken, renewed.conversationId)
         }
     }
@@ -459,11 +501,14 @@ class SupportTransport internal constructor(
      */
     private suspend fun catchUpOverHttp() {
         stats = stats.copy(httpCatchUps = stats.httpCatchUps + 1)
+        val epoch = logEpoch
         repeat(MAX_CATCH_UP_WINDOWS) {
-            if (!foreground || stopped) return
+            // Backgrounded, stopped, or the log was replaced (a new conversation): stop reading.
+            if (!foreground || stopped || epoch != logEpoch) return
             val cursor = log.cursor
             val window =
                 authenticated { token, id -> http.entries(token, id, after = cursor, limit = configuration.windowSize) }
+            if (epoch != logEpoch) return
             log.applyCatchUp(window)
             reconcileQueue(window)
             emit(SupportTransportEvent.LogChanged)
@@ -510,7 +555,7 @@ class SupportTransport internal constructor(
 
     private fun connect() {
         val current = session
-        if (!started || stopped || httpBusy || !foreground || !networkAvailable || socket != null || current == null) {
+        if (!started || stopped || httpBusy || renewing || !foreground || !networkAvailable || socket != null || current == null) {
             if (!networkAvailable && !stopped) state = SupportConnectionState.Offline
             return
         }
@@ -544,7 +589,9 @@ class SupportTransport internal constructor(
             }
         } catch (error: SupportSocket.Closed) {
             // An `error` frame before the close says what it means when no code came with it.
-            if (generation == this.generation) dropped(socket.closeCode ?: closeCodeFor(lastErrorCode), error.message ?: "closed")
+            // OkHttp reports a close frame without a code as 1005; 1006 is an abnormal close.
+            val reported = socket.closeCode?.takeUnless { it == 1005 || it == 1006 }
+            if (generation == this.generation) dropped(reported ?: closeCodeFor(lastErrorCode), error.message ?: "closed")
         }
     }
 
@@ -575,6 +622,8 @@ class SupportTransport internal constructor(
         frame: ServerFrame,
         socket: SupportSocket,
     ) {
+        // Only an error frame right before the close explains it; any later frame clears it.
+        if (frame !is ServerFrame.Error) lastErrorCode = null
         when (frame) {
             is ServerFrame.Ready -> {
                 log.ready()
@@ -614,7 +663,7 @@ class SupportTransport internal constructor(
                         stats = stats.copy(gaps = stats.gaps + 1)
                         consecutiveGaps += 1
                         logger("gap: holding ${outcome.expected}, frame prev ${outcome.prev}; reconnecting")
-                        replaceSocket("gap", useBackoff = consecutiveGaps > 3) {}
+                        replaceSocket("gap", useBackoff = consecutiveGaps > 3, readsHttp = false) {}
                     }
                 }
             is ServerFrame.Tail -> {
@@ -660,9 +709,12 @@ class SupportTransport internal constructor(
     private suspend fun replaceSocket(
         reason: String,
         useBackoff: Boolean = false,
+        readsHttp: Boolean = true,
         work: suspend () -> Unit,
     ) {
         closeSocket(reason)
+        val cursorBefore = log.cursor
+        val epochBefore = logEpoch
         httpBusy = true
         state = SupportConnectionState.CatchingUp
         try {
@@ -675,7 +727,9 @@ class SupportTransport internal constructor(
         } finally {
             httpBusy = false
         }
-        if (useBackoff) scheduleRetry() else connect()
+        // An HTTP read that moved nothing (bad data) must not loop ready → read → connect.
+        val noProgress = readsHttp && log.cursor == cursorBefore && logEpoch == epochBefore
+        if (useBackoff || noProgress) scheduleRetry() else connect()
     }
 
     private fun closeSocket(reason: String) {
@@ -697,14 +751,19 @@ class SupportTransport internal constructor(
         when (closeCode) {
             SupportCloseCode.SESSION_INVALID -> {
                 state = SupportConnectionState.Connecting
+                renewing = true
                 scope.launch {
                     sessionRenewals += 1
                     try {
                         startSession(session?.conversationId)
+                        renewing = false
                         // A server that keeps refusing new tokens gets backoff, not a tight loop.
                         if (sessionRenewals > 1) scheduleRetry() else connect()
                     } catch (_: SupportTransportException) {
+                        renewing = false
                         scheduleRetry()
+                    } finally {
+                        renewing = false
                     }
                 }
             }
@@ -726,7 +785,8 @@ class SupportTransport internal constructor(
         closeSocket(reason)
         sendJob?.cancel()
         var changed = false
-        queue.all.filter { it.state == PendingMessage.State.PENDING }.forEach { item ->
+        val conversationId = session?.conversationId
+        queue.all.filter { it.state == PendingMessage.State.PENDING && it.conversationId == conversationId }.forEach { item ->
             queue.update(item.clientMessageId) { it.copy(state = PendingMessage.State.FAILED, failure = reason) }
             changed = true
         }
@@ -735,7 +795,7 @@ class SupportTransport internal constructor(
     }
 
     private fun scheduleRetry() {
-        if (stopped) return
+        if (stopped || socket != null) return
         if (!foreground) {
             state = SupportConnectionState.Idle
             return
@@ -767,7 +827,8 @@ class SupportTransport internal constructor(
         pingJob?.cancel()
         // The server's heartbeat is an upper bound; never below a second, whatever it says.
         val interval =
-            minOf(configuration.pingIntervalMillis, (session?.heartbeatSeconds ?: 10) * 1000L).coerceAtLeast(1_000)
+            minOf(configuration.pingIntervalMillis, (session?.heartbeatSeconds?.takeIf { it > 0 } ?: 10) * 1000L)
+                .coerceAtLeast(1_000)
         pingJob =
             scope.launch {
                 while (isActive) {
@@ -821,6 +882,8 @@ class SupportTransport internal constructor(
     /** Retries a failed send by hand, with the same `clientMessageId`. */
     fun retry(clientMessageId: String) =
         post {
+            // Stopped for good: it can't be sent from here.
+            if (stopped) return@post
             queue.update(clientMessageId) { it.copy(state = PendingMessage.State.PENDING, failure = null) }
             emit(SupportTransportEvent.PendingChanged)
             flushSends(resetBackoff = true)
@@ -866,6 +929,8 @@ class SupportTransport internal constructor(
                 emit(SupportTransportEvent.LogChanged)
             } catch (error: SupportTransportException) {
                 if (error.isRetryable) {
+                    // Cancelled to restart at once: leave the backoff to the new drain.
+                    if (!kotlinx.coroutines.currentCoroutineContext().isActive) return
                     logger("send retry after ${error.javaClass.simpleName}")
                     val wait = maxOf(sendBackoff, error.retryAfterMillis ?: 0)
                     sendBackoff = (sendBackoff * 2).coerceAtMost(configuration.sendBackoffMaxMillis)
@@ -960,7 +1025,8 @@ class SupportTransport internal constructor(
                 cursor = log.cursor,
                 pending = pendingMessages,
             )
-        eventHandler?.invoke(event)
+        // A throwing handler must not break the transport mid-step.
+        eventHandler?.let { handler -> runCatching { handler(event) }.onFailure { logger("event handler threw ${it.javaClass.simpleName}") } }
     }
 
     /** Drops the socket as if the network had cut it. For test apps and debugging only. */
