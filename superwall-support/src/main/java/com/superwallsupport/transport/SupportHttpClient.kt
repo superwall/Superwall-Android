@@ -1,6 +1,8 @@
 package com.superwallsupport.transport
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import okhttp3.Call
 import okhttp3.Callback
@@ -163,7 +165,14 @@ internal class SupportHttpClient(
                 .method(method, body?.toRequestBody(jsonType))
         token?.let { builder.header("Authorization", "Bearer $it") }
         val response = execute(builder.build())
-        val text = response.use { it.body?.string() ?: "" }
+        // The body is read off the transport's thread, and a reset or timeout while reading
+        // it is a retryable network error like any other.
+        val text =
+            try {
+                withContext(Dispatchers.IO) { response.use { it.body?.string() ?: "" } }
+            } catch (error: IOException) {
+                throw SupportTransportException.Network(error.javaClass.simpleName)
+            }
         if (!response.isSuccessful) {
             val error =
                 try {

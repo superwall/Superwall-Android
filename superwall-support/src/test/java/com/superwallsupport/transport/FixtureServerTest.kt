@@ -18,11 +18,34 @@ import java.util.UUID
  *   PORT=8791 pnpm --filter @superwall/inbox-test-client fixture-server
  *   SUPPORT_FIXTURE_URL=http://localhost:8791 ./gradlew :superwall-support:testDebugUnitTest
  *
- * Skipped when SUPPORT_FIXTURE_URL isn't set.
+ * Skipped when SUPPORT_FIXTURE_URL isn't set. Against a real inbox-api (the Core lane's
+ * preview) set SUPPORT_API_KEY (e.g. pk_echo) and SUPPORT_FIXTURE_SCRIPTS=0: the scripted
+ * conversations are fixture-server only and are skipped.
  */
 class FixtureServerTest {
     private lateinit var baseUrl: String
     private val client = OkHttpClient()
+    private val plainKey = System.getenv("SUPPORT_API_KEY") ?: "pk_test_plain"
+
+    private fun requireScripts() = assumeTrue("fixture-server scripts only", System.getenv("SUPPORT_FIXTURE_SCRIPTS") != "0")
+
+    /** Waits until the client holds exactly what the server's window holds. */
+    private suspend fun waitInSync(
+        transport: SupportTransport,
+        atLeast: Int,
+        timeoutMillis: Long = 30_000,
+    ) = waitUntil("in sync with the server (>= $atLeast entries)", timeoutMillis) {
+        val server = runCatching { serverEntries(transport) }.getOrNull()
+        server != null && server.size >= atLeast && transport.read { log.entries } == server
+    }
+
+    companion object {
+        /** 256 random bits, as inbox-api requires of an install secret (43 base64url characters). */
+        fun installSecret(): String {
+            val bytes = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+            return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        }
+    }
 
     @Before
     fun setUp() {
@@ -33,7 +56,7 @@ class FixtureServerTest {
 
     private fun transport(
         apiKey: String,
-        install: String = UUID.randomUUID().toString(),
+        install: String = installSecret(),
         queueFile: File? = null,
         replayCap: Int = 60,
         dropAfter: ((Long) -> Boolean)? = null,
@@ -99,6 +122,7 @@ class FixtureServerTest {
     @Test
     fun pacedScriptsArriveExact() =
         runBlocking {
+            requireScripts()
             for (script in listOf("billing-question", "human-handoff", "future-kinds")) {
                 val transport = transport("pk_fixture_$script")
                 transport.start()
@@ -114,17 +138,18 @@ class FixtureServerTest {
     fun resumesFromEverySeq() =
         runBlocking {
             val seen = Collections.synchronizedSet(HashSet<Long>())
-            val transport = transport("pk_test_plain", dropAfter = { seen.add(it) })
+            val transport = transport(plainKey, dropAfter = { seen.add(it) })
             transport.start()
             waitUntil("live") { transport.read { state } == SupportConnectionState.Live }
             post(transport, 30, "every")
-            waitUntil("30 entries", 20_000) { transport.read { log.entries.size } == 30 }
+            // One reconnect per entry: against a remote server each is a fresh TLS handshake.
+            waitInSync(transport, 30, 120_000)
             waitUntil("live") { transport.read { state } == SupportConnectionState.Live }
             val held = transport.read { log.entries }
             assertEquals(serverEntries(transport), held)
-            assertEquals((1L..30L).toList(), held.map { it.seq })
+            assertEquals((1L..held.size.toLong()).toList(), held.map { it.seq })
             val stats = transport.read { stats }
-            assertEquals(30, seen.size)
+            assertEquals(held.size, seen.size)
             assertEquals(0, stats.gaps)
             println("resume from every seq: ${seen.size} drops, ${stats.connects} connects, gaps ${stats.gaps}, dups ${stats.duplicates}")
             transport.stop()
@@ -133,21 +158,21 @@ class FixtureServerTest {
     @Test
     fun backgroundThenForeground() =
         runBlocking {
-            val transport = transport("pk_test_plain")
+            val transport = transport(plainKey)
             transport.start()
             waitUntil("live") { transport.read { state } == SupportConnectionState.Live }
             transport.setForeground(false)
             waitUntil("idle") { transport.read { state } == SupportConnectionState.Idle }
             post(transport, 10, "bg")
             transport.setForeground(true)
-            waitUntil("10 entries") { transport.read { log.entries.size } == 10 }
-            assertEquals(serverEntries(transport), transport.read { log.entries })
+            waitInSync(transport, 10)
             transport.stop()
         }
 
     @Test
     fun networkLossThenReturn() =
         runBlocking {
+            requireScripts()
             val transport = transport("pk_fixture_future-kinds")
             transport.start()
             waitUntil("first entry") { transport.read { log.entries.isNotEmpty() } }
@@ -166,10 +191,10 @@ class FixtureServerTest {
     @Test
     fun sendQueueSurvivesRelaunchAndLandsOnce() =
         runBlocking {
-            val install = UUID.randomUUID().toString()
+            val install = installSecret()
             val file = File.createTempFile("send-queue", ".json").also { it.delete() }
             try {
-                val first = transport("pk_test_plain", install, file)
+                val first = transport(plainKey, install, file)
                 first.start()
                 val conversationId = first.read { session }!!.conversationId
                 first.setNetworkAvailable(false)
@@ -178,7 +203,7 @@ class FixtureServerTest {
                 first.stop()
                 assertTrue(file.readText().contains(pending.clientMessageId))
 
-                val second = transport("pk_test_plain", install, file)
+                val second = transport(plainKey, install, file)
                 second.start(conversationId)
                 waitUntil("drained") { second.read { pendingMessages.isEmpty() } }
                 waitUntil("entry over the socket") {
@@ -189,9 +214,9 @@ class FixtureServerTest {
                     SupportHttpClient(baseUrl, client)
                         .sendMessage(session.sessionToken, conversationId, SendMessage(pending.clientMessageId, "ignored"))
                 assertTrue(again.duplicate)
+                waitInSync(second, 1)
                 val server = serverEntries(second)
                 assertEquals(1, server.count { it.clientMessageId == pending.clientMessageId })
-                assertEquals(server, second.read { log.entries })
                 second.stop()
             } finally {
                 file.delete()
@@ -201,19 +226,18 @@ class FixtureServerTest {
     @Test
     fun farBehindCatchesUpOverHttp() =
         runBlocking {
-            val transport = transport("pk_test_plain", replayCap = 10)
+            val transport = transport(plainKey, replayCap = 10)
             transport.start()
             waitUntil("live") { transport.read { state } == SupportConnectionState.Live }
             post(transport, 2, "held")
-            waitUntil("2 held") { transport.read { log.cursor } == 2L }
+            waitInSync(transport, 2)
             transport.setForeground(false)
             waitUntil("idle") { transport.read { state } == SupportConnectionState.Idle }
             post(transport, 25, "far")
             transport.setForeground(true)
-            waitUntil("27 entries") { transport.read { log.entries.size } == 27 }
+            waitInSync(transport, 27)
             waitUntil("live") { transport.read { state } == SupportConnectionState.Live }
             assertEquals(1, transport.read { stats.httpCatchUps })
-            assertEquals(serverEntries(transport), transport.read { log.entries })
             transport.stop()
         }
 }

@@ -238,6 +238,7 @@ class SupportTransport internal constructor(
     private var retryJob: Job? = null
     private var pingJob: Job? = null
     private var consecutiveGaps = 0
+    private var consecutiveResyncs = 0
     private var sendJob: Job? = null
     private var sendBackoff = configuration.backoffInitialMillis
 
@@ -357,7 +358,9 @@ class SupportTransport internal constructor(
         startInFlight = deferred
         try {
             deferred.await()
-        } catch (_: SupportTransportException) {
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
             // Scheduled again inside when it is still retryable.
         }
     }
@@ -405,9 +408,11 @@ class SupportTransport internal constructor(
     fun setNetworkAvailable(available: Boolean) =
         post {
             if (available == networkAvailable) {
-                // Another network came up while one was up (Wi-Fi to cell): the socket may be
-                // bound to the one going away, so probe it now instead of waiting for a ping.
-                if (available) probeOrConnect()
+                // Another network came or went while one stays up (Wi-Fi to cell): the socket
+                // may be bound to the one going away, so probe it. Without a socket, leave any
+                // pending retry and its backoff alone.
+                val current = socket
+                if (available && current != null && state != SupportConnectionState.Connecting) sendPing(current, generation)
                 return@post
             }
             networkAvailable = available
@@ -467,7 +472,14 @@ class SupportTransport internal constructor(
             log.reset(started.conversationId)
             logEpoch += 1
         }
+        val previous = session?.conversationId
         session = started
+        if (switched && previous != null) {
+            // The old conversation's queued sends can't go anywhere now: fail them visibly.
+            queue.all.filter { it.conversationId == previous && it.state == PendingMessage.State.PENDING }.forEach { item ->
+                queue.update(item.clientMessageId) { it.copy(state = PendingMessage.State.FAILED, failure = "conversation_changed") }
+            }
+        }
         // The socket was closed for the old conversation: open one for the new one.
         if (switched && this.started) connect()
         logger("session started, conversation ${started.conversationId}")
@@ -643,6 +655,7 @@ class SupportTransport internal constructor(
                 when (val outcome = log.applyEntryFrame(frame.seq, frame.prev, frame.entry)) {
                     EntryFrameOutcome.Accept -> {
                         consecutiveGaps = 0
+                        consecutiveResyncs = 0
                         // Progress: the path works, so a drop after this retries from the first step.
                         backoff = configuration.backoffInitialMillis
                         log.entry(frame.seq)?.clientMessageId?.let { id ->
@@ -684,8 +697,10 @@ class SupportTransport internal constructor(
             }
             is ServerFrame.Resync -> {
                 stats = stats.copy(resyncs = stats.resyncs + 1)
+                consecutiveResyncs += 1
                 logger("resync: ${frame.reason}")
-                replaceSocket("resync") { reloadNewestWindow() }
+                // A server that keeps answering resync gets backoff, not a reload loop.
+                replaceSocket("resync", useBackoff = consecutiveResyncs > 3) { reloadNewestWindow() }
             }
             // The close that follows says what to do (session invalid, not found …).
             is ServerFrame.Error -> {
@@ -719,7 +734,10 @@ class SupportTransport internal constructor(
         state = SupportConnectionState.CatchingUp
         try {
             work()
-        } catch (error: SupportTransportException) {
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // Anything at all: the transport must end with a socket or a retry timer.
             logger("$reason failed: ${error.javaClass.simpleName}")
             httpBusy = false
             scheduleRetry()
@@ -759,7 +777,9 @@ class SupportTransport internal constructor(
                         renewing = false
                         // A server that keeps refusing new tokens gets backoff, not a tight loop.
                         if (sessionRenewals > 1) scheduleRetry() else connect()
-                    } catch (_: SupportTransportException) {
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
                         renewing = false
                         scheduleRetry()
                     } finally {
