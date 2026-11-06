@@ -64,7 +64,10 @@ class WebPaywallRedeemerTest {
             every { write(RedeemedInstallReferrerCode, any()) } just Runs
         }
 
-    private var maxAge: () -> Long = { 1L }
+    // Redemptions start a poll loop on real IO threads that the tests can't cancel. A long max age
+    // keeps each leaked loop to its first fetch; at 1ms they ran until the end of the suite, and the
+    // network mock recording every call ran the test JVM out of memory.
+    private var maxAge: () -> Long = { 60 * 60 * 1000L }
     private var mutableEntitlements = mutableSetOf<Entitlement>()
     private var webEntitlement = Entitlement("web_entitlement")
     private var normalEntitlement = Entitlement("normalEntitlement")
