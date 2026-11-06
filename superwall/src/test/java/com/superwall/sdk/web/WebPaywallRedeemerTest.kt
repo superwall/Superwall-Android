@@ -113,7 +113,7 @@ class WebPaywallRedeemerTest {
     }
 
     private val onRedemptionResult: (RedemptionResult) -> Unit = mockk(relaxed = true)
-    private val getUserId: () -> UserId = { UserId("test_user") }
+    private var getUserId: () -> UserId = { UserId("test_user") }
     private val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(VendorId("test_vendor")) }
     private val getAlias: () -> String? = { "test_alias" }
     private val setActiveWebEntitlements: (Set<Entitlement>) -> Unit = {}
@@ -359,6 +359,79 @@ class WebPaywallRedeemerTest {
                         coVerify(exactly = 0) {
                             network.redeemToken(any(), any(), any(), any(), any(), any(), any())
                         }
+                    }
+                }
+            }
+        }
+
+    private fun redemptionResponse(entitlement: Entitlement) =
+        WebRedemptionResponse(
+            codes = emptyList(),
+            customerInfo =
+                CustomerInfo(
+                    subscriptions = emptyList(),
+                    nonSubscriptions = emptyList(),
+                    userId = "test_user",
+                    entitlements = listOf(entitlement),
+                    isPlaceholder = false,
+                ),
+        )
+
+    private fun redeemerWithoutReferral(): WebPaywallRedeemer {
+        coEvery { deepLinkReferrer.checkForReferral() } returns Result.failure(Exception("no referral"))
+        return WebPaywallRedeemer(
+            context,
+            IOScope(testDispatcher),
+            deepLinkReferrer,
+            network,
+            storage,
+            customerInfoManager = mockk(relaxed = true),
+            factory = TestFactory(),
+        )
+    }
+
+    @Test
+    fun `a background redeem whose user changed in flight is dropped`() =
+        runTest(testDispatcher) {
+            Given("a background redeem, such as the one after a custom purchase, that is in flight") {
+                val response = redemptionResponse(webEntitlement)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } coAnswers {
+                    // The app identifies a different user before the response arrives.
+                    getUserId = { UserId("someone_else") }
+                    Either.Success(response)
+                }
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("the response arrives") {
+                    redeemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+
+                    Then("it is not saved for the new user") {
+                        verify(exactly = 0) { storage.write(LatestRedemptionResponse, response) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a background redeem for the same user is saved`() =
+        runTest(testDispatcher) {
+            Given("a background redeem while the user stays the same") {
+                val response = redemptionResponse(webEntitlement)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } returns Either.Success(response)
+                redeemer = redeemerWithoutReferral()
+                testScheduler.advanceUntilIdle()
+
+                When("the response arrives") {
+                    redeemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+
+                    Then("it is saved and its entitlements are applied") {
+                        verify(exactly = 1) { storage.write(LatestRedemptionResponse, response) }
+                        assertTrue(webEntitlement in mutableEntitlements)
                     }
                 }
             }

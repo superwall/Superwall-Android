@@ -91,6 +91,7 @@ class TransactionManagerTest {
     private var webEntitlementsValue: Set<Entitlement> = emptySet()
     private val entitlementsMap = mutableMapOf<String, Set<Entitlement>>()
     private var refreshReceiptCalled = false
+    private var backendNotifications = 0
     private var showRestoreDialogCalled = false
 
     @Before
@@ -105,6 +106,7 @@ class TransactionManagerTest {
         transactionCompleteTrialFlags.clear()
         transactionCompleteProductIds.clear()
         refreshReceiptCalled = false
+        backendNotifications = 0
         showRestoreDialogCalled = false
         webEntitlementsValue = emptySet()
         subscriptionStatusValue = SubscriptionStatus.Active(setOf(Entitlement("test")))
@@ -151,7 +153,7 @@ class TransactionManagerTest {
                         transactionCompleteProductIds.add(id)
                     },
                     currentCustomerInfo = { CustomerInfo.empty() },
-                    notifyBackendOfReceipts = {},
+                    notifyBackendOfReceipts = { backendNotifications++ },
                     notifyOfTransactionAbandon = {},
                     testMode = null,
                     testModeTransactionHandler = null,
@@ -1031,6 +1033,93 @@ class TransactionManagerTest {
                 }
             }
         }
+
+    // region custom store products
+
+    private fun mockCustomProduct(productId: String): StoreProduct =
+        mockk(relaxed = true) {
+            every { fullIdentifier } returns productId
+            every { productIdentifier } returns productId
+            every { isCustomProduct } returns true
+            every { rawStoreProduct } returns null
+            every { subscriptionPeriod } returns null
+        }
+
+    private fun customPurchaseReturns(result: PurchaseResult) {
+        every { factory.makeHasExternalPurchaseController() } returns true
+        coEvery {
+            storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any(), any())
+        } returns result
+    }
+
+    @Test
+    fun purchase_customProductFromPaywall_asksTheBackendForEntitlements() =
+        runTest {
+            Given("a custom product the purchase controller sells through the developer's checkout") {
+                val productId = "custom|prod_1"
+                every { storeManager.getProductFromCache(productId) } returns mockCustomProduct(productId)
+                customPurchaseReturns(PurchaseResult.Purchased())
+
+                When("it is bought from a paywall") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(productId, mockk(relaxed = true)),
+                        )
+
+                    Then("the SDK fetches the entitlements the developer's server reported, once") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        assertEquals(1, backendNotifications)
+                    }
+                    And("it reports the purchase as a CUSTOM transaction") {
+                        val complete =
+                            trackedEvents
+                                .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                .single { it.state is InternalSuperwallEvent.Transaction.State.Complete }
+                        assertEquals("CUSTOM", complete.store)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_customProductOutsideAPaywall_asksTheBackendForEntitlements() =
+        runTest {
+            Given("an app that buys a custom product with Superwall.purchase") {
+                val product = mockCustomProduct("custom|prod_1")
+                customPurchaseReturns(PurchaseResult.Purchased())
+                every { factory.makeHasInternalPurchaseController() } returns false
+
+                When("the purchase controller completes it") {
+                    transactionManager.purchase(TransactionManager.PurchaseSource.ExternalPurchase(product))
+
+                    Then("the SDK fetches the entitlements once") {
+                        assertEquals(1, backendNotifications)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_customProductCancelled_doesNotAskTheBackend() =
+        runTest {
+            Given("a custom product purchase the user cancels") {
+                val productId = "custom|prod_1"
+                every { storeManager.getProductFromCache(productId) } returns mockCustomProduct(productId)
+                customPurchaseReturns(PurchaseResult.Cancelled())
+
+                When("it is bought from a paywall") {
+                    transactionManager.purchase(
+                        TransactionManager.PurchaseSource.Internal(productId, mockk(relaxed = true)),
+                    )
+
+                    Then("no entitlements are fetched") {
+                        assertEquals(0, backendNotifications)
+                    }
+                }
+            }
+        }
+
+    // endregion
 
     // endregion
 
