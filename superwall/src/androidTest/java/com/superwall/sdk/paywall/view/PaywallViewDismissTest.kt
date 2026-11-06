@@ -50,7 +50,6 @@ class PaywallViewDismissTest {
                     SuperwallOptions().apply {
                         // Keep startup light for tests
                         paywalls.shouldPreload = false
-                        paywalls.useCachedTemplates = false
                     }
                 Superwall.configure(
                     applicationContext = app,

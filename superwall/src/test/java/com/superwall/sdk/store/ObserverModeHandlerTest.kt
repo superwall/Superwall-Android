@@ -7,7 +7,8 @@ import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
-import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.billing.StorePurchaseUpdate
+import com.superwall.sdk.store.transactions.ObservedReport
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.store.transactions.TransactionManager
 import io.mockk.coVerify
@@ -67,9 +68,13 @@ class ObserverModeHandlerTest {
             When("the purchase fails") {
                 handler.observe(state)
                 Then("the transaction manager handles a Failed result with that error") {
-                    val result = slot<InternalPurchaseResult>()
-                    coVerify(exactly = 1) { transactionManager.handle(capture(result), state) }
-                    assertSame(error, (result.captured as InternalPurchaseResult.Failed).error)
+                    val result = slot<StorePurchaseUpdate>()
+                    val report = slot<ObservedReport>()
+                    coVerify(exactly = 1) { transactionManager.handle(capture(result), capture(report)) }
+                    assertSame(error, (result.captured as StorePurchaseUpdate.Failed).error)
+                    val reported = report.captured as ObservedReport.Error
+                    assertSame(error, reported.error)
+                    assertEquals(product.productId, reported.product.fullIdentifier)
                 }
             }
         }
@@ -86,9 +91,11 @@ class ObserverModeHandlerTest {
             When("the result is observed") {
                 handler.observe(state)
                 Then("the transaction manager handles a Cancelled result") {
-                    val result = slot<InternalPurchaseResult>()
-                    coVerify(exactly = 1) { transactionManager.handle(capture(result), state) }
-                    assertTrue(result.captured is InternalPurchaseResult.Cancelled)
+                    val result = slot<StorePurchaseUpdate>()
+                    val report = slot<ObservedReport>()
+                    coVerify(exactly = 1) { transactionManager.handle(capture(result), capture(report)) }
+                    assertTrue(result.captured is StorePurchaseUpdate.Cancelled)
+                    assertEquals(ObservedReport.Result(emptyList()), report.captured)
                 }
                 And("nothing is prepared") {
                     coVerify(exactly = 0) { transactionManager.prepareToPurchase(any(), any()) }

@@ -3,16 +3,13 @@
 package com.superwall.sdk.logger
 
 import com.superwall.sdk.Given
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.assertFalse
 import com.superwall.sdk.assertTrue
 import com.superwall.sdk.config.options.SuperwallOptions
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
+import com.superwall.sdk.dependencies.SuperwallGraph
+import com.superwall.sdk.dependencies.attachMockGraph
 import org.junit.Test
 import java.util.EnumSet
 import kotlin.test.assertEquals
@@ -87,11 +84,7 @@ class LogScopeTest {
                         scopes = EnumSet.of(LogScope.storeKitManager)
                     }
             }
-        val superwall = mockk<Superwall>()
-        every { superwall.options } returns options
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns superwall
-        Superwall.initialized = true
+        val container = attachMockGraph(options)
 
         try {
             Given("Superwall configured with only the deprecated storeKitManager scope") {
@@ -106,8 +99,7 @@ class LogScopeTest {
                 }
             }
         } finally {
-            Superwall.initialized = false
-            unmockkObject(Superwall.Companion)
+            SuperwallGraph.detach(container)
         }
     }
 }

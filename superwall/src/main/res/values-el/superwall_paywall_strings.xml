@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">Δεν βρέθηκε συνδρομή</string>
+    <string name="superwall_restore_failed_message">Δεν βρέθηκε ενεργή συνδρομή για τον λογαριασμό σας.</string>
+    <string name="superwall_restore_failed_close">OK</string>
+    <string name="superwall_paywall_unavailable">Δεν υπάρχει σελίδα πληρωμής για εμφάνιση</string>
+</resources>

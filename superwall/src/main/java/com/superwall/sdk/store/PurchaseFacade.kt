@@ -1,10 +1,8 @@
 package com.superwall.sdk.store
 
-import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.misc.toResult
-import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.flatten
@@ -18,12 +16,6 @@ internal class PurchaseFacade(
     private val storeManager: () -> StoreManager,
     private val hasInternalPurchaseController: () -> Boolean,
 ) {
-    /** Purchases a Play [ProductDetails], as an external purchase that dismisses any paywall. */
-    suspend fun purchase(product: ProductDetails): Result<PurchaseResult> =
-        withErrorTracking {
-            purchaseExternally(StoreProduct(RawStoreProduct.from(product)))
-        }.toResult()
-
     /** Purchases a [StoreProduct], as an external purchase that dismisses any paywall. */
     suspend fun purchase(product: StoreProduct): Result<PurchaseResult> =
         withErrorTracking {

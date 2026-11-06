@@ -3,19 +3,19 @@ package com.superwall.sdk.debug
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.MainThread
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.ViewFactory
-import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class DebugManager(
+class DebugManager internal constructor(
     private val context: Context,
     private val storage: LocalStorage,
     private val factory: ViewFactory,
+    private val isPaywallPresented: () -> Boolean,
+    private val dismissPaywall: suspend () -> Unit,
 ) {
     var view: DebugView? = null
         @MainThread set
@@ -63,8 +63,8 @@ class DebugManager(
 
     @MainThread
     suspend fun launchDebugger(paywallDatabaseId: String? = null) {
-        if (Superwall.instance.isPaywallPresented) {
-            Superwall.instance.dismiss()
+        if (isPaywallPresented()) {
+            dismissPaywall()
             launchDebugger(paywallDatabaseId)
         } else {
             if (view == null) {

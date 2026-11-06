@@ -349,6 +349,67 @@ class TemplateLogicTest {
         }
 
     @Test
+    fun `custom store products are included with their product identifier`() =
+        runTest {
+            Given("a paywall with a PlayStore product and a custom store product") {
+                val factory =
+                    TestVariablesFactory(
+                        userAttributes = emptyMap(),
+                        deviceAttributes = emptyMap(),
+                    )
+                val paywall =
+                    Paywall.stub().apply {
+                        _productItemsV3 =
+                            listOf(
+                                CrossplatformProduct(
+                                    compositeId = "com.test:monthly:sw-auto",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
+                                            productIdentifier = "com.test",
+                                            basePlanIdentifier = "monthly",
+                                            offer = Offer.Automatic(),
+                                        ),
+                                    entitlements = listOf(Entitlement("pro")),
+                                    name = "productRight",
+                                ),
+                                CrossplatformProduct(
+                                    compositeId = "sw-composite-custom",
+                                    storeProduct = CrossplatformProduct.StoreProduct.Custom("com.example.yearly"),
+                                    entitlements = listOf(Entitlement("pro")),
+                                    name = "productLeft",
+                                ),
+                            )
+                    }
+
+                val result =
+                    When("getBase64EncodedTemplates is called") {
+                        TemplateLogic.getBase64EncodedTemplates(
+                            json = json,
+                            paywall = paywall,
+                            event = null,
+                            factory = factory,
+                            encodeToBase64 = { it },
+                        )
+                    }
+
+                Then("both products are sent, the custom one with its product identifier as productId") {
+                    val products = parseOutput(result)[0].jsonObject["products"]!!.jsonArray
+                    val idsByReference =
+                        products.associate {
+                            it.jsonObject["product"]!!.jsonPrimitive.content to it.jsonObject["productId"]!!.jsonPrimitive.content
+                        }
+                    assertEquals(
+                        mapOf(
+                            "productRight" to "com.test:monthly:sw-auto",
+                            "productLeft" to "com.example.yearly",
+                        ),
+                        idsByReference,
+                    )
+                }
+            }
+        }
+
+    @Test
     fun `free trial available sets prefix to freeTrial`() =
         runTest {
             Given("a paywall with isFreeTrialAvailable = true") {

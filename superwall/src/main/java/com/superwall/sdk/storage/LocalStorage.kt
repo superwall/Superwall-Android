@@ -1,9 +1,7 @@
 package com.superwall.sdk.storage
 
 import android.content.Context
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingResult
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.dependencies.DeviceHelperFactory
@@ -21,16 +19,17 @@ import kotlinx.serialization.json.Json
 import java.util.Date
 import kotlin.coroutines.CoroutineContext
 
-open class LocalStorage(
+open class LocalStorage internal constructor(
     context: Context,
     private val json: Json,
     private val _apiKey: String,
     private val factory: LocalStorage.Factory,
     private val ioScope: IOScope,
     // / The disk cache.
-    private val cache: Cache = Cache(context = context, json = json),
+    private val cache: Cache,
     // / The interface that manages core data.
-    val coreDataManager: CoreDataManager = CoreDataManager(context = context),
+    val coreDataManager: CoreDataManager,
+    private val track: suspend (Trackable) -> Unit,
 ) : Storage,
     CoroutineScope {
     companion object {
@@ -126,9 +125,11 @@ open class LocalStorage(
     }
 
     // / Clears data that is user specific.
+    // / App-scoped data (e.g. the cached config and enrichment) is kept.
     fun reset() {
         coreDataManager.deleteAllEntities()
-        cache.clean()
+        cache.clearUserScope()
+        cache.delete(Transactions)
 
         launch {
             _confirmedAssignments = null
@@ -145,7 +146,7 @@ open class LocalStorage(
             if (_didTrackFirstSeen) return@launch
 
             CoroutineScope(Dispatchers.IO).launch {
-                Superwall.instance.track(InternalSuperwallEvent.FirstSeen())
+                track(InternalSuperwallEvent.FirstSeen())
             }
 
             write(DidTrackFirstSeen, true)

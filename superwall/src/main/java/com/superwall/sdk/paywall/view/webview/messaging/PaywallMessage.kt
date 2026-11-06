@@ -67,7 +67,9 @@ sealed class PaywallMessage {
 
     data class Purchase(
         val product: String,
-        val productId: String,
+        // Null when the page doesn't know the product's id; the handler then resolves it
+        // from the paywall's product with the reference name [product].
+        val productId: String?,
         val shouldDismiss: Boolean,
         // Set when the purchase should replace the user's existing subscription
         val replacementMode: ProductReplacement.Mode? = null,
@@ -182,8 +184,16 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
         val messages = mutableListOf<PaywallMessage>()
 
         for (element in messagesJsonArray) {
-            val messageJson = element.jsonObject
-            parsePaywallMessage(messageJson)?.let { messages.add(it) }
+            // A message that can't be parsed is skipped, so the others in the batch still run.
+            runCatching { parsePaywallMessage(element.jsonObject) }
+                .onSuccess { message -> message?.let { messages.add(it) } }
+                .onFailure {
+                    Logger.debug(
+                        LogLevel.warn,
+                        LogScope.superwallCore,
+                        "SWWebViewInterface: Skipping a paywall message that couldn't be parsed - $it",
+                    )
+                }
         }
 
         Result.success(WrappedPaywallMessages(version, PayloadMessages(messages)))
@@ -214,7 +224,7 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage? {
         "purchase" ->
             PaywallMessage.Purchase(
                 json["product"]!!.jsonPrimitive.content,
-                json["product_identifier"]!!.jsonPrimitive.content,
+                json["product_identifier"]?.jsonPrimitive?.contentOrNull,
                 json["should_dismiss"]?.jsonPrimitive?.booleanOrNull ?: true,
                 // An unknown mode falls back to a normal purchase
                 ProductReplacement.Mode.fromRawName(

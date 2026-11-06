@@ -2,6 +2,7 @@ package com.superwall.sdk
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
@@ -9,7 +10,7 @@ import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.*
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.config.ConfigState
+import com.superwall.sdk.config.toConfigurationStatus
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.AdConsent
 import com.superwall.sdk.config.options.AdConsentPublisher
@@ -24,6 +25,7 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -41,6 +43,7 @@ import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.device.InterfaceStyle
+import com.superwall.sdk.notifications.NotificationTokenLogic
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.PresentationCoordinator
 import com.superwall.sdk.paywall.presentation.PresentationItems
@@ -51,6 +54,7 @@ import com.superwall.sdk.paywall.view.webview.PaywallResource
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
+import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
 import com.superwall.sdk.utilities.withErrorTracking
@@ -98,10 +102,7 @@ class Superwall(
     var localeIdentifier: String?
         get() = dependencyContainer.configManager.options.localeIdentifier
         set(value) {
-            dependencyContainer.configManager.options.localeIdentifier = value
-            ioScope.launch {
-                track(dependencyContainer.makeConfigAttributes())
-            }
+            dependencyContainer.setLocaleIdentifier(value)
         }
 
     /**
@@ -254,7 +255,11 @@ class Superwall(
      *
      * Paywall HTML usage: `<video src="swlocal://hero-video" autoplay></video>`
      */
-    var localResources: Map<String, PaywallResource> = emptyMap()
+    var localResources: Map<String, PaywallResource>
+        get() = dependencyContainer.localResources
+        set(value) {
+            dependencyContainer.localResources = value
+        }
 
     /**
      * Exposes customer info as a stateflow.
@@ -416,23 +421,12 @@ class Superwall(
      */
     val configurationState: ConfigurationStatus
         get() =
-            dependencyContainer.configManager.configState.value.let {
-                when (it) {
-                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
-                    is ConfigState.Failed -> ConfigurationStatus.Failed
-                    else -> ConfigurationStatus.Pending
-                }
-            }
+            dependencyContainer.configManager.configState.value
+                .toConfigurationStatus()
 
     val configurationStateListener: Flow<ConfigurationStatus>
         get() =
-            dependencyContainer.configManager.configState.map {
-                when (it) {
-                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
-                    is ConfigState.Failed -> ConfigurationStatus.Failed
-                    else -> ConfigurationStatus.Pending
-                }
-            }
+            dependencyContainer.configManager.configState.map { it.toConfigurationStatus() }
 
     companion object {
         /** A variable that is only `true` if ``instance`` is available for use.
@@ -584,6 +578,7 @@ class Superwall(
                 // Retain the activity provider for reuse in next configure call
                 retainedActivityProvider = _instance?.dependencyContainer?.activityProvider
                 _instance?.teardown()
+                SuperwallGraph.detach(_instance?.dependencyContainer)
                 _instance = null
                 initialized = false
                 _hasInitialized.update { false }
@@ -611,7 +606,9 @@ class Superwall(
                             options = _options,
                             activityProvider = activityProvider,
                             apiKey = apiKey,
+                            superwall = this,
                         )
+                    SuperwallGraph.attach(dependencyContainer)
                     dependencyContainer.storage.configure(apiKey = apiKey)
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -763,6 +760,112 @@ class Superwall(
     fun handleDeepLink(uri: Uri): Result<Boolean> = DeepLinkRouter.handleDeepLink(uri)
     //endregion
 
+    //region Notifications
+
+    /**
+     * Registers the device's Firebase Cloud Messaging (FCM) token with Superwall, so
+     * Superwall can send it push notifications.
+     *
+     * Call this from your `FirebaseMessagingService.onNewToken`, and with
+     * `FirebaseMessaging.getInstance().token` when your app starts. It's safe to call on
+     * every launch: an unchanged token is only sent again once a day, to tell Superwall the
+     * device is still registered.
+     *
+     * Call [configure] first: [Superwall.instance] throws until it has been called. If
+     * `onNewToken` can run before your app configures Superwall, for example when the
+     * service starts in the background, keep the token and pass it in once you've configured.
+     *
+     * ```kotlin
+     * override fun onNewToken(token: String) {
+     *     Superwall.instance.setPushToken(token)
+     * }
+     * ```
+     *
+     * The token only travels to Superwall's servers. It never appears in
+     * [SuperwallDelegate.handleSuperwallEvent], [SuperwallDelegate.handleLog], user
+     * attributes or audience filters. Along with it, Superwall receives whether the app can
+     * post notifications, which is checked again each time the app comes to the foreground.
+     *
+     * The SDK has no Firebase dependency and doesn't request notification permission itself.
+     *
+     * @param token The FCM registration token.
+     */
+    fun setPushToken(token: String) {
+        withErrorTracking {
+            dependencyContainer.notificationTokenManager.setPushToken(token)
+        }
+    }
+
+    /**
+     * Stops Superwall sending push notifications to this device.
+     *
+     * The choice is remembered across launches, [reset] and [identify] until you call
+     * [optInToNotifications]. It doesn't change the system's notification permission.
+     */
+    fun optOutOfNotifications() {
+        withErrorTracking {
+            dependencyContainer.notificationTokenManager.setEnabled(false)
+        }
+    }
+
+    /**
+     * Lets Superwall send push notifications to this device again after
+     * [optOutOfNotifications].
+     *
+     * Devices are opted in by default, so you only need this to undo an opt-out.
+     */
+    fun optInToNotifications() {
+        withErrorTracking {
+            dependencyContainer.notificationTokenManager.setEnabled(true)
+        }
+    }
+
+    /**
+     * Tells Superwall the user opened a notification, so it can measure the notifications it
+     * sends.
+     *
+     * Call this with the intent that launched your activity from a notification tap, for
+     * example from `onCreate` and `onNewIntent`. Notifications that Superwall didn't send are
+     * ignored, so you can pass every intent in.
+     *
+     * This works as is for notifications FCM displays itself, whose tap intent carries the
+     * notification's data keys as extras. If your app builds the notification itself in
+     * `onMessageReceived`, copy the `sw` data value into the extras of the tap
+     * `PendingIntent`'s intent:
+     *
+     * ```kotlin
+     * val intent = Intent(this, MainActivity::class.java)
+     *     .putExtra("sw", message.data["sw"])
+     * ```
+     *
+     * @param intent The intent whose extras carry the notification's data.
+     */
+    fun handleNotificationOpen(intent: Intent) {
+        withErrorTracking {
+            val superwallData =
+                intent.getStringExtra(NotificationTokenLogic.SUPERWALL_DATA_KEY) ?: return@withErrorTracking
+            handleNotificationOpen(mapOf(NotificationTokenLogic.SUPERWALL_DATA_KEY to superwallData))
+        }
+    }
+
+    /**
+     * Tells Superwall the user opened a notification, so it can measure the notifications it
+     * sends.
+     *
+     * Use this when you have the data map of a notification the user tapped. Call it only
+     * for a tap: never from `onMessageReceived` when a message is delivered, which would
+     * count every delivery as an open. Notifications that Superwall didn't send are ignored,
+     * so you can pass every tapped one in.
+     *
+     * @param data The notification's FCM data.
+     */
+    fun handleNotificationOpen(data: Map<String, String>) {
+        withErrorTracking {
+            dependencyContainer.notificationTokenManager.trackOpen(data)
+        }
+    }
+    //endregion
+
     //region Preloading
 
     /**
@@ -848,7 +951,8 @@ class Superwall(
      * - Note: You do not need to finish the transaction yourself after this.
      * ``Superwall`` will handle this for you.
      */
-    suspend fun purchase(product: ProductDetails): Result<PurchaseResult> = dependencyContainer.purchaseFacade.purchase(product)
+    suspend fun purchase(product: ProductDetails): Result<PurchaseResult> =
+        dependencyContainer.purchaseFacade.purchase(StoreProduct(RawStoreProduct.from(product)))
 
     /**
      * Initiates a purchase of `StoreProduct`.

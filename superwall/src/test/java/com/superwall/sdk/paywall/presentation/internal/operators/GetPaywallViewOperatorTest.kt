@@ -1,7 +1,6 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
 import com.superwall.sdk.Given
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.assertTrue
@@ -43,7 +42,6 @@ class GetPaywallViewOperatorTest {
     private val paywallManager = mockk<PaywallManager>(relaxed = true)
     private val storage = mockk<LocalStorage>(relaxed = true)
     private val coreDataManager = mockk<CoreDataManager>(relaxed = true)
-    private val superwall = mockk<Superwall>(relaxed = true)
     private val paywallView = mockk<PaywallView>(relaxed = true)
 
     private val experiment =
@@ -69,8 +67,6 @@ class GetPaywallViewOperatorTest {
 
     @Before
     fun setup() {
-        mockkObject(Superwall.Companion)
-        every { Superwall.instance } returns superwall
         every { dependencyContainer.paywallManager } returns paywallManager
         every { dependencyContainer.storage } returns storage
         every { storage.coreDataManager } returns coreDataManager

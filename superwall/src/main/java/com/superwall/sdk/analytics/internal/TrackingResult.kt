@@ -6,6 +6,9 @@ data class TrackingResult(
     var data: EventData,
     val parameters: TrackingParameters,
 ) {
+    /** Whether the events queue kept the event to send to Superwall. */
+    internal var isQueued: Boolean = false
+
     companion object {
         fun stub(): TrackingResult =
             TrackingResult(

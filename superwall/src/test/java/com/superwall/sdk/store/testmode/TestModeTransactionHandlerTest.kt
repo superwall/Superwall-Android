@@ -2,6 +2,7 @@
 
 package com.superwall.sdk.store.testmode
 
+
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -21,7 +22,7 @@ import org.junit.Test
 
 class TestModeTransactionHandlerTest {
     private fun makeTestMode(): TestMode {
-        val manager = TestMode(mockk(relaxed = true))
+        val manager = TestMode(mockk(relaxed = true), showModal = noTestModeModal)
         // Activate test mode so session data can be written
         val config = mockk<com.superwall.sdk.models.config.Config>(relaxed = true)
         manager.evaluateTestMode(config, "com.app", null, null, TestModeBehavior.ALWAYS)

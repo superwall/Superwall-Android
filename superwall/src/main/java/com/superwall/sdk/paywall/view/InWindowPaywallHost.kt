@@ -663,7 +663,7 @@ internal class InWindowPaywallHost private constructor(
     fun launchCheckout(url: String) {
         val activity = activityRef.get()
         if (activity == null || closed.get()) {
-            view.isPaymentSheetPresented = false
+            view.paymentSheetNotOpened()
             return
         }
         try {
@@ -695,7 +695,7 @@ internal class InWindowPaywallHost private constructor(
             )
             checkoutLauncher?.unregister()
             checkoutLauncher = null
-            view.isPaymentSheetPresented = false
+            view.paymentSheetNotOpened()
         }
     }
 

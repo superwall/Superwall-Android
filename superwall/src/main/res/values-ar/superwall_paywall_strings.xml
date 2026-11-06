@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superwall_restore_failed_title">لم يتم العثور على اشتراك</string>
+    <string name="superwall_restore_failed_message">لم نتمكن من العثور على اشتراك نشط لحسابك.</string>
+    <string name="superwall_restore_failed_close">حسنًا</string>
+    <string name="superwall_paywall_unavailable">لا توجد شاشة دفع لعرضها</string>
+</resources>

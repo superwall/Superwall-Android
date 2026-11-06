@@ -28,6 +28,7 @@ class EntitlementProcessorTest {
         override val isInGracePeriod: Boolean,
         override val isInBillingRetryPeriod: Boolean,
         override val isActive: Boolean,
+        override val isPending: Boolean = false,
     ) : EntitlementTransaction
 
     // MARK: - Helper Methods
@@ -2125,6 +2126,70 @@ class EntitlementProcessorTest {
                         false,
                         processedEntitlement?.isActive,
                     )
+                }
+            }
+        }
+    }
+
+    // MARK: - Pending purchases
+
+    @Test
+    fun `pending one-time purchase does not grant a lifetime entitlement`() {
+        Given("a pending non-consumable purchase") {
+            val processor = EntitlementProcessor()
+            val entitlement = createEntitlement(productIds = setOf("lifetime"))
+            val pending =
+                createMockTransaction(
+                    productId = "lifetime",
+                    productType = EntitlementTransactionType.NON_CONSUMABLE,
+                    isActive = false,
+                ).copy(isPending = true)
+
+            When("building entitlements") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = mapOf(entitlement.id to listOf(pending)),
+                        rawEntitlementsByProductId = mapOf("lifetime" to setOf(entitlement)),
+                        productIdsByEntitlementId = mapOf(entitlement.id to setOf("lifetime")),
+                    )
+
+                Then("the entitlement is neither active nor lifetime") {
+                    val built = result["lifetime"]!!.first()
+                    assertFalse(built.isActive)
+                    assertNotEquals(true, built.isLifetime)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `pending purchases are left out of published purchase history`() {
+        Given("a paid and a pending one-time purchase") {
+            val paid =
+                createMockTransaction(
+                    productId = "lifetime",
+                    transactionId = "paid",
+                    productType = EntitlementTransactionType.NON_CONSUMABLE,
+                )
+            val pending =
+                createMockTransaction(
+                    productId = "lifetime_2",
+                    transactionId = "pending",
+                    productType = EntitlementTransactionType.NON_CONSUMABLE,
+                ).copy(isPending = true)
+            val pendingSub =
+                createMockTransaction(
+                    productId = "monthly",
+                    transactionId = "pending_sub",
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                ).copy(isPending = true)
+
+            When("the transactions are processed") {
+                val processed = processor.processTransactions(listOf(paid, pending, pendingSub))
+
+                Then("only the paid purchase is published") {
+                    assertEquals(listOf("paid"), processed.nonSubscriptions.map { it.transactionId })
+                    assertTrue(processed.subscriptions.isEmpty())
                 }
             }
         }

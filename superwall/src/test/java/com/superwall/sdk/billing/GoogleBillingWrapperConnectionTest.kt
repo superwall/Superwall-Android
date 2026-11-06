@@ -22,11 +22,9 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 
 /**
@@ -38,16 +36,6 @@ import org.junit.Test
 class GoogleBillingWrapperConnectionTest {
     private val productId = "product1:basePlan1:sw-auto"
     private val lifecycleObserver = AppLifecycleObserver()
-
-    @Before
-    fun setup() {
-        GoogleBillingWrapper.clearProductsCache()
-    }
-
-    @After
-    fun tearDown() {
-        GoogleBillingWrapper.clearProductsCache()
-    }
 
     private fun billingResult(code: Int): BillingResult =
         BillingResult
@@ -138,6 +126,48 @@ class GoogleBillingWrapperConnectionTest {
                             assertTrue(retry.isCompleted)
                             assertTrue(retry.await().isSuccess)
                         }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `each wrapper keeps its own product cache`() =
+        runTest {
+            Given("a wrapper that asked Play for a product Play didn't return") {
+                val first = FakeClient().apply { connect() }
+                val firstWrapper = makeWrapper(first)
+                runCurrent()
+                val lookup = backgroundScope.async { runCatching { firstWrapper.awaitGetProducts(setOf(productId)) } }
+                runCurrent()
+                first.productListeners.forEach {
+                    it.onProductDetailsResponse(
+                        billingResult(BillingClient.BillingResponseCode.OK),
+                        mockk<QueryProductDetailsResult>(relaxed = true),
+                    )
+                }
+                runCurrent()
+                assertTrue(lookup.await().isSuccess)
+
+                When("the same wrapper asks for it again") {
+                    val again = runCatching { firstWrapper.awaitGetProducts(setOf(productId)) }
+
+                    Then("it is skipped from the cache without querying Play") {
+                        assertTrue(again.getOrThrow().isEmpty())
+                        assertEquals(2, first.productListeners.size)
+                    }
+                }
+
+                When("a second wrapper asks for the same product") {
+                    val second = FakeClient().apply { connect() }
+                    val secondWrapper = makeWrapper(second)
+                    runCurrent()
+                    val fresh = backgroundScope.async { runCatching { secondWrapper.awaitGetProducts(setOf(productId)) } }
+                    runCurrent()
+
+                    Then("it queries Play instead of reusing the first wrapper's cache") {
+                        assertEquals(2, second.productListeners.size)
+                        assertFalse(fresh.isCompleted)
                     }
                 }
             }

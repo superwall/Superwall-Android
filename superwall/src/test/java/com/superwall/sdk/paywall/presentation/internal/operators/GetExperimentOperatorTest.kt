@@ -175,6 +175,7 @@ class GetExperimentOperatorTest {
                                 debugInfo = emptyMap(),
                                 paywallStatePublisher = states,
                                 storage = storage,
+                                activateSession = { _, _ -> },
                             )
                         }.exceptionOrNull()
                     }
@@ -207,6 +208,7 @@ class GetExperimentOperatorTest {
                                 debugInfo = mapOf("key" to "value"),
                                 paywallStatePublisher = states,
                                 storage = storage,
+                                activateSession = { _, _ -> },
                             )
                         }.exceptionOrNull()
                     }

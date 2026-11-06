@@ -63,6 +63,46 @@ class PaywallMessageTest {
         }
     }
 
+    @Test
+    fun purchase_withoutProductIdentifier_parsesWithNullId() {
+        Given("a purchase message for a product the page has no id for") {
+            val message =
+                """{"version":1,"payload":{"events":[{"event_name":"purchase","product":"productLeft"}]}}"""
+
+            When("it is parsed") {
+                val purchase =
+                    parseWrappedPaywallMessages(message)
+                        .getOrThrow()
+                        .payload.messages
+                        .single() as PaywallMessage.Purchase
+
+                Then("the reference name is kept and the id is null") {
+                    assertEquals("productLeft", purchase.product)
+                    assertNull(purchase.productId)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun malformedMessage_doesNotDropTheRestOfTheBatch() {
+        Given("a batch with a malformed message followed by a close") {
+            val message =
+                """{"version":1,"payload":{"events":[{"event_name":"open_url"},{"event_name":"close"}]}}"""
+
+            When("it is parsed") {
+                val messages =
+                    parseWrappedPaywallMessages(message)
+                        .getOrThrow()
+                        .payload.messages
+
+                Then("the close message is still parsed") {
+                    assertEquals(listOf(PaywallMessage.Close), messages)
+                }
+            }
+        }
+    }
+
     //    private val jsonFormat = Json { ignoreUnknownKeys = true }
 //
 //    @Test
