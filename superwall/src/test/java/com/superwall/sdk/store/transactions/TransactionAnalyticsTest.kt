@@ -13,6 +13,7 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -25,11 +26,14 @@ class TransactionAnalyticsTest {
     private val state = mockk<PaywallViewState>(relaxed = true) { every { info } returns paywallInfo }
     private val demand = TransactionAnalytics.Demand(score = 42, tier = "gold")
 
-    private fun product(subscription: Boolean = true) =
-        mockk<StoreProduct>(relaxed = true) {
-            every { fullIdentifier } returns "sub:base"
-            every { subscriptionPeriod } returns if (subscription) mockk(relaxed = true) else null
-        }
+    private fun product(
+        subscription: Boolean = true,
+        custom: Boolean = false,
+    ) = mockk<StoreProduct>(relaxed = true) {
+        every { fullIdentifier } returns "sub:base"
+        every { subscriptionPeriod } returns if (subscription) mockk(relaxed = true) else null
+        every { isCustomProduct } returns custom
+    }
 
     private val internal = PurchaseSource.Internal("sub:base", state)
 
@@ -145,6 +149,66 @@ class TransactionAnalyticsTest {
             }
         }
     }
+
+    @Test
+    fun `every transaction event of a custom product reports the CUSTOM store`() {
+        Given("a custom product bought through the developer's checkout") {
+            val product = product(custom = true)
+            When("each transaction event is built") {
+                val events =
+                    listOf(
+                        TransactionAnalytics.start(product, internal, demand),
+                        TransactionAnalytics.abandon(product, internal, demand),
+                        TransactionAnalytics.failure("boom", product, internal, observesPurchases = false, demand),
+                        TransactionAnalytics.complete(product, null, external(product), demand, null, null),
+                        TransactionAnalytics.restored(product, RestoreType.ViaRestore, internal, false, demand),
+                    )
+                Then("they all report CUSTOM, not Google Play") {
+                    events.forEach { assertEquals("CUSTOM", it.store) }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `transaction events of a Play product report the PLAY_STORE store`() {
+        Given("a Google Play product") {
+            val product = product()
+            When("the start, complete and pending events are built") {
+                val events =
+                    listOf(
+                        TransactionAnalytics.start(product, internal, demand),
+                        TransactionAnalytics.complete(product, null, internal, demand, null, null),
+                        TransactionAnalytics.pending(internal, observesPurchases = false, demand),
+                    )
+                Then("they report PLAY_STORE") {
+                    events.forEach { assertEquals("PLAY_STORE", it.store) }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a custom transaction_complete sends store CUSTOM`() =
+        runTest {
+            Given("a completed custom product purchase") {
+                val event =
+                    TransactionAnalytics.complete(
+                        product = product(custom = true),
+                        transaction = null,
+                        purchaseSource = internal,
+                        demand = demand,
+                        userAttributes = null,
+                        storefrontCountryCode = null,
+                    )
+                When("its parameters are built") {
+                    val params = event.getSuperwallParameters()
+                    Then("the store parameter is CUSTOM") {
+                        assertEquals("CUSTOM", params["store"])
+                    }
+                }
+            }
+        }
 
     @Test
     fun `purchaseKind picks one-time, trial or subscription`() {
