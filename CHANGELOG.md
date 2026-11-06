@@ -2,7 +2,7 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## Unreleased
+## 2.10.0
 
 ## Breaking changes
 - The constructors of SDK-internal classes are now `internal`, because `Superwall.configure` builds them: `AutomaticPurchaseController`, `TransactionManager`, `StoreManager`, `DeviceHelper`, `IdentityManager`, `LocalStorage`, `AppSessionManager`, `PaywallRequestManager`, `DeepLinkRouter`, `DebugManager`, `DebugView`, `TestMode` and `SWWebView`. The public overload of `SurveyManager.presentSurveyIfAvailable` is removed, and `ApiFactory.track` no longer has a default body. None of these were documented API; configure the SDK with `Superwall.configure` and use `Superwall.instance`.
