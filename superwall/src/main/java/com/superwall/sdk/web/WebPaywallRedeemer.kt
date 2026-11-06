@@ -26,6 +26,7 @@ import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.RedemptionResult.PaywallInfo.PaywallProduct
 import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.network.Network
@@ -294,29 +295,8 @@ class WebPaywallRedeemer(
                         )
                         return@fold
                     }
-                    val response = it
                     // Apply access before trial handling can wait for notification permission.
-                    val applied =
-                        applyInOrder(sentAt ?: responseOrder.incrementAndGet()) {
-                            storage.write(LatestRedemptionResponse, response)
-                            val active =
-                                response.customerInfo
-                                    ?.entitlements
-                                    ?.filter { it.isActive }
-                                    ?.toSet()
-                                    .orEmpty()
-                            factory.setWebEntitlements(active)
-                            factory.internallySetSubscriptionStatus(
-                                SubscriptionStatus.Active(active + factory.getActiveDeviceEntitlements()),
-                            )
-                        }
-                    if (!applied) {
-                        Logger.debug(
-                            logLevel = LogLevel.debug,
-                            scope = LogScope.webEntitlements,
-                            message = "Skipped a redemption response older than the entitlements already applied",
-                        )
-                    }
+                    saveRedemption(sentAt ?: responseOrder.incrementAndGet(), it)
                     track(
                         Redemptions(
                             RedemptionState.Complete,
@@ -410,6 +390,40 @@ class WebPaywallRedeemer(
     }
 
     private fun currentUser(): Pair<UserId?, String?> = factory.getUserId() to factory.getAliasId()
+
+    /**
+     * Saves a redemption response and applies its entitlements. When a response requested after
+     * [order] has already been applied, the redemption is still saved, since its codes are needed and
+     * on a fresh install it creates the cache later fetches update, but it keeps the newer customer info.
+     */
+    private suspend fun saveRedemption(
+        order: Long,
+        response: WebRedemptionResponse,
+    ) = applyMutex.withLock {
+        val isNewest = order >= lastAppliedResponse.get()
+        val saved =
+            if (isNewest) {
+                lastAppliedResponse.accumulateAndGet(order, ::maxOf)
+                response
+            } else {
+                Logger.debug(
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.webEntitlements,
+                    message = "Kept the newer entitlements over those of an older redemption response",
+                )
+                val newerInfo = storage.read(LatestRedemptionResponse)?.customerInfo ?: storage.read(LatestWebCustomerInfo)
+                response.copy(customerInfo = newerInfo ?: response.customerInfo)
+            }
+        storage.write(LatestRedemptionResponse, saved)
+        val active =
+            saved.customerInfo
+                ?.entitlements
+                ?.filter { it.isActive }
+                ?.toSet()
+                .orEmpty()
+        factory.setWebEntitlements(active)
+        factory.internallySetSubscriptionStatus(SubscriptionStatus.Active(active + factory.getActiveDeviceEntitlements()))
+    }
 
     /** Runs [apply] unless a response requested after [order] has already been applied. */
     private suspend fun applyInOrder(

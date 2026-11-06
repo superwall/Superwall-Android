@@ -379,7 +379,27 @@ class WebPaywallRedeemerTest {
                 ),
         )
 
-    private fun redeemerWithoutReferral(): WebPaywallRedeemer {
+    private class InMemoryStorage : Storage {
+        val values = mutableMapOf<String, Any>()
+
+        @Suppress("UNCHECKED_CAST")
+        override fun <T> read(storable: Storable<T>): T? = values[storable.key] as T?
+
+        override fun <T : Any> write(
+            storable: Storable<T>,
+            data: T,
+        ) {
+            values[storable.key] = data
+        }
+
+        override fun <T : Any> delete(storable: Storable<T>) {
+            values.remove(storable.key)
+        }
+
+        override fun clean() = values.clear()
+    }
+
+    private fun redeemerWithoutReferral(storage: Storage = this.storage): WebPaywallRedeemer {
         coEvery { deepLinkReferrer.checkForReferral() } returns Result.failure(Exception("no referral"))
         return WebPaywallRedeemer(
             context,
@@ -514,6 +534,8 @@ class WebPaywallRedeemerTest {
     fun `a slow redeem doesn't overwrite a refresh requested after it`() =
         runTest(testDispatcher) {
             Given("a background redeem whose response arrives after a later refresh applied") {
+                val storage = InMemoryStorage()
+                storage.write(LatestRedemptionResponse, redemptionResponse(normalEntitlement))
                 val stale = Entitlement("stale_entitlement")
                 val response = redemptionResponse(stale)
                 coEvery {
@@ -523,16 +545,45 @@ class WebPaywallRedeemerTest {
                     redeemer.refreshWebEntitlements()
                     Either.Success(response)
                 }
-                redeemer = redeemerWithoutReferral()
+                redeemer = redeemerWithoutReferral(storage)
                 testScheduler.advanceUntilIdle()
 
                 When("the redeem's response arrives") {
                     redeemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
 
-                    Then("the refresh's entitlements stay and the redeem's are not saved") {
+                    Then("the refresh's entitlements stay and the redeem's are not applied") {
                         assertTrue(webEntitlement in mutableEntitlements)
                         assertTrue(stale !in mutableEntitlements)
-                        verify(exactly = 0) { storage.write(LatestRedemptionResponse, response) }
+                        val saved = storage.read(LatestRedemptionResponse)!!
+                        assertEquals(listOf(webEntitlement), saved.customerInfo?.entitlements)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `on a fresh install a redeem that lost the race to a fetch still creates the cache`() =
+        runTest(testDispatcher) {
+            Given("a fresh install where a fetch finishes before the launch redeem") {
+                val storage = InMemoryStorage()
+                val stale = Entitlement("stale_entitlement")
+                val response = redemptionResponse(stale)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } coAnswers {
+                    redeemer.refreshWebEntitlements()
+                    Either.Success(response)
+                }
+                redeemer = redeemerWithoutReferral(storage)
+                testScheduler.advanceUntilIdle()
+
+                When("the redeem's response arrives") {
+                    redeemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+
+                    Then("the redemption is saved with the fetched entitlements, which an external purchase controller's merge reads") {
+                        val saved = storage.read(LatestRedemptionResponse)
+                        assertEquals(listOf(webEntitlement), saved?.customerInfo?.entitlements)
+                        assertTrue(stale !in mutableEntitlements)
                     }
                 }
             }
