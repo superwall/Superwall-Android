@@ -233,6 +233,7 @@ class WebPaywallRedeemer(
             }
         }
         track(Redemptions(RedemptionState.Start, redemption))
+        val requestedFor = currentUser()
         network
             .redeemToken(
                 allCodes,
@@ -249,6 +250,18 @@ class WebPaywallRedeemer(
                 },
             ).fold(
                 onSuccess = {
+                    // A background redeem answers for the user it was sent for. If the user changed
+                    // meanwhile (identify or reset), its entitlements aren't theirs, so drop it; the
+                    // identity change starts a redeem of its own. A code redemption is kept, since the
+                    // code was redeemed regardless.
+                    if (redemption !is RedeemType.Code && currentUser() != requestedFor) {
+                        Logger.debug(
+                            logLevel = LogLevel.debug,
+                            scope = LogScope.webEntitlements,
+                            message = "Dropping a redemption response for a user who is no longer current",
+                        )
+                        return@fold
+                    }
                     storage.write(LatestRedemptionResponse, it)
                     factory.setWebEntitlements(
                         it.customerInfo
@@ -358,6 +371,8 @@ class WebPaywallRedeemer(
             )
         startPolling()
     }
+
+    private fun currentUser(): Pair<UserId?, String?> = factory.getUserId() to factory.getAliasId()
 
     private suspend fun handleTrialRedemption(result: RedemptionResult) {
         val product = (result as? RedemptionResult.Success)?.redemptionInfo?.paywallInfo?.product ?: return

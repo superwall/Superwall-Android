@@ -314,6 +314,11 @@ internal data class TransactionState(
                         productIdentifier = product.fullIdentifier,
                         purchaseDate = Date(),
                     )
+                if (outcome is PurchaseResult.Purchased) {
+                    // A custom purchase has no Play receipt to reload. The developer's server reports
+                    // it to Superwall, and /redeem returns the entitlements that came from it.
+                    dependencies.ioScope.launchWithTracking { dependencies.notifyBackendOfReceipts() }
+                }
                 if (externalOnly) {
                     // The developer's flow owns the rest; still track the transaction so analytics
                     // include the custom transaction id.
@@ -537,7 +542,8 @@ private suspend fun TransactionContext.didPurchaseWithoutReceipt(
     outcome: PurchaseOutcome.PurchasedWithoutReceipt,
     shouldDismiss: Boolean,
 ) {
-    // No Play receipt for custom products, so purchased products aren't reloaded.
+    // No Play receipt for custom products, so purchased products aren't reloaded. RunCustomProduct
+    // already asked the backend for the entitlements.
     trackTransactionDidSucceed(outcome.transaction, product, source, outcome.didStartFreeTrial)
     if (source is PurchaseSource.Internal) dismissOrReady(product, source, shouldDismiss)
 }
