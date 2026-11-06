@@ -18,13 +18,12 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Fixes observer-mode tracking stopping for the rest of the session when `SuperwallOptions.shouldObservePurchases` is on and Play reported a cancelled or failed purchase while no purchase was being observed. The purchase listener crashed on it; such results are now ignored.
 - Fixes trial reminders and other paywall notifications never being scheduled for a paywall embedded in the app's own Activity, such as one shown with `PaywallComposable`. Notifications were only scheduled when the paywall was shown in a `SuperwallPaywallActivity` or in-window; the SDK now asks the embedding Activity for the notification permission and schedules them there.
 - Fixes preloaded paywalls continuing to animate while off screen. A cached paywall's webview reported its page as visible, so its animations (Lottie, CSS, `requestAnimationFrame`) kept running unseen on the renderer thread every webview in the app shares, slowing the paywall on screen and the host app. A paywall is now paused once it has loaded while off screen, and resumed when it is presented.
+- Fixes `CustomerInfo` and entitlements naming the first configured base plan, with an expiry based on that plan's period, when a Google Play subscription has several base plans. The SDK now saves the product that was bought against its purchase token. When it can't know the plan, such as after a reinstall or for a purchase made before this fix, `productId` and `latestProductId` are the Play subscription ID and the expiry dates are `null`. Those users keep their access, and a plan that was recorded now also decides which entitlements the purchase unlocks.
 
 ## Deprecations
 - Deprecates `LogScope.storeKitManager` in favour of `LogScope.billing`. Billing logs are now reported with the scope `billing`, so a `SuperwallDelegate.handleLog` implementation that matches the scope string `"storeKitManager"` should match `"billing"` instead.
 - Deprecates the unused iOS-port types `com.superwall.sdk.billing.StoreProductType`, `StoreKit`, `StoreKitManagerInterface`, `ProductPurchaser`, `TransactionRestorer`, `Purchasing` and `TransactionVerifierFactory`. They will be removed in a future release. `GetProductsResponse` is unchanged.
 
-## Fixes
-- Fixes `CustomerInfo` and entitlements naming the first configured base plan, with an expiry based on that plan's period, when a Google Play subscription has several base plans. The SDK now saves the product that was bought against its purchase token. When it can't know the plan, such as after a reinstall or for a purchase made before this fix, `productId` and `latestProductId` are the Play subscription ID and the expiry dates are `null`. Those users keep their access, and a plan that was recorded now also decides which entitlements the purchase unlocks.
 
 ## 2.9.0
 
