@@ -763,7 +763,7 @@ class SupportTransport internal constructor(
             httpBusy = false
         }
         // An HTTP read that moved nothing (bad data) must not loop ready → read → connect.
-        val noProgress = readsHttp && log.cursor == cursorBefore
+        val noProgress = readsHttp && log.cursor <= cursorBefore
         if (useBackoff || noProgress) scheduleRetry() else connect()
     }
 
