@@ -473,18 +473,29 @@ class PaywallMessageHandler(
 
         withContext(Dispatchers.Main) {
             currentCoroutineContext().ensureActive()
-            messageHandler?.evaluate(templateScript) { error ->
-                if (error != null) {
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        scope = LogScope.paywallView,
-                        error = java.lang.Exception(error),
-                        info = { mapOf("message" to templateScript) },
-                        message = { "Error Evaluating JS" },
-                    )
-                }
+            messageHandler?.evaluate(templateScript) { result ->
+                logUnexpectedEvaluationResult(templateScript, result)
             }
         }
+    }
+
+    /**
+     * `WebView.evaluateJavascript` passes the script's return value, JSON-encoded, not an error.
+     * `accept64` returns nothing, which arrives as the string "null" on every successful post,
+     * so that value is expected. Anything else is logged as before.
+     */
+    private fun logUnexpectedEvaluationResult(
+        script: String,
+        result: String?,
+    ) {
+        if (result == null || result == "null") return
+        Logger.debug(
+            logLevel = LogLevel.error,
+            scope = LogScope.paywallView,
+            error = java.lang.Exception(result),
+            info = { mapOf("message" to script) },
+            message = { "Error Evaluating JS" },
+        )
     }
 
     // Passes in the HTML substitutions, templates and other scripts to make the webview feel native.
@@ -552,16 +563,8 @@ class PaywallMessageHandler(
         // cannot overtake the templates.
         withContext(Dispatchers.Main) {
             currentCoroutineContext().ensureActive()
-            messageHandler?.evaluate(scriptSrc) { error ->
-                if (error != null) {
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        scope = LogScope.paywallView,
-                        error = java.lang.Exception(error),
-                        info = { mapOf("message" to scriptSrc) },
-                        message = { "Error Evaluating JS" },
-                    )
-                }
+            messageHandler?.evaluate(scriptSrc) { result ->
+                logUnexpectedEvaluationResult(scriptSrc, result)
             }
 
             // block selection
