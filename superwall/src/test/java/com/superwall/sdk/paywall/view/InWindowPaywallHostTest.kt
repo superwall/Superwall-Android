@@ -31,6 +31,7 @@ import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.view.webview.PaywallUIDelegate
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
@@ -47,6 +48,7 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.verify
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -387,6 +389,17 @@ class InWindowPaywallHostTest {
     @Test
     fun tappingTheDimmedBackdrop_dismissesASheetAsAManualClose() {
         Given("a drawer shown in-window") {
+            // The teardown clears the view's paywallResult, and it can finish before the first
+            // check, so assert on the Dismissed state it emits instead.
+            val statePublisher = MutableSharedFlow<PaywallState>(replay = 1, extraBufferCapacity = 8)
+            paywallView.updateState(
+                PaywallViewState.Updates.SetRequest(
+                    req = mockk(relaxed = true),
+                    publisher = statePublisher,
+                    occurrence = null,
+                    experiment = null,
+                ),
+            )
             show(PaywallPresentationStyle.Drawer(height = 70.0, cornerRadius = 15.0))
             val coordinator = (paywallView.parent as View).parent as CoordinatorLayout
 
@@ -397,11 +410,12 @@ class InWindowPaywallHostTest {
                     assertTrue(
                         waitUntil {
                             idleFor(700)
-                            paywallView.state.paywallResult != null
+                            statePublisher.replayCache.any { it is PaywallState.Dismissed }
                         },
                     )
-                    assertTrue(paywallView.state.paywallResult is PaywallResult.Declined)
-                    assertEquals(PaywallCloseReason.ManualClose, paywallView.state.paywall.closeReason)
+                    val dismissed = statePublisher.replayCache.filterIsInstance<PaywallState.Dismissed>().single()
+                    assertTrue(dismissed.paywallResult is PaywallResult.Declined)
+                    assertEquals(PaywallCloseReason.ManualClose, dismissed.paywallInfo.closeReason)
                 }
             }
         }
