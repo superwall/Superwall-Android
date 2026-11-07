@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## Unreleased
+
+### Fixes
+- Keeps paywall content clear of side navigation bars in landscape by applying horizontal system-bar insets to drawer, modal and fullscreen presentations. Insets update when the device rotates back to portrait.
+
 ## 2.10.0
 
 ## Breaking changes
