@@ -223,6 +223,6 @@ internal fun buildSubscriptionStatus(state: TestModeState): SubscriptionStatus {
     if (session.entitlementIds.isEmpty()) return SubscriptionStatus.Inactive
     val activeSelections = session.entitlementSelections.filter { it.state.isActive }
     val selectedIds = activeSelections.map { it.identifier }.toSet()
-    val bought = (session.entitlementIds - selectedIds).map { Entitlement(it) }
+    val bought = (session.entitlementIds - selectedIds).map { Entitlement(it, isActive = true) }
     return SubscriptionStatus.Active((activeSelections.map { it.toEntitlement() } + bought).toSet())
 }
