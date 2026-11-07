@@ -463,7 +463,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     /**
-     * Applies edge-to-edge navigation bar styling and sets bottom insets on the WebView
+     * Applies edge-to-edge navigation bar styling and sets side and bottom insets on the WebView
      * so content is not hidden behind the navigation bar.
      * Used by Fullscreen, FullscreenNoAnimation, Push, and None presentation styles.
      */
@@ -481,11 +481,13 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 },
         )
 
-        // Set the bottom margin of the webview to the height of the system bars
+        // Keep content clear of navigation bars, including side bars in landscape.
         view.webView.onView {
             ViewCompat.setOnApplyWindowInsetsListener(this) { v, windowInsets ->
                 val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
                 v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    leftMargin = insets.left
+                    rightMargin = insets.right
                     bottomMargin = insets.bottom
                 }
 
@@ -522,10 +524,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         container.background = drawable
 
-        // Apply navigation bar insets as bottom padding so content isn't hidden behind nav bar
+        // Keep content clear of navigation bars, including side bars in landscape.
         ViewCompat.setOnApplyWindowInsetsListener(container) { v, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, insets.bottom)
+            v.setPadding(insets.left, v.paddingTop, insets.right, insets.bottom)
             WindowInsetsCompat.CONSUMED
         }
     }
