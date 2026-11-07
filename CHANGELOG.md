@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.10.1
+
+## Fixes
+- Fixes a paywall saved again under the same identifier as the one on screen, after that one was removed or replaced, being treated as the paywall on screen. It could then survive a cache reset that should have cleared it.
+
 ## 2.10.0
 
 ## Breaking changes
