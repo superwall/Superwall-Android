@@ -1,0 +1,218 @@
+INSTRUMENTATION_STATUS: class=com.superwall.sdk.paywall.view.PaywallActivityInsetsTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+com.superwall.sdk.paywall.view.PaywallActivityInsetsTest:
+INSTRUMENTATION_STATUS: test=modalContentStaysInsideSystemBarsWhenRotated
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.superwall.sdk.paywall.view.PaywallActivityInsetsTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: modal/landscape right Rect(0, 120 - 2400, 1080) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+
+INSTRUMENTATION_STATUS: stream=
+Error in modalContentStaysInsideSystemBarsWhenRotated(com.superwall.sdk.paywall.view.PaywallActivityInsetsTest):
+java.lang.AssertionError: modal/landscape right Rect(0, 120 - 2400, 1080) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+
+INSTRUMENTATION_STATUS: test=modalContentStaysInsideSystemBarsWhenRotated
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.superwall.sdk.paywall.view.PaywallActivityInsetsTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=drawerContentStaysInsideSystemBarsWhenRotated
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.superwall.sdk.paywall.view.PaywallActivityInsetsTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: drawer/landscape right Rect(0, 324 - 2400, 1404) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+
+INSTRUMENTATION_STATUS: stream=
+Error in drawerContentStaysInsideSystemBarsWhenRotated(com.superwall.sdk.paywall.view.PaywallActivityInsetsTest):
+java.lang.AssertionError: drawer/landscape right Rect(0, 324 - 2400, 1404) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+
+INSTRUMENTATION_STATUS: test=drawerContentStaysInsideSystemBarsWhenRotated
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.superwall.sdk.paywall.view.PaywallActivityInsetsTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=fullscreenContentStaysInsideSystemBarsWhenRotated
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.superwall.sdk.paywall.view.PaywallActivityInsetsTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: fullscreen/landscape right Rect(0, 0 - 2400, 1080) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+
+INSTRUMENTATION_STATUS: stream=
+Error in fullscreenContentStaysInsideSystemBarsWhenRotated(com.superwall.sdk.paywall.view.PaywallActivityInsetsTest):
+java.lang.AssertionError: fullscreen/landscape right Rect(0, 0 - 2400, 1080) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+
+INSTRUMENTATION_STATUS: test=fullscreenContentStaysInsideSystemBarsWhenRotated
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 19.041
+There were 3 failures:
+1) modalContentStaysInsideSystemBarsWhenRotated(com.superwall.sdk.paywall.view.PaywallActivityInsetsTest)
+java.lang.AssertionError: modal/landscape right Rect(0, 120 - 2400, 1080) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+2) drawerContentStaysInsideSystemBarsWhenRotated(com.superwall.sdk.paywall.view.PaywallActivityInsetsTest)
+java.lang.AssertionError: drawer/landscape right Rect(0, 324 - 2400, 1404) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+3) fullscreenContentStaysInsideSystemBarsWhenRotated(com.superwall.sdk.paywall.view.PaywallActivityInsetsTest)
+java.lang.AssertionError: fullscreen/landscape right Rect(0, 0 - 2400, 1080) vs Insets{left=0, top=63, right=126, bottom=0}
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.exercise$lambda$9$lambda$8(PaywallActivityInsetsTest.kt:111)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest.$r8$lambda$9Vx8JaCExFmcj1lLROlIHurmyRw(Unknown Source:0)
+	at com.superwall.sdk.paywall.view.PaywallActivityInsetsTest$$ExternalSyntheticLambda6.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+	at android.os.Handler.handleCallback(Handler.java:959)
+	at android.os.Handler.dispatchMessage(Handler.java:100)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8705)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+
+FAILURES!!!
+Tests run: 3,  Failures: 3
+
+
+INSTRUMENTATION_CODE: -1
