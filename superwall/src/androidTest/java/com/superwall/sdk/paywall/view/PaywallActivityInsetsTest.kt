@@ -46,6 +46,7 @@ class PaywallActivityInsetsTest {
     @After
     fun tearDown() {
         instrumentation.runOnMainSync { activity?.finish() }
+        activity?.let { finishingActivity -> await("activity teardown") { finishingActivity.isDestroyed } }
         instrumentation.waitForIdleSync()
         instrumentation.runOnMainSync {
             if (::webView.isInitialized) {
@@ -108,7 +109,10 @@ class PaywallActivityInsetsTest {
                 println("INSETS $name/$label bars=$insets webView=$bounds window=${decor.width}x${decor.height}")
                 assertTrue("$name/$label left $bounds vs $insets", bounds.left >= insets.left)
                 assertTrue("$name/$label right $bounds vs $insets", bounds.right <= decor.width - insets.right)
-                assertTrue("$name/$label bottom $bounds vs $insets", bounds.bottom <= decor.height - insets.bottom)
+                // A half-expanded drawer clips the lower part of its full-height WebView.
+                if (style !is PaywallPresentationStyle.Drawer) {
+                    assertTrue("$name/$label bottom $bounds vs $insets", bounds.bottom <= decor.height - insets.bottom)
+                }
                 if (label.contains("landscape") && expectedSideBar()) {
                     assertTrue("Three-button mode must exercise a horizontal inset", insets.left > 0 || insets.right > 0)
                 }
@@ -164,7 +168,8 @@ class PaywallActivityInsetsTest {
             webView =
                 WebView(context).apply {
                     layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                    loadData(
+                    loadDataWithBaseURL(
+                        null,
                         """
                         <html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
                         <body style="margin:0;background:#edf4ff;font:18px sans-serif">
@@ -175,6 +180,7 @@ class PaywallActivityInsetsTest {
                         """.trimIndent(),
                         "text/html",
                         "UTF-8",
+                        null,
                     )
                 }
             val webUI = mockk<PaywallWebUI>(relaxed = true)
