@@ -205,7 +205,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    private fun paywallView(): PaywallView? = contentView?.findViewWithTag(ACTIVE_PAYWALL_TAG)
+    private fun paywallView(): PaywallView? =
+        contentView
+            ?.findViewWithTag<PaywallView>(ACTIVE_PAYWALL_TAG)
+            ?.takeIf { isOwnedByThisActivity(it) }
 
     /**
      * Finishes an activity that can't show its paywall. When it was recreated by the system
@@ -876,7 +879,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                     SuperwallGraph.requireContainer()
                         .makeViewRegistry()
                         .retrieveView(pv) as? PaywallView?
-                )?.cleanup()
+                )?.takeIf { isOwnedByThisActivity(it) }
+                    ?.cleanup()
             }
         }.onError {
             Logger.debug(
@@ -886,12 +890,19 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             )
         }
         paywallView()?.cleanup()
-        content?.removeAllViews()
+        content?.takeIf { isOwnedByThisActivity(it) }?.removeAllViews()
         // Clear reference to activity in the view
         (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
         // Clear the reference to the contentView
         contentView = null
     }
+
+    /**
+     * Whether [view] is still in this activity's window, or in no layout. The app can take the
+     * cached view over for its own presentation (getPaywall) before this activity is destroyed,
+     * and that view mustn't be torn down here.
+     */
+    private fun isOwnedByThisActivity(view: View): Boolean = view.parent == null || view.rootView === window?.decorView
 
     private fun restorePaywallViewAfterCleanup(
         paywallView: PaywallView,

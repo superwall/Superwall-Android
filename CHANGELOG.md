@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.10.2
+
+## Fixes
+- Fixes a paywall the app showed right after the same paywall closed being taken off the screen when the closed one finished tearing down.
+
 ## 2.10.1
 
 ## Fixes
