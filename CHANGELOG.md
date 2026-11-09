@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.10.1
+
+## Fixes
+- Fixes test mode leaving out entitlements bought during the session when the tester had also chosen an active entitlement in the test mode modal.
+
 ## 2.10.0
 
 ## Breaking changes

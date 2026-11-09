@@ -12,6 +12,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.IsTestModeActiveSubscription
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.product.receipt.LatestSubscriptionState
 import com.superwall.sdk.store.testmode.models.SuperwallEntitlementRef
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
 import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
@@ -20,6 +21,8 @@ import com.superwall.sdk.store.testmode.models.SuperwallProductSubscription
 import com.superwall.sdk.store.testmode.models.SuperwallSubscriptionPeriod
 import com.superwall.sdk.store.testmode.models.TestStoreUser
 import com.superwall.sdk.store.testmode.models.TestStoreUserType
+import com.superwall.sdk.store.testmode.ui.EntitlementSelection
+import com.superwall.sdk.store.testmode.ui.EntitlementStateOption
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -668,6 +671,73 @@ class TestModeTest {
                     assertTrue(active.entitlements.any { it.id == "premium" && it.isActive })
                     assertTrue(active.entitlements.any { it.id == "pro" && it.isActive })
                     assertEquals(2, active.entitlements.size)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `buildSubscriptionStatus keeps purchases made after choosing entitlements`() {
+        Given("a TestMode with an entitlement chosen in the modal") {
+            val manager = makeManager()
+            activateTestMode(manager)
+            manager.setEntitlements(setOf("premium"))
+
+            When("a different entitlement is bought") {
+                manager.fakePurchase(listOf(SuperwallEntitlementRef("pro", null)))
+                val status = manager.buildSubscriptionStatus()
+
+                Then("both are active") {
+                    val active = status as SubscriptionStatus.Active
+                    assertEquals(setOf("premium", "pro"), active.entitlements.map { it.id }.toSet())
+                    assertTrue(active.entitlements.all { it.isActive })
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `buildSubscriptionStatus keeps the chosen state of a selection that is also bought`() {
+        Given("an entitlement chosen as in grace period") {
+            val manager = makeManager()
+            activateTestMode(manager)
+            manager.setEntitlements(
+                listOf(EntitlementSelection("premium", EntitlementStateOption.InGracePeriod)),
+            )
+
+            When("the same entitlement is bought") {
+                manager.fakePurchase(listOf(SuperwallEntitlementRef("premium", null)))
+                val status = manager.buildSubscriptionStatus()
+
+                Then("it appears once, still in grace period") {
+                    val active = status as SubscriptionStatus.Active
+                    assertEquals(1, active.entitlements.size)
+                    assertEquals(
+                        LatestSubscriptionState.GRACE_PERIOD,
+                        active.entitlements.single().state,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `buildSubscriptionStatus makes a bought entitlement active even if it was chosen as expired`() {
+        Given("an entitlement chosen as expired") {
+            val manager = makeManager()
+            activateTestMode(manager)
+            manager.setEntitlements(
+                listOf(EntitlementSelection("premium", EntitlementStateOption.Expired)),
+            )
+
+            When("it is bought") {
+                manager.fakePurchase(listOf(SuperwallEntitlementRef("premium", null)))
+                val status = manager.buildSubscriptionStatus()
+
+                Then("it is active") {
+                    val active = status as SubscriptionStatus.Active
+                    assertEquals(setOf("premium"), active.entitlements.map { it.id }.toSet())
+                    assertTrue(active.entitlements.single().isActive)
                 }
             }
         }
