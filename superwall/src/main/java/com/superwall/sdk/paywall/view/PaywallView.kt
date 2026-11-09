@@ -1134,8 +1134,15 @@ class PaywallView internal constructor(
 
 //region Misc
 
+    // How many presentations the view has been handed to. Whoever shows the view keeps the count
+    // it took the view at, and can tell from a higher one that the view has been taken over since,
+    // even before the new presentation has put the view in its layout.
+    internal var presentationCount = 0
+        private set
+
     // Android-specific
     fun prepareToDisplay() {
+        presentationCount++
         // Check if the view already has a parent
         val parentViewGroup = this@PaywallView.parent as? ViewGroup
         parentViewGroup?.removeView(this@PaywallView)
@@ -1151,6 +1158,7 @@ class PaywallView internal constructor(
         // Unregister activity result launcher to prevent Activity leak
         activityResultLauncher?.unregister()
         activityResultLauncher = null
+        launcherOwner = null
         (parent as? ViewGroup)?.removeAllViews()
         removeAllViews()
         detachAllViewsFromParent()
@@ -1163,11 +1171,29 @@ class PaywallView internal constructor(
     }
 
     private var activityResultLauncher: ActivityResultLauncher<String>? = null
+    private var launcherOwner: WeakReference<LifecycleOwner>? = null
+
+    /**
+     * Lets go of [activity], which showed the view before another presentation took it over.
+     * The activity's teardown leaves a view it no longer shows alone, so the view would otherwise
+     * keep its checkout launcher, which no longer works, and its reference to the activity.
+     */
+    internal fun release(activity: Activity) {
+        if (encapsulatingActivity?.get() === activity) {
+            encapsulatingActivity = null
+        }
+        if (launcherOwner?.get() === activity) {
+            activityResultLauncher?.unregister()
+            activityResultLauncher = null
+            launcherOwner = null
+        }
+    }
 
     internal fun registerIntent(
         lifecycleOwner: LifecycleOwner,
         registryOwner: ActivityResultRegistryOwner,
     ) {
+        launcherOwner = WeakReference(lifecycleOwner)
         activityResultLauncher =
             registryOwner.activityResultRegistry.register(
                 "checkoutSheet",
