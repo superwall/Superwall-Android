@@ -43,12 +43,11 @@ class PaywallActivityInsetsTest {
     private var activity: SuperwallPaywallActivity? = null
     private var container: DependencyContainer? = null
     private lateinit var webView: WebView
+    private lateinit var paywallView: PaywallView
 
     @After
     fun tearDown() {
-        instrumentation.runOnMainSync { activity?.finish() }
-        activity?.let { finishingActivity -> await("activity teardown") { finishingActivity.isDestroyed } }
-        instrumentation.waitForIdleSync()
+        finishActivity()
         instrumentation.runOnMainSync {
             if (::webView.isInitialized) {
                 (webView.parent as? ViewGroup)?.removeView(webView)
@@ -71,6 +70,41 @@ class PaywallActivityInsetsTest {
     @Test
     fun popupContentStaysInsideSystemBarsWhenRotated() =
         exercise(PaywallPresentationStyle.Popup(height = 80.0, width = 90.0, cornerRadius = 16.0), "popup")
+
+    @Test
+    fun cachedWebViewDropsFullscreenMarginsWhenReusedInModal() {
+        launch(PaywallPresentationStyle.Fullscreen, "reuse")
+        instrumentation.runOnMainSync {
+            ViewCompat.dispatchApplyWindowInsets(
+                webView,
+                WindowInsetsCompat
+                    .Builder()
+                    .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(64, 24, 64, 48))
+                    .build(),
+            )
+            assertEquals(64, (webView.layoutParams as ViewGroup.MarginLayoutParams).leftMargin)
+        }
+        finishActivity()
+        // Teardown detaches the WebView; SWWebView.attach() re-adds it with its layout params kept.
+        instrumentation.runOnMainSync {
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            paywallView.addView(webView)
+        }
+        start(PaywallPresentationStyle.Modal)
+        instrumentation.runOnMainSync {
+            val params = webView.layoutParams as ViewGroup.MarginLayoutParams
+            assertEquals(0, params.leftMargin)
+            assertEquals(0, params.rightMargin)
+            assertEquals(0, params.bottomMargin)
+        }
+    }
+
+    private fun finishActivity() {
+        instrumentation.runOnMainSync { activity?.finish() }
+        activity?.let { finishingActivity -> await("activity teardown") { finishingActivity.isDestroyed } }
+        activity = null
+        instrumentation.waitForIdleSync()
+    }
 
     private fun exercise(
         style: PaywallPresentationStyle,
@@ -209,6 +243,7 @@ class PaywallActivityInsetsTest {
                     redeemer = mockk(relaxed = true),
                 )
             view.addView(webView)
+            paywallView = view
             // A relaxed chained registry mock creates a mock android.view.View and
             // instruments every platform View method, making device layout unusably slow.
             val registry =
@@ -238,6 +273,10 @@ class PaywallActivityInsetsTest {
                     SuperwallGraph.attach(it)
                 }
         }
+        start(style)
+    }
+
+    private fun start(style: PaywallPresentationStyle) {
         val intent =
             Intent(context, SuperwallPaywallActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

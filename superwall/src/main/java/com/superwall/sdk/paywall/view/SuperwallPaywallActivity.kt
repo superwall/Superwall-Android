@@ -456,6 +456,19 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         )
                 },
         )
+
+        // A cached WebView may still carry the fullscreen inset listener and margins from an
+        // earlier presentation; the container applies insets for these styles instead.
+        view.webView.onView {
+            ViewCompat.setOnApplyWindowInsetsListener(this, null)
+            (layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+                updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    leftMargin = 0
+                    rightMargin = 0
+                    bottomMargin = 0
+                }
+            }
+        }
     }
 
     /**
