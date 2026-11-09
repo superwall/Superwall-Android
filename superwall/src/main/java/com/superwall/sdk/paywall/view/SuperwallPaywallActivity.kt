@@ -6,7 +6,6 @@ import android.animation.ArgbEvaluator
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
-import android.app.ComponentCaller
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -297,11 +296,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         setupActivityWithView(view, presentationStyle)
     }
 
-    override fun onNewIntent(
-        intent: Intent,
-        caller: ComponentCaller,
-    ) {
-        super.onNewIntent(intent, caller)
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
         intent.data?.let {
             Superwall.handleDeepLink(it)
         }
