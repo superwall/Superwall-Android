@@ -15,6 +15,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.models.paywall.Paywall
@@ -225,9 +226,15 @@ class PaywallActivityInsetsTest {
 
                     override fun acquireShimmerView(): PaywallShimmerView = error("No shimmer in this fixture")
                 }
+            // Not relaxed: this becomes the process-wide graph, so an SDK configured by an earlier
+            // test reaches it from background work. Relaxed answers there mock enums and
+            // collections, making MockK hook Enum and AbstractCollection for the whole process,
+            // which overflows the stack on the next Enum.toString(). Logger reads the last two.
             container =
-                mockk<DependencyContainer>(relaxed = true).also {
+                mockk<DependencyContainer>().also {
                     every { it.makeViewRegistry() } returns registry
+                    every { it.configManager.options } returns SuperwallOptions()
+                    every { it.delegateAdapter } returns SuperwallDelegateAdapter()
                     SuperwallGraph.attach(it)
                 }
         }
