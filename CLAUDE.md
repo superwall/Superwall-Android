@@ -72,6 +72,14 @@ This is the Superwall Android SDK - an open-source framework for remotely config
 3. `PaywallPresentationHandler` - Manages presentation logic
 4. `PaywallView` - Custom FrameLayout hosting WebView-based paywalls
 
+`SuperwallPaywallActivity` applies system-bar insets on the left, right and bottom:
+padding on the drawer/modal container, margins on the fullscreen WebView. Assign
+each dispatch's values (including zero) so rotation clears the previous side's
+inset; keep existing top-inset behavior. Popups apply all four sides on their root.
+Device regression coverage: `PaywallActivityInsetsTest` in `superwall/src/androidTest`;
+run with three-button navigation and `-e navigationMode threebutton` to require a
+landscape side bar, then repeat with gesture navigation.
+
 **Rule Evaluation**: `superwall/src/main/java/com/superwall/sdk/paywall/presentation/rule_logic/`
 - CEL (Common Expression Language) evaluator for complex rules
 - JavaScript fallback for rule evaluation

@@ -4,6 +4,13 @@ package com.superwall.sdk.store
 
 import android.app.Activity
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.ProductDetails
+import com.superwall.sdk.billing.DecomposedProductIds
+import com.superwall.sdk.billing.google.offerToken
+import com.superwall.sdk.products.mockOneTimePurchaseOfferDetails
+import com.superwall.sdk.products.mockPricingPhase
+import com.superwall.sdk.products.mockProductDetails
+import io.mockk.slot
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -264,6 +271,152 @@ class AutomaticPurchaseControllerTest {
                     Then("the purchases it could read are still acknowledged") {
                         coVerify(atLeast = 1) { store.ownedPurchases() }
                         coVerify(exactly = 1) { store.acknowledge(bought) }
+                    }
+                }
+            }
+        }
+
+    // A monthly base plan with a 7-day free trial offer and a cheaper intro offer, as Play returns it.
+    private fun subscriptionWithTrial() =
+        mockProductDetails(
+            productId = "sub",
+            subscriptionOfferDetails =
+                listOf(
+                    offer(offerId = null, token = "base-token", mockPricingPhase(price = 9.99)),
+                    offer(
+                        offerId = "trial",
+                        token = "trial-token",
+                        mockPricingPhase(price = 0.0, billingPeriod = "P1W", billingCycleCount = 1),
+                        mockPricingPhase(price = 9.99),
+                    ),
+                    offer(
+                        offerId = "intro",
+                        token = "intro-token",
+                        mockPricingPhase(price = 4.99, billingCycleCount = 1),
+                        mockPricingPhase(price = 9.99),
+                    ),
+                ),
+        )
+
+    private fun offer(
+        offerId: String?,
+        token: String,
+        vararg phases: ProductDetails.PricingPhase,
+    ): ProductDetails.SubscriptionOfferDetails =
+        mockk {
+            every { offerTags } returns emptyList()
+            every { offerToken } returns token
+            every { getOfferId() } returns offerId
+            every { basePlanId } returns "monthly"
+            every { pricingPhases } returns mockk { every { pricingPhaseList } returns phases.toList() }
+        }
+
+    /**
+     * Buys the paywall product [fullId] the way TransactionManager does, and returns the offer
+     * token the controller sends to Play.
+     */
+    private suspend fun TestScope.offerTokenSentToPlay(
+        details: ProductDetails,
+        fullId: String,
+    ): String? {
+        val ids = DecomposedProductIds.from(fullId)
+        val paywallProduct =
+            RawStoreProduct(
+                underlyingProductDetails = details,
+                fullIdentifier = fullId,
+                basePlanType = ids.basePlanType,
+                offerType = ids.offerType,
+            )
+        val sent = slot<StoreProduct>()
+        val store = store()
+        coEvery { store.purchase(any(), capture(sent), any()) } returns StorePurchaseResult.Purchased(emptyList())
+
+        makeController(store).purchase(
+            mockk<Activity>(relaxed = true),
+            StoreProduct(paywallProduct),
+            basePlanId = paywallProduct.basePlanId,
+            offerId = paywallProduct.offerId,
+            replacement = null,
+        )
+
+        val bought = sent.captured.rawStoreProduct!!
+        return bought.offerToken(bought.offerId)
+    }
+
+    @Test
+    fun `sw-none buys the base plan even when the base plan has a free trial offer`() =
+        runTest {
+            Given("a base plan with a free trial offer") {
+                val details = subscriptionWithTrial()
+
+                When("the paywall's sw-none product is bought") {
+                    val token = offerTokenSentToPlay(details, "sub:monthly:sw-none")
+
+                    Then("Play gets the base plan's token, not the trial's") {
+                        assertEquals("base-token", token)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `sw-auto buys the longest free trial`() =
+        runTest {
+            Given("a base plan with a free trial offer") {
+                val details = subscriptionWithTrial()
+
+                When("the paywall's sw-auto product is bought") {
+                    val token = offerTokenSentToPlay(details, "sub:monthly:sw-auto")
+
+                    Then("Play gets the trial's token") {
+                        assertEquals("trial-token", token)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a named offer buys that offer`() =
+        runTest {
+            Given("a base plan with a free trial and an intro offer") {
+                val details = subscriptionWithTrial()
+
+                When("the paywall's product names the intro offer") {
+                    val token = offerTokenSentToPlay(details, "sub:monthly:intro")
+
+                    Then("Play gets the intro offer's token") {
+                        assertEquals("intro-token", token)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `sw-none on a one-time product buys the purchase option without its discount`() =
+        runTest {
+            Given("a one-time purchase option with a discount offer") {
+                val details =
+                    mockProductDetails(
+                        productId = "lifetime",
+                        type = BillingClient.ProductType.INAPP,
+                        oneTimePurchaseOfferDetailsList =
+                            listOf(
+                                mockOneTimePurchaseOfferDetails(price = 49.99, purchaseOptionId = "buy", offerToken = "full-token"),
+                                mockOneTimePurchaseOfferDetails(
+                                    price = 29.99,
+                                    purchaseOptionId = "buy",
+                                    offerId = "promo",
+                                    offerToken = "promo-token",
+                                ),
+                            ),
+                        subscriptionOfferDetails = null,
+                    )
+
+                When("the paywall's sw-none product is bought") {
+                    val token = offerTokenSentToPlay(details, "lifetime:buy:sw-none")
+
+                    Then("Play gets the full-price option's token") {
+                        assertEquals("full-token", token)
                     }
                 }
             }

@@ -179,8 +179,9 @@ class PaywallViewCacheTest {
 
     @Test
     fun `setting activePaywallVcKey is observable on subsequent reads`() {
-        Given("a cache") {
+        Given("a cache with a view under the key") {
             val cache = newCache()
+            cache.storeView("abc", mockk<PaywallView>(relaxed = true))
 
             When("the active key is set") {
                 cache.activePaywallVcKey = "abc"
@@ -190,6 +191,112 @@ class PaywallViewCacheTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `setting activePaywallVcKey to a key with no view leaves nothing active`() {
+        val cache = newCache()
+        cache.activePaywallVcKey = "ghost"
+        assertNull(cache.activePaywallVcKey)
+    }
+
+    @Test
+    fun `removing the active paywall leaves nothing active`() =
+        runTest {
+            Given("an active paywall") {
+                val cache = newCache()
+                cache.save(mockk<PaywallView>(relaxed = true), "foo")
+                cache.activePaywallVcKey = keyOf("foo")
+
+                When("it is removed and a new view is saved under the same identifier") {
+                    cache.removePaywallView("foo")
+                    val replacement = mockk<PaywallView>(relaxed = true)
+                    cache.save(replacement, "foo")
+
+                    Then("the new view is not taken for the one on screen") {
+                        assertNull(cache.activePaywallVcKey)
+                        assertNull(cache.activePaywallView)
+                        assertSame(replacement, cache.getPaywallView(keyOf("foo")))
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `removing the active key through removeView leaves nothing active`() {
+        val cache = newCache()
+        cache.storeView("k", mockk<PaywallView>(relaxed = true))
+        cache.activePaywallVcKey = "k"
+
+        cache.removeView("k")
+
+        assertNull(cache.activePaywallVcKey)
+    }
+
+    @Test
+    fun `saving a different view over the active paywall leaves nothing active`() =
+        runTest {
+            Given("an active paywall") {
+                val cache = newCache()
+                cache.save(mockk<PaywallView>(relaxed = true), "foo")
+                cache.activePaywallVcKey = keyOf("foo")
+
+                When("a different view is saved under its identifier") {
+                    cache.save(mockk<PaywallView>(relaxed = true), "foo")
+
+                    Then("nothing cached is on screen") {
+                        assertNull(cache.activePaywallVcKey)
+                        assertNull(cache.activePaywallView)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `saving the active view again keeps it active`() =
+        runTest {
+            val cache = newCache()
+            val view = mockk<PaywallView>(relaxed = true)
+            cache.save(view, "foo")
+            cache.activePaywallVcKey = keyOf("foo")
+
+            cache.save(view, "foo")
+
+            assertSame(view, cache.activePaywallView)
+        }
+
+    @Test
+    fun `removeAll after the active paywall was removed evicts the replacement`() =
+        runTest {
+            Given("an active paywall that was removed and replaced") {
+                val cache = newCache()
+                cache.save(mockk<PaywallView>(relaxed = true), "foo")
+                cache.activePaywallVcKey = keyOf("foo")
+                cache.removePaywallView("foo")
+                cache.save(mockk<PaywallView>(relaxed = true), "foo")
+
+                When("removeAll runs") {
+                    cache.removeAll()
+
+                    Then("the replacement is evicted too") {
+                        assertNull(cache.getPaywallView(keyOf("foo")))
+                        assertNull(storage.retrieveView(keyOf("foo")))
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `hydrating without the active key leaves nothing active`() {
+        val state =
+            PaywallCacheState(
+                views = mapOf("k" to mockk<PaywallView>(relaxed = true)),
+                activePaywallVcKey = "k",
+            )
+
+        val hydrated = PaywallCacheState.Updates.Hydrate(emptyMap()).reduce(state)
+
+        assertNull(hydrated.activePaywallVcKey)
     }
 
     @Test
@@ -400,6 +507,7 @@ class PaywallViewCacheTest {
         runTest {
             Given("repeated concurrent activeKey assignments") {
                 val cache = newCache()
+                (0 until 50).forEach { cache.storeView("k_$it", mockk<PaywallView>(relaxed = true)) }
 
                 val jobs =
                     (0 until 50).map { i ->
