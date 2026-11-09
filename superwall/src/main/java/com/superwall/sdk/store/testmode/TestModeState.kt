@@ -212,14 +212,17 @@ sealed class TestModeState {
 // Convenience alias — used widely from external call sites.
 typealias TestModeSessionData = TestModeState.TestModeSessionData
 
-/** Pure derivation of subscription status from a [TestModeState] snapshot. */
+/**
+ * Pure derivation of subscription status from a [TestModeState] snapshot.
+ *
+ * Active selections from the modal keep their chosen state. Every other held
+ * entitlement ID was bought during the session, so it's active.
+ */
 internal fun buildSubscriptionStatus(state: TestModeState): SubscriptionStatus {
     val session = state.sessionOrNull ?: return SubscriptionStatus.Inactive
     if (session.entitlementIds.isEmpty()) return SubscriptionStatus.Inactive
     val activeSelections = session.entitlementSelections.filter { it.state.isActive }
-    return if (activeSelections.isNotEmpty()) {
-        SubscriptionStatus.Active(activeSelections.map { it.toEntitlement() }.toSet())
-    } else {
-        SubscriptionStatus.Active(session.entitlementIds.map { Entitlement(it) }.toSet())
-    }
+    val selectedIds = activeSelections.map { it.identifier }.toSet()
+    val bought = (session.entitlementIds - selectedIds).map { Entitlement(it, isActive = true) }
+    return SubscriptionStatus.Active((activeSelections.map { it.toEntitlement() } + bought).toSet())
 }
