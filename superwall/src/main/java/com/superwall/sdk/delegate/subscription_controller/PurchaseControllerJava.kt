@@ -26,7 +26,8 @@ interface PurchaseControllerJava {
      * - Parameters:
      *   @param productDetails The `ProductDetails` the user would like to purchase.
      *   @param basePlanId An optional base plan identifier of the product that's being purchased.
-     *   @param offerId An optional offer identifier of the product that's being purchased.
+     *   @param offerId The identifier of the offer to buy, already chosen by the SDK. `null` means buy
+     *   the base plan with no offer: don't pick a free trial or other offer yourself.
      *   Call this with the result of your purchase logic. When you pass a `.failed` result, make sure you also pass
      *   the error.
      *    **Note:** Make sure you handle all cases of `PurchaseResultJava`.

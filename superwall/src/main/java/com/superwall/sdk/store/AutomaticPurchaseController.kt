@@ -171,7 +171,9 @@ class AutomaticPurchaseController internal constructor(
                 underlyingProductDetails = productDetails,
                 fullIdentifier = fullId,
                 basePlanType = BasePlanType.from(basePlanId),
-                offerType = OfferType.from(offerId),
+                // offerId is the offer already chosen for this purchase; null means the base plan.
+                // OfferType.from(null) is Auto, which would pick the longest trial instead.
+                offerType = offerId?.let { OfferType.from(it) } ?: OfferType.None,
             )
 
         val shouldPassIdToPlayStore =

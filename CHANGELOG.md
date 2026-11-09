@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Fixes
 - Fixes a paywall saved again under the same identifier as the one on screen, after that one was removed or replaced, being treated as the paywall on screen. It could then survive a cache reset that should have cleared it.
 - Fixes test mode leaving out entitlements bought during the session when the tester had also chosen an active entitlement in the test mode modal.
+- Fixes a `:sw-none` product being bought with a free trial when its base plan had a trial offer. The paywall showed the full price, but the SDK's purchase flow picked the longest trial, as it does for `:sw-auto`. This affected apps without a `PurchaseController` since 2.7.0. One-time products with `:sw-none` were also bought with a discount offer when their purchase option had one. If you use a `PurchaseController`, a `null` `offerId` means the base plan with no offer; don't pick a trial or other offer yourself.
 
 ## 2.10.0
 
