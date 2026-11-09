@@ -38,30 +38,57 @@ data class PaywallCacheState(
     val activePaywallView: PaywallView?
         get() = activePaywallVcKey?.let { views[it] as? PaywallView }
 
+    /**
+     * Each update keeps [activePaywallVcKey] pointing at a cached view, so a
+     * view saved later under the same key is never taken for the one on screen.
+     */
     internal sealed class Updates(
         override val reduce: (PaywallCacheState) -> PaywallCacheState,
     ) : Reducer<PaywallCacheState> {
+        /**
+         * Replacing the view on screen means the one on screen is no longer
+         * cached.
+         */
         data class StoreView(
             val key: String,
             val view: View,
-        ) : Updates({ it.copy(views = it.views + (key to view)) })
+        ) : Updates({
+                val replacesActive = it.activePaywallVcKey == key && it.views[key] !== view
+                it.copy(
+                    views = it.views + (key to view),
+                    activePaywallVcKey = if (replacesActive) null else it.activePaywallVcKey,
+                )
+            })
 
+        /** Removing the view on screen means nothing cached is on screen. */
         data class RemoveView(
             val key: String,
-        ) : Updates({ it.copy(views = it.views - key) })
+        ) : Updates({ it.removing(setOf(key)) })
 
+        /** Nothing cached is on screen if no view is cached under [key]. */
         data class SetActiveKey(
             val key: String?,
-        ) : Updates({ it.copy(activePaywallVcKey = key) })
+        ) : Updates({ it.copy(activePaywallVcKey = key?.takeIf { k -> it.views.containsKey(k) }) })
 
         data class RemoveViews(
             val keys: Set<String>,
-        ) : Updates({ it.copy(views = it.views - keys) })
+        ) : Updates({ it.removing(keys) })
 
         data class Hydrate(
             val views: Map<String, View>,
-        ) : Updates({ it.copy(views = views) })
+        ) : Updates({
+                it.copy(
+                    views = views,
+                    activePaywallVcKey = it.activePaywallVcKey?.takeIf { k -> views.containsKey(k) },
+                )
+            })
     }
+
+    private fun removing(keys: Set<String>): PaywallCacheState =
+        copy(
+            views = views - keys,
+            activePaywallVcKey = activePaywallVcKey?.takeIf { it !in keys },
+        )
 
     internal sealed class Actions(
         override val execute: suspend PaywallCacheContext.() -> Unit,

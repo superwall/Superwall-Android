@@ -5,6 +5,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.10.1
 
 ## Fixes
+- Fixes a paywall saved again under the same identifier as the one on screen, after that one was removed or replaced, being treated as the paywall on screen. It could then survive a cache reset that should have cleared it.
 - Fixes test mode leaving out entitlements bought during the session when the tester had also chosen an active entitlement in the test mode modal.
 
 ## 2.10.0
