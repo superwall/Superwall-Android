@@ -30,7 +30,9 @@ interface PurchaseController {
      *
      * @param productDetails The `ProductDetails` the user would like to purchase.
      * @param basePlanId An optional base plan identifier of the product that's being purchased.
-     * @param offerId An optional offer identifier of the product that's being purchased.
+     * @param offerId The identifier of the offer to buy, already chosen by the SDK from the
+     * paywall's product (including `sw-auto` resolution). `null` means buy the base plan with no
+     * offer: don't pick a free trial or other offer yourself.
      * @return A `PurchaseResult` object, which is the result of your purchase logic.
      * **Note**: Make sure you handle all cases of `PurchaseResult`.
      */
@@ -75,7 +77,9 @@ interface PurchaseController {
      * @param activity The `Activity` from which the purchase was initiated.
      * @param product The Superwall [StoreProduct] the user would like to purchase.
      * @param basePlanId An optional base plan identifier of the product that's being purchased.
-     * @param offerId An optional offer identifier of the product that's being purchased.
+     * @param offerId The identifier of the offer to buy, already chosen by the SDK from the
+     * paywall's product (including `sw-auto` resolution). `null` means buy the base plan with no
+     * offer: don't pick a free trial or other offer yourself.
      * @return A `PurchaseResult` object, which is the result of your purchase logic.
      * **Note**: Make sure you handle all cases of `PurchaseResult`.
      */
@@ -115,7 +119,9 @@ interface PurchaseController {
      * @param activity The `Activity` from which the purchase was initiated.
      * @param product The Superwall [StoreProduct] the user would like to purchase.
      * @param basePlanId An optional base plan identifier of the product that's being purchased.
-     * @param offerId An optional offer identifier of the product that's being purchased.
+     * @param offerId The identifier of the offer to buy, already chosen by the SDK from the
+     * paywall's product (including `sw-auto` resolution). `null` means buy the base plan with no
+     * offer: don't pick a free trial or other offer yourself.
      * @param replacement The existing subscription this purchase replaces, if any.
      * @return A `PurchaseResult` object, which is the result of your purchase logic.
      */
