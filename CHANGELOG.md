@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.10.2
+
+## Fixes
+- Fixes a crash with `DeadObjectException` at startup when Google Play's install referrer service died just as the SDK connected to it. The SDK read the referrer in the connection callback, where nothing caught the failure, and didn't use the result. The referrer is now only read where it is needed, for web checkout redemption and install attribution, with error handling.
+- Fixes a paywall reloading in a loop, with close and Back not responding, when a font or other asset served from the paywall runtime's URL failed to load. Since 2.8.2 any failed request whose URL contained `runtime` was treated as the whole page failing, and the reload limit was reset each time the page finished loading. Now only the page itself and the runtime's script count as the page failing, and a paywall is reloaded at most three times per load.
+- Fixes a subscription that expired or was refunded or revoked while the app was in the background staying active until the app was restarted. When the SDK manages purchases (no `PurchaseController`), it now rechecks Google Play purchases each time the app returns to the foreground. Web entitlements are also refreshed on return to the foreground when the last check is older than the configured interval.
+
 ## 2.10.1
 
 ## Fixes
@@ -9,7 +16,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Fixes test mode leaving out entitlements bought during the session when the tester had also chosen an active entitlement in the test mode modal.
 - Keeps paywall content clear of side navigation bars in landscape by applying horizontal system-bar insets to drawer, modal and fullscreen presentations. Insets update when the device rotates back to portrait.
 - Fixes a `:sw-none` product being bought with a free trial when its base plan had a trial offer. The paywall showed the full price, but the SDK's purchase flow picked the longest trial, as it does for `:sw-auto`. This affected apps without a `PurchaseController` since 2.7.0. One-time products with `:sw-none` were also bought with a discount offer when their purchase option had one. If you use a `PurchaseController`, a `null` `offerId` means the base plan with no offer; don't pick a trial or other offer yourself.
-- Fixes a crash with `DeadObjectException` at startup when Google Play's install referrer service died just as the SDK connected to it. The SDK read the referrer in the connection callback, where nothing caught the failure, and didn't use the result. The referrer is now only read where it is needed, for web checkout redemption and install attribution, with error handling.
 
 ## 2.10.0
 
