@@ -44,7 +44,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -190,7 +189,24 @@ class WebPaywallRedeemerTest {
      * A redeemer for the foreground refresh tests. The clock reads 10,000 and entitlements are
      * polled every 1,000, on the test dispatcher so the poll's own fetches can be counted.
      */
-    private fun staleRefreshRedeemer(lastFetch: Long?): WebPaywallRedeemer {
+    private suspend fun withStaleRefreshRedeemer(
+        lastFetch: Long?,
+        block: suspend (WebPaywallRedeemer) -> Unit,
+    ) {
+        // Polling never ends by itself, and runTest runs the scheduler dry when the test body
+        // returns, so the scope it runs in has to be cancelled before then.
+        val scope = IOScope(testDispatcher)
+        try {
+            block(staleRefreshRedeemer(lastFetch, scope))
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    private fun staleRefreshRedeemer(
+        lastFetch: Long?,
+        scope: IOScope,
+    ): WebPaywallRedeemer {
         maxAge = { 1_000L }
         every { storage.read(LastWebEntitlementsFetchDate) } returns lastFetch
         coEvery { deepLinkReferrer.checkForReferral() } returns Result.failure(IllegalStateException("no referrer"))
@@ -199,21 +215,13 @@ class WebPaywallRedeemerTest {
         } returns Either.Failure(NetworkError.Unknown())
         return WebPaywallRedeemer(
             context,
-            staleRefreshScope,
+            scope,
             deepLinkReferrer,
             network,
             storage,
             customerInfoManager = mockk(relaxed = true),
             factory = TestFactory(nowFn = { 10_000L }),
         ).also { it.pollingContext = testDispatcher }
-    }
-
-    // Polling never ends by itself, so the scope it runs in is cancelled after each test.
-    private val staleRefreshScope = IOScope(testDispatcher)
-
-    @After
-    fun cancelStaleRefreshPolling() {
-        staleRefreshScope.cancel()
     }
 
     /** Starts polling and lets its first fetch finish, without advancing to the next one. */
@@ -227,14 +235,15 @@ class WebPaywallRedeemerTest {
     fun `a foreground refreshes web entitlements when the last fetch is older than the interval`() =
         runTest(testDispatcher) {
             Given("polling has started and the last fetch is older than the interval") {
-                val redeemer = staleRefreshRedeemer(lastFetch = 10_000L - 1_001L)
-                redeemer.startPollingForTest()
+                withStaleRefreshRedeemer(lastFetch = 10_000L - 1_001L) { redeemer ->
+                    redeemer.startPollingForTest()
 
-                When("the app returns to the foreground") {
-                    redeemer.refreshWebEntitlementsIfStale()
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
 
-                    Then("web entitlements are fetched again") {
-                        coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+                        Then("web entitlements are fetched again") {
+                            coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+                        }
                     }
                 }
             }
@@ -244,14 +253,15 @@ class WebPaywallRedeemerTest {
     fun `a foreground refreshes web entitlements when the last fetch is exactly one interval old`() =
         runTest(testDispatcher) {
             Given("polling has started and the last fetch is exactly one interval old") {
-                val redeemer = staleRefreshRedeemer(lastFetch = 10_000L - 1_000L)
-                redeemer.startPollingForTest()
+                withStaleRefreshRedeemer(lastFetch = 10_000L - 1_000L) { redeemer ->
+                    redeemer.startPollingForTest()
 
-                When("the app returns to the foreground") {
-                    redeemer.refreshWebEntitlementsIfStale()
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
 
-                    Then("web entitlements are fetched again") {
-                        coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+                        Then("web entitlements are fetched again") {
+                            coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+                        }
                     }
                 }
             }
@@ -261,14 +271,15 @@ class WebPaywallRedeemerTest {
     fun `a foreground does not refresh web entitlements fetched within the interval`() =
         runTest(testDispatcher) {
             Given("polling has started and the last fetch is newer than the interval") {
-                val redeemer = staleRefreshRedeemer(lastFetch = 10_000L - 999L)
-                redeemer.startPollingForTest()
+                withStaleRefreshRedeemer(lastFetch = 10_000L - 999L) { redeemer ->
+                    redeemer.startPollingForTest()
 
-                When("the app returns to the foreground") {
-                    redeemer.refreshWebEntitlementsIfStale()
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
 
-                    Then("no further fetch is made") {
-                        coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+                        Then("no further fetch is made") {
+                            coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+                        }
                     }
                 }
             }
@@ -278,14 +289,15 @@ class WebPaywallRedeemerTest {
     fun `a foreground does not refresh web entitlements that were never fetched`() =
         runTest(testDispatcher) {
             Given("polling has started and no fetch date is stored") {
-                val redeemer = staleRefreshRedeemer(lastFetch = null)
-                redeemer.startPollingForTest()
+                withStaleRefreshRedeemer(lastFetch = null) { redeemer ->
+                    redeemer.startPollingForTest()
 
-                When("the app returns to the foreground") {
-                    redeemer.refreshWebEntitlementsIfStale()
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
 
-                    Then("no further fetch is made") {
-                        coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+                        Then("no further fetch is made") {
+                            coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+                        }
                     }
                 }
             }
@@ -295,14 +307,15 @@ class WebPaywallRedeemerTest {
     fun `a foreground does not refresh web entitlements before polling has started`() =
         runTest(testDispatcher) {
             Given("a stale fetch date but no polling yet") {
-                val redeemer = staleRefreshRedeemer(lastFetch = 0L)
-                testScheduler.runCurrent()
+                withStaleRefreshRedeemer(lastFetch = 0L) { redeemer ->
+                    testScheduler.runCurrent()
 
-                When("the app returns to the foreground") {
-                    redeemer.refreshWebEntitlementsIfStale()
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
 
-                    Then("nothing is fetched") {
-                        coVerify(exactly = 0) { network.webEntitlementsByUserId(any(), any()) }
+                        Then("nothing is fetched") {
+                            coVerify(exactly = 0) { network.webEntitlementsByUserId(any(), any()) }
+                        }
                     }
                 }
             }
