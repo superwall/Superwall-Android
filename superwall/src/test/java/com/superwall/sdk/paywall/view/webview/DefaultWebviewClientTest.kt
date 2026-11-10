@@ -51,15 +51,15 @@ class DefaultWebviewClientTest {
         }
 
     @Test
-    fun `a missing runtime script fails the page`() =
-        Given("a paywall whose runtime bundle is missing") {
+    fun `a missing script is a resource error wherever it is served from`() =
+        Given("a paywall whose script is missing") {
             val event =
                 When("the script request gets a 404") {
                     client().eventFor404(request("$runtime/entrypoint.js?v=1"))
                 }
 
-            Then("the page has failed") {
-                assertTrue(event is WebviewClientEvent.OnError)
+            Then("it does not fail the page") {
+                assertTrue(event is WebviewClientEvent.OnResourceError)
             }
         }
 

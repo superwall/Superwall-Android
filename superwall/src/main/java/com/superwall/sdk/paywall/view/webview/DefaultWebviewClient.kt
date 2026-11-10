@@ -25,16 +25,10 @@ internal open class DefaultWebviewClient(
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
 
-    // The paywall runtime JS bundle is essential — without it the page is broken —
-    // so its failure is treated as page-level rather than as a mere resource error.
-    // Only scripts count: the runtime also serves fonts and other assets from URLs
-    // that contain "runtime", and a paywall still works when one of those is missing.
-    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean {
-        if (request?.isForMainFrame == true) return true
-        val url = request?.url ?: return false
-        val isScript = url.path?.let { it.endsWith(".js", true) || it.endsWith(".mjs", true) } == true
-        return isScript && url.toString().contains("runtime")
-    }
+    // Only the page itself failing fails the page. A paywall's scripts, fonts and other
+    // assets can be served from any URL, so nothing about a sub-resource's URL says whether
+    // the page can work without it.
+    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean = request?.isForMainFrame == true
 
     override fun shouldOverrideUrlLoading(
         view: WebView?,

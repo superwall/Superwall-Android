@@ -47,7 +47,9 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 
@@ -117,6 +119,9 @@ class SWWebView internal constructor(
 
     private companion object ChromeClient : WebChromeClient() {
         const val MAX_LOAD_RETRIES = 3
+
+        // Doubles with each retry: 0.5s, 1s, 2s.
+        const val LOAD_RETRY_BASE_DELAY_MS = 500L
         val posterBmp by lazy { createBitmap(10, 10) }
 
         private class ChromeClient(
@@ -182,6 +187,7 @@ class SWWebView internal constructor(
     private var lastWebViewClient: WebViewClient? = null
     private var lastLoadedUrl: String? = null
     private var loadRetryCount = 0
+    private var retryJob: Job? = null
 
     private var hostPaused = false
     private var viewDestroyed = false
@@ -536,14 +542,26 @@ class SWWebView internal constructor(
                                                 }
 
                                                 is DefaultWebviewClient -> {
-                                                    if (lastLoadedUrl == null) {
+                                                    val url = lastLoadedUrl
+                                                    if (url == null || retryJob?.isActive == true) {
+                                                        // One failed load can report more than one
+                                                        // error; the pending retry covers them all.
                                                         false
                                                     } else if (loadRetryCount < MAX_LOAD_RETRIES) {
+                                                        val retryDelay = LOAD_RETRY_BASE_DELAY_MS shl loadRetryCount
                                                         loadRetryCount += 1
                                                         log(
-                                                            "Paywall loading failed - retrying $lastLoadedUrl",
+                                                            "Paywall loading failed - retrying $url in ${retryDelay}ms",
                                                         )
-                                                        loadUrl(lastLoadedUrl!!)
+                                                        // Retrying at once repeats failures such as a DNS
+                                                        // error that fail instantly.
+                                                        retryJob =
+                                                            mainScope.launch {
+                                                                delay(retryDelay)
+                                                                if (!viewDestroyed) {
+                                                                    loadUrl(url)
+                                                                }
+                                                            }
                                                         false
                                                     } else {
                                                         true
@@ -696,6 +714,7 @@ class SWWebView internal constructor(
 
     override fun destroy() {
         viewDestroyed = true
+        retryJob?.cancel()
         onScrollChangeListener = null
         super.destroy()
     }
@@ -718,6 +737,7 @@ class SWWebView internal constructor(
         this.onLoadFailed = onLoadFailed
         scrollEnabled = delegate?.state?.paywall?.isScrollEnabled ?: true
         loadRetryCount = 0
+        retryJob?.cancel()
         mainScope.launch {
             val state = delegate?.state ?: return@launch
             if (state.paywall.onDeviceCache is OnDeviceCaching.Enabled) {
