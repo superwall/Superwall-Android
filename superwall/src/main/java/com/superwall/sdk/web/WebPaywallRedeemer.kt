@@ -589,6 +589,20 @@ class WebPaywallRedeemer(
             )
     }
 
+    /**
+     * Refreshes web entitlements when the last fetch is older than the polling interval. The
+     * poll's timer doesn't advance while the device sleeps, so after a long time in the
+     * background the next poll can be far later than intended. Does nothing until polling has
+     * started, or before the first fetch.
+     */
+    internal suspend fun refreshWebEntitlementsIfStale() {
+        if (pollingJob == null) return
+        val lastFetch = storage.read(LastWebEntitlementsFetchDate) ?: return
+        if (factory.currentTimeMillis() - lastFetch >= factory.maxAge()) {
+            refreshWebEntitlements()
+        }
+    }
+
     private fun startPolling(maxAge: Long = factory.maxAge()) {
         pollingJob?.cancel()
         pollingJob =

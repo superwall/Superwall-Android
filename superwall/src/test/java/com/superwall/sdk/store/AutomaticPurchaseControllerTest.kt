@@ -13,6 +13,7 @@ import com.superwall.sdk.products.mockProductDetails
 import io.mockk.slot
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
+import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.billing.StorePurchase
@@ -30,7 +31,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -67,7 +70,10 @@ class AutomaticPurchaseControllerTest {
             coEvery { acknowledge(any()) } coAnswers { onAcknowledge(firstArg()) }
         }
 
-    private fun TestScope.makeController(store: BillingStore): AutomaticPurchaseController =
+    private fun TestScope.makeController(
+        store: BillingStore,
+        appForegrounded: Flow<Unit> = emptyFlow(),
+    ): AutomaticPurchaseController =
         AutomaticPurchaseController(
             scope = IOScope(UnconfinedTestDispatcher(testScheduler)),
             store = store,
@@ -79,7 +85,15 @@ class AutomaticPurchaseControllerTest {
             // Lets a sync run to completion without a configured SDK
             configurationState = { MutableStateFlow(ConfigurationStatus.Configured) },
             setSubscriptionStatus = {},
+            appForegrounded = appForegrounded,
         )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun hasInitialized(): MutableStateFlow<Boolean> =
+        Superwall::class.java
+            .getDeclaredField("_hasInitialized")
+            .apply { isAccessible = true }
+            .get(null) as MutableStateFlow<Boolean>
 
     private fun purchase(
         token: String,
@@ -169,6 +183,56 @@ class AutomaticPurchaseControllerTest {
                             "Google Play Billing is not available on this device.",
                             (failed as PurchaseResult.Failed).errorMessage,
                         )
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `purchases are read again when the app returns to the foreground`() =
+        runTest {
+            hasInitialized().value = true
+            try {
+                Given("a controller that has finished its launch sync") {
+                    val store = store()
+                    val foregrounded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+                    makeController(store, foregrounded)
+                    advanceUntilIdle()
+                    coVerify(exactly = 1) { store.activePurchases() }
+
+                    When("the app returns to the foreground") {
+                        foregrounded.emit(Unit)
+                        advanceUntilIdle()
+
+                        Then("Play is asked for the purchases again") {
+                            coVerify(exactly = 2) { store.activePurchases() }
+                        }
+                    }
+                }
+            } finally {
+                hasInitialized().value = false
+            }
+        }
+
+    @Test
+    fun `a foreground during the launch sync does not start a second sync`() =
+        runTest {
+            Given("a controller whose launch sync is waiting for the SDK to initialize") {
+                val store = store()
+                val foregrounded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+                makeController(store, foregrounded)
+
+                When("the app comes to the foreground and the SDK then initializes") {
+                    foregrounded.emit(Unit)
+                    hasInitialized().value = true
+                    try {
+                        advanceUntilIdle()
+                    } finally {
+                        hasInitialized().value = false
+                    }
+
+                    Then("the purchases are read once") {
+                        coVerify(exactly = 1) { store.activePurchases() }
                     }
                 }
             }
