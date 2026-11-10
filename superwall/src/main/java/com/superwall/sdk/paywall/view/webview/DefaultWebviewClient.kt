@@ -25,19 +25,16 @@ internal open class DefaultWebviewClient(
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
 
-    // True once the currently loading page suffered a page-level failure (main frame
-    // or its essential runtime bundle). Set synchronously on the WebViewClient callback
-    // thread — before the corresponding OnError coroutine is launched — so consumers of
-    // OnPageFinished can consult it without racing the async event; cleared when a new
-    // page starts.
-    @Volatile
-    internal var hadMainFrameError = false
-        private set
-
     // The paywall runtime JS bundle is essential — without it the page is broken —
     // so its failure is treated as page-level rather than as a mere resource error.
-    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean =
-        request?.isForMainFrame == true || request?.url?.toString()?.contains("runtime") == true
+    // Only scripts count: the runtime also serves fonts and other assets from URLs
+    // that contain "runtime", and a paywall still works when one of those is missing.
+    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean {
+        if (request?.isForMainFrame == true) return true
+        val url = request?.url ?: return false
+        val isScript = url.path?.let { it.endsWith(".js", true) || it.endsWith(".mjs", true) } == true
+        return isScript && url.toString().contains("runtime")
+    }
 
     override fun shouldOverrideUrlLoading(
         view: WebView?,
@@ -60,7 +57,6 @@ internal open class DefaultWebviewClient(
         favicon: Bitmap?,
     ) {
         super.onPageStarted(view, url, favicon)
-        hadMainFrameError = false
         view?.let(onPageStartedHook)
     }
 
@@ -84,9 +80,6 @@ internal open class DefaultWebviewClient(
             return
         }
         val isPageLevel = isPageLevelFailure(request)
-        if (isPageLevel) {
-            hadMainFrameError = true
-        }
         ioScope.launch {
             Logger.debug(
                 LogLevel.error,
@@ -128,9 +121,6 @@ internal open class DefaultWebviewClient(
     ) {
         val requestUrl = request?.url?.toString()
         val isPageLevel = isPageLevelFailure(request)
-        if (isPageLevel) {
-            hadMainFrameError = true
-        }
         ioScope.launch {
             val (code, desc) =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

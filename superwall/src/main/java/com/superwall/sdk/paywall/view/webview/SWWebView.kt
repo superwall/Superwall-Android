@@ -583,12 +583,9 @@ class SWWebView internal constructor(
                             is WebviewClientEvent.OnPageFinished -> {
                                 // Reinstall after navigation in case the early injection was lost.
                                 updateMediaPlayback()
-                                // The client records page-level failures synchronously on the
-                                // WebViewClient callback thread, so this can't miss an error
-                                // whose async OnError event hasn't been processed yet.
-                                if (!client.hadMainFrameError) {
-                                    loadRetryCount = 0
-                                }
+                                // loadRetryCount is not reset here: a page-level failure can
+                                // arrive after the page finished, and resetting would let such
+                                // a page be reloaded forever. setup() starts each load afresh.
                                 asEither {
                                     mainScope.launch {
                                         this@SWWebView.scrollTo(0, 0)
