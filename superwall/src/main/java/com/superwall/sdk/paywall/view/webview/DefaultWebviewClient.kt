@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view.webview
 
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
@@ -21,14 +22,28 @@ internal open class DefaultWebviewClient(
     private val onWebViewCrash: (view: WebView, RenderProcessGoneDetail) -> Unit = { v, d -> },
     private val localResourceHandler: LocalResourceHandler? = null,
     private val onPageStartedHook: (WebView) -> Unit = {},
+    // Whether the paywall has told the SDK it is ready. A script that fails after that
+    // was not one the paywall needed in order to start.
+    private val isPaywallReady: () -> Boolean = { false },
 ) : WebViewClient() {
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
 
-    // Only the page itself failing fails the page. A paywall's scripts, fonts and other
-    // assets can be served from any URL, so nothing about a sub-resource's URL says whether
-    // the page can work without it.
-    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean = request?.isForMainFrame == true
+    // The page failed if its own request failed, or if one of Superwall's scripts failed
+    // before the paywall became ready: without it the paywall never starts. Fonts, images
+    // and other assets, and scripts from other hosts (analytics, pixels, which DNS or ad
+    // blockers commonly stop), are resource errors that leave the paywall working.
+    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean {
+        if (request?.isForMainFrame == true) return true
+        val url = request?.url ?: return false
+        return isSuperwallScript(url) && !isPaywallReady()
+    }
+
+    private fun isSuperwallScript(url: Uri): Boolean {
+        val path = url.path ?: return false
+        val isScript = path.endsWith(".js", ignoreCase = true) || path.endsWith(".mjs", ignoreCase = true)
+        return isScript && url.host?.contains("superwall", ignoreCase = true) == true
+    }
 
     override fun shouldOverrideUrlLoading(
         view: WebView?,

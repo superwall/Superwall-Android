@@ -349,6 +349,7 @@ class SWWebView internal constructor(
                 },
                 localResourceHandler = localResourceHandler,
                 onPageStartedHook = onPageStartedPreloadHook,
+                isPaywallReady = { paywallReady },
             )
         this.webViewClient = client
         lastWebViewClient = client
@@ -429,6 +430,7 @@ class SWWebView internal constructor(
                 },
                 localResourceHandler = localResourceHandler,
                 onPageStartedHook = onPageStartedPreloadHook,
+                isPaywallReady = { paywallReady },
             )
         this.webViewClient = client
         lastWebViewClient = client

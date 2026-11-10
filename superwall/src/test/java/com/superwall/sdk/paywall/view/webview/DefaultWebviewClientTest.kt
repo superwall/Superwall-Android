@@ -18,9 +18,14 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class DefaultWebviewClientTest {
     private val paywallUrl = "https://templates.superwall.com/paywall"
-    private val runtime = "https://cdn.superwall.com/runtime/sha/6402ed906d40"
+    private val runtime = "https://user-content.superwalleditor.com/runtime/sha/6402ed906d40"
 
-    private fun client() = DefaultWebviewClient(forUrl = paywallUrl, ioScope = CoroutineScope(Dispatchers.Unconfined))
+    private fun client(ready: Boolean = false) =
+        DefaultWebviewClient(
+            forUrl = paywallUrl,
+            ioScope = CoroutineScope(Dispatchers.Unconfined),
+            isPaywallReady = { ready },
+        )
 
     private fun request(
         url: String,
@@ -51,11 +56,37 @@ class DefaultWebviewClientTest {
         }
 
     @Test
-    fun `a missing script is a resource error wherever it is served from`() =
-        Given("a paywall whose script is missing") {
+    fun `a missing Superwall script fails a page that is not ready`() =
+        Given("a paywall whose runtime bundle is missing") {
             val event =
-                When("the script request gets a 404") {
+                When("the script request gets a 404 before the paywall is ready") {
                     client().eventFor404(request("$runtime/entrypoint.js?v=1"))
+                }
+
+            Then("the page has failed") {
+                assertTrue(event is WebviewClientEvent.OnError)
+            }
+        }
+
+    @Test
+    fun `a Superwall script that fails after the paywall is ready is a resource error`() =
+        Given("a paywall that is ready") {
+            val event =
+                When("a script request gets a 404") {
+                    client(ready = true).eventFor404(request("$runtime/chunk.js"))
+                }
+
+            Then("it does not fail the page") {
+                assertTrue(event is WebviewClientEvent.OnResourceError)
+            }
+        }
+
+    @Test
+    fun `a missing third party script is a resource error`() =
+        Given("a paywall with an analytics script that is blocked") {
+            val event =
+                When("the script request fails before the paywall is ready") {
+                    client().eventFor404(request("https://cdn.analytics.example/tag.js"))
                 }
 
             Then("it does not fail the page") {
