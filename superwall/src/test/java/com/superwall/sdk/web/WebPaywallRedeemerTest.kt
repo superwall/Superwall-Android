@@ -37,12 +37,14 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -197,13 +199,21 @@ class WebPaywallRedeemerTest {
         } returns Either.Failure(NetworkError.Unknown())
         return WebPaywallRedeemer(
             context,
-            IOScope(testDispatcher),
+            staleRefreshScope,
             deepLinkReferrer,
             network,
             storage,
             customerInfoManager = mockk(relaxed = true),
             factory = TestFactory(nowFn = { 10_000L }),
         ).also { it.pollingContext = testDispatcher }
+    }
+
+    // Polling never ends by itself, so the scope it runs in is cancelled after each test.
+    private val staleRefreshScope = IOScope(testDispatcher)
+
+    @After
+    fun cancelStaleRefreshPolling() {
+        staleRefreshScope.cancel()
     }
 
     /** Starts polling and lets its first fetch finish, without advancing to the next one. */
