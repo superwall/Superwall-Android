@@ -4,7 +4,9 @@ import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.paywall.view.webview.PaywallLoadRetrier.Outcome
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -18,7 +20,9 @@ class PaywallLoadRetrierTest {
     private val url = "https://example.com/paywall"
     private val reloads = mutableListOf<String>()
 
-    private fun TestScope.retrier() = PaywallLoadRetrier(scope = backgroundScope) { reloads += it }
+    // Not backgroundScope: advanceUntilIdle doesn't wait for work that only it holds.
+    private fun TestScope.retrier() =
+        PaywallLoadRetrier(scope = CoroutineScope(StandardTestDispatcher(testScheduler))) { reloads += it }
 
     @Test
     fun `a failed load is reloaded after a wait that doubles each time`() =
