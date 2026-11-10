@@ -9,6 +9,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Fixes test mode leaving out entitlements bought during the session when the tester had also chosen an active entitlement in the test mode modal.
 - Keeps paywall content clear of side navigation bars in landscape by applying horizontal system-bar insets to drawer, modal and fullscreen presentations. Insets update when the device rotates back to portrait.
 - Fixes a `:sw-none` product being bought with a free trial when its base plan had a trial offer. The paywall showed the full price, but the SDK's purchase flow picked the longest trial, as it does for `:sw-auto`. This affected apps without a `PurchaseController` since 2.7.0. One-time products with `:sw-none` were also bought with a discount offer when their purchase option had one. If you use a `PurchaseController`, a `null` `offerId` means the base plan with no offer; don't pick a trial or other offer yourself.
+- Fixes a crash with `DeadObjectException` at startup when Google Play's install referrer service died just as the SDK connected to it. The SDK read the referrer in the connection callback, where nothing caught the failure, and didn't use the result. The referrer is now only read where it is needed, for web checkout redemption and install attribution, with error handling.
 
 ## 2.10.0
 
