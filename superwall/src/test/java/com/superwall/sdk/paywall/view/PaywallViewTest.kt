@@ -1675,8 +1675,12 @@ class PaywallViewTest {
                             assertEquals(second, idAfterWillPresent)
                             assertEquals(second, willInfos[1].presentationId)
                             assertEquals(second, didInfos[1].presentationId)
+                            // Events are still being tracked on other threads. Iterating a
+                            // synchronizedList isn't synchronized, but copying it is.
                             val opens =
-                                trackedEvents.filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen>()
+                                trackedEvents
+                                    .toList()
+                                    .filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen>()
                             assertEquals(listOf("first", second), opens.map { it.paywallInfo.presentationId })
                         }
                     }
