@@ -46,6 +46,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
+import kotlin.coroutines.CoroutineContext
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -111,6 +112,9 @@ class WebPaywallRedeemer(
     }
 
     private var pollingJob: Job? = null
+
+    // Polling runs off the scope's own dispatcher; tests replace this to control it.
+    internal var pollingContext: CoroutineContext = Dispatchers.IO
     private var redemptionJob: Job? = null
     // Code redemptions launch independently on IOScope; hold this across track() so two
     // overlapping same-code calls cannot both observe an empty set and emit twice.
@@ -589,10 +593,24 @@ class WebPaywallRedeemer(
             )
     }
 
+    /**
+     * Refreshes web entitlements when the last fetch is older than the polling interval. The
+     * poll's timer doesn't advance while the device sleeps, so after a long time in the
+     * background the next poll can be far later than intended. Does nothing until polling has
+     * started, or before the first fetch.
+     */
+    internal suspend fun refreshWebEntitlementsIfStale() {
+        if (pollingJob == null) return
+        val lastFetch = storage.read(LastWebEntitlementsFetchDate) ?: return
+        if (factory.currentTimeMillis() - lastFetch >= factory.maxAge()) {
+            refreshWebEntitlements()
+        }
+    }
+
     private fun startPolling(maxAge: Long = factory.maxAge()) {
         pollingJob?.cancel()
         pollingJob =
-            (ioScope + Dispatchers.IO).launch {
+            (ioScope + pollingContext).launch {
                 while (true) {
                     refreshWebEntitlements()
                     delay(maxAge)

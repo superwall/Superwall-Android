@@ -27,8 +27,10 @@ import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.PlayBillingErrors
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
@@ -76,6 +78,8 @@ class AutomaticPurchaseController internal constructor(
     private val externalAccountId: () -> String,
     private val configurationState: () -> Flow<ConfigurationStatus>,
     private val setSubscriptionStatus: (SubscriptionStatus) -> Unit,
+    // Emits each time the app comes to the foreground.
+    private val appForegrounded: Flow<Unit> = emptyFlow(),
 ) : PurchaseController {
     companion object {
         private const val MAX_RETRIES = 3
@@ -86,8 +90,20 @@ class AutomaticPurchaseController internal constructor(
 
     //region Initialization
 
+    private val initialSync: Job
+
     init {
-        syncSubscriptionStatus()
+        initialSync = syncSubscriptionStatus()
+        // A subscription can expire, or be refunded or revoked, while the app is in the
+        // background. Play doesn't report that as a purchase update, so ask again.
+        scope.launch {
+            appForegrounded.collect {
+                // The launch sync already covers a foreground that arrives while it runs.
+                if (!initialSync.isActive) {
+                    syncSubscriptionStatus()
+                }
+            }
+        }
         // Every purchase Play reports - from our flows, pending purchases settling, promo
         // codes - can change what the user is entitled to.
         scope.launch {
@@ -102,12 +118,11 @@ class AutomaticPurchaseController internal constructor(
 
     //region Public
 
-    private fun syncSubscriptionStatus() {
+    private fun syncSubscriptionStatus(): Job =
         scope.launch {
             Superwall.hasInitialized.first { it }
             syncSubscriptionStatusAndWait()
         }
-    }
 
     //endregion
 
