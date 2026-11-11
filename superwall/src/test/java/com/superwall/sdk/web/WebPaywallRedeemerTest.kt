@@ -37,6 +37,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
@@ -137,7 +138,10 @@ class WebPaywallRedeemerTest {
         },
         var getIntegrationPropsFn: () -> Map<String, Any> = { emptyMap() },
         var setWebEntitlementsFn: (Set<Entitlement>) -> Unit = {},
+        var nowFn: () -> Long = { System.currentTimeMillis() },
     ) : WebPaywallRedeemer.Factory {
+        override fun currentTimeMillis(): Long = nowFn()
+
         override fun willRedeemLink() = willRedeemLinkFn()
 
         override fun didRedeemLink(redemptionResult: RedemptionResult) = didRedeemLinkFn(redemptionResult)
@@ -180,6 +184,142 @@ class WebPaywallRedeemerTest {
 
         override fun isPaymentSheetOpen(): Boolean = false
     }
+
+    /**
+     * A redeemer for the foreground refresh tests. The clock reads 10,000 and entitlements are
+     * polled every 1,000, on the test dispatcher so the poll's own fetches can be counted.
+     */
+    private suspend fun withStaleRefreshRedeemer(
+        lastFetch: Long?,
+        block: suspend (WebPaywallRedeemer) -> Unit,
+    ) {
+        // Polling never ends by itself, and runTest runs the scheduler dry when the test body
+        // returns, so the scope it runs in has to be cancelled before then.
+        val scope = IOScope(testDispatcher)
+        try {
+            block(staleRefreshRedeemer(lastFetch, scope))
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    private fun staleRefreshRedeemer(
+        lastFetch: Long?,
+        scope: IOScope,
+    ): WebPaywallRedeemer {
+        maxAge = { 1_000L }
+        every { storage.read(LastWebEntitlementsFetchDate) } returns lastFetch
+        coEvery { deepLinkReferrer.checkForReferral() } returns Result.failure(IllegalStateException("no referrer"))
+        coEvery {
+            network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+        } returns Either.Failure(NetworkError.Unknown())
+        return WebPaywallRedeemer(
+            context,
+            scope,
+            deepLinkReferrer,
+            network,
+            storage,
+            customerInfoManager = mockk(relaxed = true),
+            factory = TestFactory(nowFn = { 10_000L }),
+        ).also { it.pollingContext = testDispatcher }
+    }
+
+    /** Starts polling and lets its first fetch finish, without advancing to the next one. */
+    private suspend fun WebPaywallRedeemer.startPollingForTest() {
+        redeem(WebPaywallRedeemer.RedeemType.Existing)
+        testScheduler.runCurrent()
+        coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+    }
+
+    @Test
+    fun `a foreground refreshes web entitlements when the last fetch is older than the interval`() =
+        runTest(testDispatcher) {
+            Given("polling has started and the last fetch is older than the interval") {
+                withStaleRefreshRedeemer(lastFetch = 10_000L - 1_001L) { redeemer ->
+                    redeemer.startPollingForTest()
+
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
+
+                        Then("web entitlements are fetched again") {
+                            coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a foreground refreshes web entitlements when the last fetch is exactly one interval old`() =
+        runTest(testDispatcher) {
+            Given("polling has started and the last fetch is exactly one interval old") {
+                withStaleRefreshRedeemer(lastFetch = 10_000L - 1_000L) { redeemer ->
+                    redeemer.startPollingForTest()
+
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
+
+                        Then("web entitlements are fetched again") {
+                            coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a foreground does not refresh web entitlements fetched within the interval`() =
+        runTest(testDispatcher) {
+            Given("polling has started and the last fetch is newer than the interval") {
+                withStaleRefreshRedeemer(lastFetch = 10_000L - 999L) { redeemer ->
+                    redeemer.startPollingForTest()
+
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
+
+                        Then("no further fetch is made") {
+                            coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a foreground does not refresh web entitlements that were never fetched`() =
+        runTest(testDispatcher) {
+            Given("polling has started and no fetch date is stored") {
+                withStaleRefreshRedeemer(lastFetch = null) { redeemer ->
+                    redeemer.startPollingForTest()
+
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
+
+                        Then("no further fetch is made") {
+                            coVerify(exactly = 1) { network.webEntitlementsByUserId(any(), any()) }
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a foreground does not refresh web entitlements before polling has started`() =
+        runTest(testDispatcher) {
+            Given("a stale fetch date but no polling yet") {
+                withStaleRefreshRedeemer(lastFetch = 0L) { redeemer ->
+                    testScheduler.runCurrent()
+
+                    When("the app returns to the foreground") {
+                        redeemer.refreshWebEntitlementsIfStale()
+
+                        Then("nothing is fetched") {
+                            coVerify(exactly = 0) { network.webEntitlementsByUserId(any(), any()) }
+                        }
+                    }
+                }
+            }
+        }
 
     @Test
     fun `test successful redemption flow`() =

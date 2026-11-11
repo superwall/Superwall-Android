@@ -46,16 +46,33 @@ class DeepLinkReferrer(
         tryConnecting()
     }
 
+    /**
+     * Play calls these on the main thread after `startConnection` has returned, so nothing
+     * thrown here reaches the `try` in [tryConnecting]: an uncaught throwable crashes the app.
+     */
     private class ConnectionListener(
         val finished: (responseCode: Int) -> Unit,
         val disconnected: () -> Unit,
     ) : InstallReferrerStateListener {
         override fun onInstallReferrerSetupFinished(responseCode: Int) {
-            finished(responseCode)
+            guarded { finished(responseCode) }
         }
 
         override fun onInstallReferrerServiceDisconnected() {
-            disconnected()
+            guarded { disconnected() }
+        }
+
+        private inline fun guarded(block: () -> Unit) {
+            try {
+                block()
+            } catch (e: Throwable) {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.webEntitlements,
+                    "Install referrer connection callback failed",
+                    error = e,
+                )
+            }
         }
     }
 
@@ -65,15 +82,11 @@ class DeepLinkReferrer(
                 referrerClient?.startConnection(
                     ConnectionListener(
                         finished = {
-                            when (it) {
-                                InstallReferrerClient.InstallReferrerResponse.OK -> {
-                                    readyReferrerClient?.installReferrer?.installReferrer
-                                }
-
-                                else -> {
-                                    referrerClient?.endConnection()
-                                    referrerClient = null
-                                }
+                            // On OK there is nothing to do: the referrer is read, with its own
+                            // error handling, in getInstallReferrerParams. Reading it here is a
+                            // Binder call that throws DeadObjectException if Play has died.
+                            if (it != InstallReferrerClient.InstallReferrerResponse.OK) {
+                                closeClient()
                             }
                         },
                         disconnected = {
@@ -92,11 +105,14 @@ class DeepLinkReferrer(
                 }
             }
         } catch (e: Throwable) {
-            kotlin.runCatching {
-                referrerClient?.endConnection()
-                referrerClient = null
-            }
+            closeClient()
         }
+    }
+
+    private fun closeClient() {
+        val client = referrerClient
+        referrerClient = null
+        kotlin.runCatching { client?.endConnection() }
     }
 
     override suspend fun checkForReferral(): Result<String> =
