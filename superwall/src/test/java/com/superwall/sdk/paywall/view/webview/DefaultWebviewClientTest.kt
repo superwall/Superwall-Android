@@ -56,7 +56,7 @@ class DefaultWebviewClientTest {
         }
 
     @Test
-    fun `a missing Superwall script fails a page that is not ready`() =
+    fun `a missing runtime script fails a page that is not ready`() =
         Given("a paywall whose runtime bundle is missing") {
             val event =
                 When("the script request gets a 404 before the paywall is ready") {
@@ -69,7 +69,7 @@ class DefaultWebviewClientTest {
         }
 
     @Test
-    fun `a Superwall script that fails after the paywall is ready is a resource error`() =
+    fun `a runtime script that fails after the paywall is ready is a resource error`() =
         Given("a paywall that is ready") {
             val event =
                 When("a script request gets a 404") {
@@ -91,6 +91,40 @@ class DefaultWebviewClientTest {
 
             Then("it does not fail the page") {
                 assertTrue(event is WebviewClientEvent.OnResourceError)
+            }
+        }
+
+    @Test
+    fun `a missing runtime script on the content host fails a page that is not ready`() =
+        Given("a paywall whose runtime is served from content.superwalleditor.com") {
+            val event =
+                When("the runtime request gets a 404 before the paywall is ready") {
+                    client().eventFor404(request("https://content.superwalleditor.com/runtime/entrypoint.js"))
+                }
+
+            Then("the page has failed") {
+                assertTrue(event is WebviewClientEvent.OnError)
+            }
+        }
+
+    @Test
+    fun `a missing script on a Superwall host that is not the runtime is a resource error`() =
+        Given("a paywall that loads other scripts from Superwall hosts") {
+            val urls =
+                listOf(
+                    "https://templates.superwall.com/assets/widget.js",
+                    "https://content.superwalleditor.com/assets/widget.js",
+                    "https://superwalleditor.com.example.org/runtime/entrypoint.js",
+                    "https://notsuperwalleditor.com/runtime/entrypoint.js",
+                )
+
+            val events =
+                When("each script request fails before the paywall is ready") {
+                    urls.map { client().eventFor404(request(it)) }
+                }
+
+            Then("none of them fails the page") {
+                assertTrue(events.all { it is WebviewClientEvent.OnResourceError })
             }
         }
 
