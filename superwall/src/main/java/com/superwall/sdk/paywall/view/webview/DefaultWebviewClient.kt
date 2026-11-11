@@ -29,30 +29,28 @@ internal open class DefaultWebviewClient(
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
 
-    // The page failed if its own request failed, or if a script of the paywall runtime failed
-    // before the paywall became ready: without it the paywall never starts. Fonts, images
-    // and other assets, and every other script (analytics, pixels, which DNS or ad blockers
-    // commonly stop), are resource errors that leave the paywall working.
+    // The page failed if its own request failed, or if a request to the paywall runtime failed
+    // before the paywall became ready: without the runtime the paywall never starts. Anything
+    // else (fonts, images, analytics and pixel scripts, which DNS or ad blockers commonly
+    // stop), and anything that fails once the paywall is ready, is a resource error that
+    // leaves the paywall working.
     protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean {
         if (request?.isForMainFrame == true) return true
         val url = request?.url ?: return false
-        return isRuntimeScript(url) && !isPaywallReady()
+        return isRuntimeRequest(url) && !isPaywallReady()
     }
 
-    // The runtime is served from <content host>.superwalleditor.com/runtime/. Nearly every URL
-    // a paywall requests has "superwall" in its host, and fonts and other assets also live
-    // under /runtime/, so both the host and the path have to match, and it has to be a script.
-    private fun isRuntimeScript(url: Uri): Boolean {
+    // The runtime is served from <content host>.superwalleditor.com/runtime. Nearly every URL
+    // a paywall requests has "superwall" in its host, so the host alone doesn't tell.
+    private fun isRuntimeRequest(url: Uri): Boolean {
         val host = url.host?.lowercase() ?: return false
-        val path = url.path ?: return false
         val isRuntimeHost = host == RUNTIME_DOMAIN || host.endsWith(".$RUNTIME_DOMAIN")
-        val isScript = path.endsWith(".js", ignoreCase = true) || path.endsWith(".mjs", ignoreCase = true)
-        return isRuntimeHost && path.startsWith(RUNTIME_PATH) && isScript
+        return isRuntimeHost && url.path?.startsWith(RUNTIME_PATH) == true
     }
 
     private companion object {
         const val RUNTIME_DOMAIN = "superwalleditor.com"
-        const val RUNTIME_PATH = "/runtime/"
+        const val RUNTIME_PATH = "/runtime"
     }
 
     override fun shouldOverrideUrlLoading(

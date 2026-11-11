@@ -42,16 +42,32 @@ class DefaultWebviewClientTest {
     }
 
     @Test
-    fun `a missing font under the runtime path is a resource error`() =
-        Given("a paywall whose font has no file") {
+    fun `a missing font under the runtime path is a resource error once the paywall is ready`() =
+        Given("a ready paywall whose font has no file") {
             val fontUrl = "$runtime/store/document/undefined"
 
-            val event = When("the font request gets a 404") { client().eventFor404(request(fontUrl)) }
+            val event = When("the font request gets a 404") { client(ready = true).eventFor404(request(fontUrl)) }
 
             Then("it is reported against the font and does not fail the page") {
                 assertTrue(event is WebviewClientEvent.OnResourceError)
                 val error = (event as WebviewClientEvent.OnResourceError).webviewError
                 assertEquals(fontUrl, (error as WebviewError.NetworkError).url)
+            }
+        }
+
+    @Test
+    fun `any runtime request that fails before the paywall is ready fails the page`() =
+        Given("a paywall that is not ready") {
+            val events =
+                When("requests under the runtime path get a 404") {
+                    listOf(
+                        "$runtime/store/document/undefined",
+                        "https://content.superwalleditor.com/runtime",
+                    ).map { client().eventFor404(request(it)) }
+                }
+
+            Then("the page has failed") {
+                assertTrue(events.all { it is WebviewClientEvent.OnError })
             }
         }
 
@@ -108,18 +124,18 @@ class DefaultWebviewClientTest {
         }
 
     @Test
-    fun `a missing script on a Superwall host that is not the runtime is a resource error`() =
-        Given("a paywall that loads other scripts from Superwall hosts") {
+    fun `a missing request on a Superwall host that is not the runtime is a resource error`() =
+        Given("a paywall that loads other files from Superwall hosts") {
             val urls =
                 listOf(
-                    "https://templates.superwall.com/assets/widget.js",
+                    "https://templates.superwall.com/runtime/entrypoint.js",
                     "https://content.superwalleditor.com/assets/widget.js",
                     "https://superwalleditor.com.example.org/runtime/entrypoint.js",
                     "https://notsuperwalleditor.com/runtime/entrypoint.js",
                 )
 
             val events =
-                When("each script request fails before the paywall is ready") {
+                When("each request fails before the paywall is ready") {
                     urls.map { client().eventFor404(request(it)) }
                 }
 
