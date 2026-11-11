@@ -217,6 +217,10 @@ class SWWebView internal constructor(
     // page detached mid-load keeps running until it is ready instead of getting stuck half-loaded.
     private var paywallReady = false
 
+    // Whether the page's runtime has started, for telling a failed runtime request that fails
+    // the page from one that doesn't. Unlike paywallReady, an optimistic Ready doesn't count.
+    private val runtimeReadiness = PaywallRuntimeReadiness()
+
     private fun pauseRendering() {
         if (viewDestroyed) return
         renderingPaused = true
@@ -231,6 +235,7 @@ class SWWebView internal constructor(
 
     override fun onPaywallReady() {
         paywallReady = true
+        runtimeReadiness.readyReported()
         if (!isAttachedToWindow) pauseRendering()
     }
 
@@ -288,6 +293,7 @@ class SWWebView internal constructor(
     internal fun prepareWebview() {
         // A reload (a config refresh of a cached paywall) must render until it is ready again.
         paywallReady = false
+        runtimeReadiness.pageLoadStarted()
         if (renderingPaused) resumeRendering()
         addJavascriptInterface(messageHandler, "SWAndroid")
 
@@ -326,6 +332,8 @@ class SWWebView internal constructor(
                 ioScope = ioScope,
                 loadUrl = {
                     lastLoadedUrl = it.url
+                    // Each fallback URL is a page of its own.
+                    runtimeReadiness.pageLoadStarted()
                     super.loadUrl(transformUri(it.url))
                 },
                 stopLoading = {
@@ -345,7 +353,7 @@ class SWWebView internal constructor(
                 },
                 localResourceHandler = localResourceHandler,
                 onPageStartedHook = onPageStartedPreloadHook,
-                isPaywallReady = { paywallReady },
+                isPaywallReady = { runtimeReadiness.confirmed },
             )
         this.webViewClient = client
         lastWebViewClient = client
@@ -426,7 +434,7 @@ class SWWebView internal constructor(
                 },
                 localResourceHandler = localResourceHandler,
                 onPageStartedHook = onPageStartedPreloadHook,
-                isPaywallReady = { paywallReady },
+                isPaywallReady = { runtimeReadiness.confirmed },
             )
         this.webViewClient = client
         lastWebViewClient = client
@@ -601,11 +609,16 @@ class SWWebView internal constructor(
                                     }
                                 }
                                 if (options().optimisticLoading) {
-                                    delegate?.updateState(
-                                        PaywallViewState.Updates.SetLoadingState(
-                                            PaywallLoadingState.Ready,
-                                        ),
-                                    )
+                                    delegate?.let { delegate ->
+                                        // A failed page finishes too, so this Ready doesn't
+                                        // show that the runtime started.
+                                        runtimeReadiness.optimisticReadySent()
+                                        delegate.updateState(
+                                            PaywallViewState.Updates.SetLoadingState(
+                                                PaywallLoadingState.Ready,
+                                            ),
+                                        )
+                                    }
                                 }
                                 onFinishedLoading?.invoke(it.url)
                             }
