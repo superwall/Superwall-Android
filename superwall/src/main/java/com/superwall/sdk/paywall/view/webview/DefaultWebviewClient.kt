@@ -22,8 +22,8 @@ internal open class DefaultWebviewClient(
     private val onWebViewCrash: (view: WebView, RenderProcessGoneDetail) -> Unit = { v, d -> },
     private val localResourceHandler: LocalResourceHandler? = null,
     private val onPageStartedHook: (WebView) -> Unit = {},
-    // Whether the paywall has told the SDK it is ready. A script that fails after that
-    // was not one the paywall needed in order to start.
+    // Whether the page's runtime has confirmed it started. A runtime request that fails after
+    // that was not one the paywall needed in order to start.
     private val isPaywallReady: () -> Boolean = { false },
 ) : WebViewClient() {
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
