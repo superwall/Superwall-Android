@@ -73,6 +73,8 @@ class AutomaticPurchaseControllerTest {
     private fun TestScope.makeController(
         store: BillingStore,
         appForegrounded: Flow<Unit> = emptyFlow(),
+        // Lets a sync run to completion without a configured SDK
+        configurationState: Flow<ConfigurationStatus> = MutableStateFlow(ConfigurationStatus.Configured),
     ): AutomaticPurchaseController =
         AutomaticPurchaseController(
             scope = IOScope(UnconfinedTestDispatcher(testScheduler)),
@@ -82,8 +84,7 @@ class AutomaticPurchaseControllerTest {
             passIdentifiersToPlayStore = { false },
             userId = { "user" },
             externalAccountId = { "external" },
-            // Lets a sync run to completion without a configured SDK
-            configurationState = { MutableStateFlow(ConfigurationStatus.Configured) },
+            configurationState = { configurationState },
             setSubscriptionStatus = {},
             appForegrounded = appForegrounded,
         )
@@ -235,6 +236,36 @@ class AutomaticPurchaseControllerTest {
                         coVerify(exactly = 1) { store.activePurchases() }
                     }
                 }
+            }
+        }
+
+    @Test
+    fun `a foreground after the launch sync read the purchases reads them again`() =
+        runTest {
+            hasInitialized().value = true
+            try {
+                Given("a launch sync that read an active purchase and is waiting for the config") {
+                    val store = store(listOf(purchase("a", acknowledged = true)))
+                    val configuration = MutableStateFlow<ConfigurationStatus>(ConfigurationStatus.Pending)
+                    val foregrounded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+                    makeController(store, foregrounded, configuration)
+                    advanceUntilIdle()
+                    coVerify(exactly = 1) { store.activePurchases() }
+
+                    When("the app returns to the foreground and the config then arrives") {
+                        foregrounded.emit(Unit)
+                        advanceUntilIdle()
+                        coVerify(exactly = 1) { store.activePurchases() }
+                        configuration.value = ConfigurationStatus.Configured
+                        advanceUntilIdle()
+
+                        Then("Play is asked for the purchases again once the launch sync has finished") {
+                            coVerify(exactly = 2) { store.activePurchases() }
+                        }
+                    }
+                }
+            } finally {
+                hasInitialized().value = false
             }
         }
 

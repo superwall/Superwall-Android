@@ -31,6 +31,7 @@ import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
 import io.mockk.Runs
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -262,6 +263,37 @@ class WebPaywallRedeemerTest {
                         Then("web entitlements are fetched again") {
                             coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
                         }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `web entitlements fetched for a user who changed in flight are dropped`() =
+        runTest(testDispatcher) {
+            Given("polling has started and a foreground refresh is in flight") {
+                withStaleRefreshRedeemer(lastFetch = 10_000L - 1_001L) { redeemer ->
+                    redeemer.startPollingForTest()
+                    clearMocks(storage, answers = false)
+                    val original = getUserId
+                    coEvery { network.webEntitlementsByUserId(any(), any()) } coAnswers {
+                        // The app identifies a different user before the response arrives.
+                        getUserId = { UserId("someone_else") }
+                        Either.Success(WebEntitlements(customerInfo = null))
+                    }
+
+                    try {
+                        When("the response arrives") {
+                            redeemer.refreshWebEntitlementsIfStale()
+
+                            Then("nothing is stored for the new user") {
+                                verify(exactly = 0) { storage.write(LatestWebCustomerInfo, any()) }
+                                verify(exactly = 0) { storage.write(LastWebEntitlementsFetchDate, any()) }
+                                verify(exactly = 0) { storage.write(LatestRedemptionResponse, any()) }
+                            }
+                        }
+                    } finally {
+                        getUserId = original
                     }
                 }
             }

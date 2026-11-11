@@ -92,16 +92,29 @@ class AutomaticPurchaseController internal constructor(
 
     private val initialSync: Job
 
+    // Whether the launch sync has got as far as reading the purchases from Play.
+    @Volatile
+    private var launchSyncReadStarted = false
+
     init {
-        initialSync = syncSubscriptionStatus()
+        initialSync =
+            scope.launch {
+                Superwall.hasInitialized.first { it }
+                launchSyncReadStarted = true
+                syncSubscriptionStatusAndWait()
+            }
         // A subscription can expire, or be refunded or revoked, while the app is in the
         // background. Play doesn't report that as a purchase update, so ask again.
         scope.launch {
             appForegrounded.collect {
-                // The launch sync already covers a foreground that arrives while it runs.
-                if (!initialSync.isActive) {
-                    syncSubscriptionStatus()
+                if (initialSync.isActive) {
+                    // A launch sync that hasn't read the purchases yet covers this foreground.
+                    // One that has may hold a read from before the app went to the background
+                    // while it waits for the config, so read again once it has finished.
+                    if (!launchSyncReadStarted) return@collect
+                    initialSync.join()
                 }
+                syncSubscriptionStatus()
             }
         }
         // Every purchase Play reports - from our flows, pending purchases settling, promo
