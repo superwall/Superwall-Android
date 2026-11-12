@@ -42,11 +42,11 @@ class DefaultWebviewClientTest {
     }
 
     @Test
-    fun `a missing font under the runtime path is a resource error once the paywall is ready`() =
-        Given("a ready paywall whose font has no file") {
+    fun `a missing font under the runtime path is a resource error`() =
+        Given("a paywall that is not ready, whose font has no file") {
             val fontUrl = "$runtime/store/document/undefined"
 
-            val event = When("the font request gets a 404") { client(ready = true).eventFor404(request(fontUrl)) }
+            val event = When("the font request gets a 404") { client().eventFor404(request(fontUrl)) }
 
             Then("it is reported against the font and does not fail the page") {
                 assertTrue(event is WebviewClientEvent.OnResourceError)
@@ -56,18 +56,33 @@ class DefaultWebviewClientTest {
         }
 
     @Test
-    fun `any runtime request that fails before the paywall is ready fails the page`() =
+    fun `only scripts under the runtime path fail a page that is not ready`() =
         Given("a paywall that is not ready") {
             val events =
-                When("requests under the runtime path get a 404") {
+                When("requests under the runtime path that are not scripts get a 404") {
                     listOf(
-                        "$runtime/store/document/undefined",
+                        "$runtime/fonts/inter.woff2",
+                        "$runtime/images/hero.png",
+                        "$runtime/styles.css",
                         "https://content.superwalleditor.com/runtime",
                     ).map { client().eventFor404(request(it)) }
                 }
 
+            Then("none of them fails the page") {
+                assertTrue(events.all { it is WebviewClientEvent.OnResourceError })
+            }
+        }
+
+    @Test
+    fun `a missing runtime module script fails a page that is not ready`() =
+        Given("a paywall whose runtime is an mjs module") {
+            val event =
+                When("the module request gets a 404 before the paywall is ready") {
+                    client().eventFor404(request("$runtime/entrypoint.MJS?v=1"))
+                }
+
             Then("the page has failed") {
-                assertTrue(events.all { it is WebviewClientEvent.OnError })
+                assertTrue(event is WebviewClientEvent.OnError)
             }
         }
 
