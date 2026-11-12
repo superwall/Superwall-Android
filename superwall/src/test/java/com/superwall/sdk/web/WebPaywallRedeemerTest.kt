@@ -31,6 +31,8 @@ import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
 import io.mockk.Runs
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -294,6 +296,48 @@ class WebPaywallRedeemerTest {
                         }
                     } finally {
                         getUserId = original
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a foreground during a poll's fetch waits for it instead of fetching alongside it`() =
+        runTest(testDispatcher) {
+            Given("a poll whose fetch is in flight") {
+                withStaleRefreshRedeemer(lastFetch = 10_000L - 1_001L) { redeemer ->
+                    redeemer.startPollingForTest()
+                    val response = CompletableDeferred<Unit>()
+                    coEvery { network.webEntitlementsByUserId(any(), any()) } coAnswers {
+                        response.await()
+                        Either.Success(WebEntitlements(customerInfo = null))
+                    }
+                    every { storage.write(LastWebEntitlementsFetchDate, any()) } answers {
+                        every { storage.read(LastWebEntitlementsFetchDate) } returns 10_000L
+                    }
+                    testScheduler.advanceTimeBy(1_000L)
+                    testScheduler.runCurrent()
+                    coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+
+                    try {
+                        When("the app returns to the foreground") {
+                            val foreground = launch { redeemer.refreshWebEntitlementsIfStale() }
+                            testScheduler.runCurrent()
+
+                            Then("no second fetch runs beside the poll's") {
+                                coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+                            }
+
+                            response.complete(Unit)
+                            testScheduler.runCurrent()
+
+                            Then("the poll's result is the fresh one, so nothing more is fetched") {
+                                assertTrue(foreground.isCompleted)
+                                coVerify(exactly = 2) { network.webEntitlementsByUserId(any(), any()) }
+                            }
+                        }
+                    } finally {
+                        every { storage.write(LastWebEntitlementsFetchDate, any()) } just Runs
                     }
                 }
             }

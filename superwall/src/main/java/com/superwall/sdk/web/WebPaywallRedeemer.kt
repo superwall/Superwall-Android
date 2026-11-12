@@ -122,6 +122,10 @@ class WebPaywallRedeemer(
     // overlapping same-code calls cannot both observe an empty set and emit twice.
     private val trialTrackingMutex = Mutex()
 
+    // The poll and a foreground refresh can run at the same time. Held from a fetch until its
+    // result is applied, so a response can't be applied after one that was requested later.
+    private val refreshMutex = Mutex()
+
     private suspend fun track(event: Trackable) = factory.track(event)
 
     private fun convertToJsonElement(value: Any?): JsonElement? =
@@ -544,7 +548,9 @@ class WebPaywallRedeemer(
      * something outside the app, such as a web management page, may have changed them and the
      * next poll is too far off. Makes a network request, so call it off the main thread.
      */
-    suspend fun refreshWebEntitlements() {
+    suspend fun refreshWebEntitlements() = refreshMutex.withLock { fetchAndApplyWebEntitlements() }
+
+    private suspend fun fetchAndApplyWebEntitlements() {
         val requestedFor = currentUser()
         val fetched = fetchWebCustomerInfo(requestedFor.first, factory.getDeviceId())
         // The fetch answers for the user it was sent for. If the user changed meanwhile
@@ -623,13 +629,16 @@ class WebPaywallRedeemer(
      * Refreshes web entitlements when the last fetch is older than the polling interval. The
      * poll's timer doesn't advance while the device sleeps, so after a long time in the
      * background the next poll can be far later than intended. Does nothing until polling has
-     * started, or before the first fetch.
+     * started, or before the first fetch. A fetch that is already running is waited for, and
+     * if it succeeded there is nothing stale left to refresh.
      */
     internal suspend fun refreshWebEntitlementsIfStale() {
         if (pollingJob == null) return
-        val lastFetch = storage.read(LastWebEntitlementsFetchDate) ?: return
-        if (factory.currentTimeMillis() - lastFetch >= factory.maxAge()) {
-            refreshWebEntitlements()
+        refreshMutex.withLock {
+            val lastFetch = storage.read(LastWebEntitlementsFetchDate) ?: return
+            if (factory.currentTimeMillis() - lastFetch >= factory.maxAge()) {
+                fetchAndApplyWebEntitlements()
+            }
         }
     }
 
