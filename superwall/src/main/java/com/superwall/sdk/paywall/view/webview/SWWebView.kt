@@ -236,6 +236,9 @@ class SWWebView internal constructor(
     override fun onPaywallReady() {
         paywallReady = true
         runtimeReadiness.readyReported()
+        // A runtime request that failed before this may have a reload waiting. The paywall
+        // started without it, so reloading now would throw away a working page.
+        if (runtimeReadiness.confirmed) loadRetrier.cancel()
         if (!isAttachedToWindow) pauseRendering()
     }
 

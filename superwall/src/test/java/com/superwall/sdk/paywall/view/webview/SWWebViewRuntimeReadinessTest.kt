@@ -21,6 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import java.time.Duration
 
 /**
  * How [SWWebView] feeds runtime readiness to its client: which failed runtime requests the
@@ -137,6 +138,66 @@ class SWWebViewRuntimeReadinessTest {
 
                 Then("a runtime request that fails on it fails the page") {
                     assertTrue(client.runtimeRequestFailsThePage(webView))
+                }
+            }
+        }
+
+    private fun withDirectlyLoadedWebView(block: (SWWebView, DefaultWebviewClient) -> Unit) {
+        val controller = Robolectric.buildActivity(Activity::class.java).setup()
+        val webView = testSWWebView(controller.get())
+        try {
+            webView.loadUrl(firstUrl)
+            shadowOf(Looper.getMainLooper()).idle()
+            block(webView, shadowOf(webView).webViewClient as DefaultWebviewClient)
+        } finally {
+            controller.pause().stop().destroy()
+            webView.destroy()
+        }
+    }
+
+    /** Fails a runtime request before the paywall is ready and waits for the view to act on it. */
+    private fun DefaultWebviewClient.failRuntimeRequest(webView: SWWebView) {
+        onReceivedHttpError(webView, request(runtimeScript), null)
+        awaitUntil { webviewClientEvents.replayCache.lastOrNull() is WebviewClientEvent.OnError }
+        // The view handles the event on the main thread a moment after it is emitted.
+        val settled = System.currentTimeMillis() + 300
+        awaitUntil { System.currentTimeMillis() >= settled }
+    }
+
+    /** Runs past every retry wait and returns whether the view loaded the page again. */
+    private fun SWWebView.reloadedAfterTheRetryWait(original: DefaultWebviewClient): Boolean {
+        // The main looper's clock only moves when told to, so the retry wait is exact.
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(5))
+        // Each load gets a client of its own.
+        return shadowOf(this).webViewClient !== original
+    }
+
+    @Test
+    fun `a runtime request that fails before the paywall is ready reloads the page`() =
+        Given("a paywall that is loading") {
+            withDirectlyLoadedWebView { webView, client ->
+                When("a runtime request fails and the paywall never becomes ready") {
+                    client.failRuntimeRequest(webView)
+                }
+
+                Then("the page is loaded again") {
+                    assertTrue(webView.reloadedAfterTheRetryWait(client))
+                }
+            }
+        }
+
+    @Test
+    fun `a paywall that becomes ready while a reload is waiting is not reloaded`() =
+        Given("a paywall with a reload waiting after a runtime request failed") {
+            withDirectlyLoadedWebView { webView, client ->
+                client.failRuntimeRequest(webView)
+
+                When("the paywall reports that it is ready") {
+                    webView.onPaywallReady()
+                }
+
+                Then("the working page is left alone") {
+                    assertTrue(!webView.reloadedAfterTheRetryWait(client))
                 }
             }
         }
