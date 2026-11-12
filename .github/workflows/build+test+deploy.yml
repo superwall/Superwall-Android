@@ -40,11 +40,11 @@ jobs:
       prerelease: ${{ steps.prerelease.outputs.status }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
       with:
         fetch-depth: 0
     - name: Set Up JDK
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@e9fbacdec3bb3b6036605a3e6f7995d66773a8c6 # v3
       with:
         distribution: 'zulu' # See 'Supported distributions' for available options
         java-version: '17'
@@ -65,7 +65,7 @@ jobs:
       run: ./gradlew :superwall:generateBuildInfo
 
     - name: Get Version
-      uses: notiz-dev/github-action-json-property@release
+      uses: notiz-dev/github-action-json-property@a5a9c668b16513c737c3e1f8956772c99c73f6e8 # release
       id: version
       with:
         path: "superwall/build/version.json"
@@ -169,7 +169,7 @@ jobs:
     - name: Create GitHub release
       if: steps.check-release.outputs.release-exists == 'false'
       id: release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
       with:
         tag_name: ${{ steps.version.outputs.prop }}
         name: ${{ steps.version.outputs.prop }}
@@ -180,7 +180,7 @@ jobs:
     - name: slack-send
       # Only notify on a new release
       if: steps.check-release.outputs.release-exists == 'false'
-      uses: slackapi/slack-github-action@v1.24.0
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
       with:
         payload: |
           {
