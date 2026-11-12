@@ -27,11 +27,14 @@ import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.PlayBillingErrors
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.seconds
 import com.superwall.sdk.billing.Store as BillingStore
 
@@ -76,6 +79,8 @@ class AutomaticPurchaseController internal constructor(
     private val externalAccountId: () -> String,
     private val configurationState: () -> Flow<ConfigurationStatus>,
     private val setSubscriptionStatus: (SubscriptionStatus) -> Unit,
+    // Emits each time the app comes to the foreground.
+    private val appForegrounded: Flow<Unit> = emptyFlow(),
 ) : PurchaseController {
     companion object {
         private const val MAX_RETRIES = 3
@@ -86,8 +91,40 @@ class AutomaticPurchaseController internal constructor(
 
     //region Initialization
 
+    private val initialSync: Job
+
+    // Whether the launch sync has got as far as reading the purchases from Play.
+    @Volatile
+    private var launchSyncReadStarted = false
+
+    // Syncs run side by side (launch, each foreground, each purchase update, restore) and each
+    // waits for the config after reading, so they can finish in any order. Each takes a number
+    // when it starts reading; one that finishes after a later one has published is dropped.
+    private val syncsStarted = AtomicLong(0)
+    private val publishLock = Any()
+    private var latestPublishedSync = 0L
+
     init {
-        syncSubscriptionStatus()
+        initialSync =
+            scope.launch {
+                Superwall.hasInitialized.first { it }
+                launchSyncReadStarted = true
+                syncSubscriptionStatusAndWait()
+            }
+        // A subscription can expire, or be refunded or revoked, while the app is in the
+        // background. Play doesn't report that as a purchase update, so ask again.
+        scope.launch {
+            appForegrounded.collect {
+                if (initialSync.isActive) {
+                    // A launch sync that hasn't read the purchases yet covers this foreground.
+                    // One that has may hold a read from before the app went to the background
+                    // while it waits for the config, so read again once it has finished.
+                    if (!launchSyncReadStarted) return@collect
+                    initialSync.join()
+                }
+                syncSubscriptionStatus()
+            }
+        }
         // Every purchase Play reports - from our flows, pending purchases settling, promo
         // codes - can change what the user is entitled to.
         scope.launch {
@@ -102,12 +139,11 @@ class AutomaticPurchaseController internal constructor(
 
     //region Public
 
-    private fun syncSubscriptionStatus() {
+    private fun syncSubscriptionStatus(): Job =
         scope.launch {
             Superwall.hasInitialized.first { it }
             syncSubscriptionStatusAndWait()
         }
-    }
 
     //endregion
 
@@ -228,6 +264,7 @@ class AutomaticPurchaseController internal constructor(
     private suspend fun syncSubscriptionStatusAndWait(count: Int = 0) {
         // A failed read isn't "no purchases": keep what the store could read, and mark the read
         // as failed so the status logic doesn't take it as an answer.
+        val syncNumber = syncsStarted.incrementAndGet()
         val active = store.activePurchases()
         val failed = active.isFailure
         val allPurchases = active.getOrElse { store.ownedPurchases() }
@@ -255,61 +292,41 @@ class AutomaticPurchaseController internal constructor(
             }",
         )
 
-        val status: SubscriptionStatus =
-            if (hasActivePurchaseOrSubscription) {
-                // We await for configuration to be set so our entitlements are available
-                configurationState().first { it is ConfigurationStatus.Configured }
-                allPurchases
-                    .flatMap {
-                        it.productIds
-                    }.toSet()
-                    .flatMap {
-                        val res = entitlementsInfo().byProductId(it)
-                        res
-                    }.toSet()
-                    .let { entitlements ->
-                        Logger.debug(
-                            logLevel = LogLevel.debug,
-                            scope = LogScope.nativePurchaseController,
-                            message = "Found entitlements: ${entitlements.joinToString { it.id }}",
-                        )
+        // We await for configuration to be set so our entitlements are available. With nothing
+        // active, wait only until config has finished applying (or failed) so flags like test
+        // mode are known before publishing Inactive - otherwise we'd fire a spurious status
+        // change in test-mode apps
+        if (hasActivePurchaseOrSubscription) {
+            configurationState().first { it is ConfigurationStatus.Configured }
+        } else {
+            configurationState().first { it !is ConfigurationStatus.Pending }
+        }
 
-                        if (entitlements.isNotEmpty()) {
-                            entitlementsInfo().activeDeviceEntitlements = entitlements
-                            SubscriptionStatus.Active(
-                                entitlements.map { it.copy(isActive = true) }.toSet(),
-                            )
-                        } else {
-                            // An active purchase that maps to no entitlement is a
-                            // mapping failure, not an answer about what it unlocks.
-                            statusForEmptyRead(
-                                activeProductIds = activeProductIds,
-                                readReturnedPurchases = allPurchases.isNotEmpty(),
-                                readFailed = failed,
-                            )
-                        }
-                    }
-            } else {
-                // Wait until config has finished applying (or failed) so flags like
-                // test mode are known before publishing Inactive - otherwise we'd
-                // fire a spurious status change in test-mode apps
-                configurationState().first { it !is ConfigurationStatus.Pending }
-                statusForEmptyRead(
-                    activeProductIds = activeProductIds,
-                    readReturnedPurchases = allPurchases.isNotEmpty(),
-                    readFailed = failed,
-                )
+        // Checked and published in one step, so a sync can't slip in between the two.
+        val superseded =
+            synchronized(publishLock) {
+                if (syncNumber < latestPublishedSync) return@synchronized true
+                latestPublishedSync = syncNumber
+                val status = statusFor(allPurchases, hasActivePurchaseOrSubscription, activeProductIds, failed)
+                if (!Superwall.initialized) {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        scope = LogScope.nativePurchaseController,
+                        message = "Attempting to sync subscription status before Superwall has been initialized.",
+                    )
+                    return
+                }
+                setSubscriptionStatus(status)
+                false
             }
-        if (!Superwall.initialized) {
+        if (superseded) {
             Logger.debug(
-                logLevel = LogLevel.error,
+                logLevel = LogLevel.debug,
                 scope = LogScope.nativePurchaseController,
-                message = "Attempting to sync subscription status before Superwall has been initialized.",
+                message = "Dropping a purchase sync that finished after a later one",
             )
             return
         }
-
-        setSubscriptionStatus(status)
 
         if (failed && count < MAX_RETRIES) {
             scope.launch {
@@ -318,6 +335,52 @@ class AutomaticPurchaseController internal constructor(
             }
         }
     }
+
+    // Works out the status for a read, and brings the device entitlements in step with it.
+    private fun statusFor(
+        allPurchases: List<StorePurchase>,
+        hasActivePurchaseOrSubscription: Boolean,
+        activeProductIds: Set<String>,
+        failed: Boolean,
+    ): SubscriptionStatus =
+        if (hasActivePurchaseOrSubscription) {
+            allPurchases
+                .flatMap {
+                    it.productIds
+                }.toSet()
+                .flatMap {
+                    val res = entitlementsInfo().byProductId(it)
+                    res
+                }.toSet()
+                .let { entitlements ->
+                    Logger.debug(
+                        logLevel = LogLevel.debug,
+                        scope = LogScope.nativePurchaseController,
+                        message = "Found entitlements: ${entitlements.joinToString { it.id }}",
+                    )
+
+                    if (entitlements.isNotEmpty()) {
+                        entitlementsInfo().activeDeviceEntitlements = entitlements
+                        SubscriptionStatus.Active(
+                            entitlements.map { it.copy(isActive = true) }.toSet(),
+                        )
+                    } else {
+                        // An active purchase that maps to no entitlement is a
+                        // mapping failure, not an answer about what it unlocks.
+                        statusForEmptyRead(
+                            activeProductIds = activeProductIds,
+                            readReturnedPurchases = allPurchases.isNotEmpty(),
+                            readFailed = failed,
+                        )
+                    }
+                }
+        } else {
+            statusForEmptyRead(
+                activeProductIds = activeProductIds,
+                readReturnedPurchases = allPurchases.isNotEmpty(),
+                readFailed = failed,
+            )
+        }
 
     /**
      * Resolves the status for a read that produced no entitlements, keeping a

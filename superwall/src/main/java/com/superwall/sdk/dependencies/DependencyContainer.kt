@@ -644,6 +644,7 @@ class DependencyContainer internal constructor(
                             externalAccountId = { identityManager.externalAccountId },
                             configurationState = { configManager.configurationStatus },
                             setSubscriptionStatus = { subscriptionStatusManager.internallySetSubscriptionStatus(it) },
+                            appForegrounded = appLifecycleObserver.isInBackground.filter { !it }.map { },
                         ),
                 javaPurchaseController = null,
                 context,
@@ -898,6 +899,12 @@ class DependencyContainer internal constructor(
                 customerInfoManager = customerInfoManager,
                 factory = this,
             )
+
+        ioScope.launch {
+            appLifecycleObserver.isInBackground.filter { !it }.collect {
+                reedemer.refreshWebEntitlementsIfStale()
+            }
+        }
 
         eventsQueue =
             EventsQueue(

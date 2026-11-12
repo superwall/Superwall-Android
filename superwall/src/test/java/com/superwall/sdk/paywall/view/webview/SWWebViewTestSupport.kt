@@ -10,11 +10,12 @@ internal fun testSWWebView(
     context: Context,
     messageHandler: PaywallMessageHandler = mockk(relaxed = true),
     gameControllerEnabled: () -> Boolean = { false },
+    options: PaywallOptions = PaywallOptions(),
 ): SWWebView =
     SWWebView(
         context = context,
         messageHandler = messageHandler,
-        options = { PaywallOptions() },
+        options = { options },
         track = {},
         currentActivity = { null },
         localResources = { emptyMap() },

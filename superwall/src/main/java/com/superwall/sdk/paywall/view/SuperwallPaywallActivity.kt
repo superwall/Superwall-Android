@@ -205,7 +205,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    private fun paywallView(): PaywallView? = contentView?.findViewWithTag(ACTIVE_PAYWALL_TAG)
+    private fun paywallView(): PaywallView? =
+        contentView
+            ?.findViewWithTag<PaywallView>(ACTIVE_PAYWALL_TAG)
+            ?.takeIf { isOwnedByThisActivity(it) }
 
     /**
      * Finishes an activity that can't show its paywall. When it was recreated by the system
@@ -317,6 +320,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         (view.parent as? ViewGroup)?.removeView(view)
         view.tag = ACTIVE_PAYWALL_TAG
         view.encapsulatingActivity = WeakReference(this)
+        takenAtPresentationCount = view.presentationCount
         // If it's a bottom sheet or dialog, we set activity as transparent and show the UI in a container
         if (isBottomSheetStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             setupBottomSheetLayout(
@@ -872,11 +876,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val pv = intent.getStringExtra(VIEW_KEY)
         withErrorTracking {
             if (pv != null) {
-                (
-                    SuperwallGraph.requireContainer()
+                val view =
+                    SuperwallGraph
+                        .requireContainer()
                         .makeViewRegistry()
                         .retrieveView(pv) as? PaywallView?
-                )?.cleanup()
+                if (view != null) {
+                    if (isOwnedByThisActivity(view)) view.cleanup() else view.release(this)
+                }
             }
         }.onError {
             Logger.debug(
@@ -886,12 +893,23 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             )
         }
         paywallView()?.cleanup()
-        content?.removeAllViews()
+        content?.takeIf { it !is PaywallView || isOwnedByThisActivity(it) }?.removeAllViews()
         // Clear reference to activity in the view
         (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
         // Clear the reference to the contentView
         contentView = null
     }
+
+    // The view's presentation count when this activity took the view.
+    private var takenAtPresentationCount: Int? = null
+
+    /**
+     * Whether [view] is still this activity's to show. The app can take the cached view over for
+     * its own presentation (getPaywall) before this activity is destroyed, and that view mustn't
+     * be torn down here. The view may not be in the app's layout yet, so where it's attached
+     * doesn't say whose it is.
+     */
+    private fun isOwnedByThisActivity(view: PaywallView): Boolean = view.presentationCount == takenAtPresentationCount
 
     private fun restorePaywallViewAfterCleanup(
         paywallView: PaywallView,

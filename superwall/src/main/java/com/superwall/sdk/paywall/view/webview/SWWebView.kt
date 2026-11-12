@@ -116,7 +116,6 @@ class SWWebView internal constructor(
     private var onLoadFailed: (WebviewError) -> Unit = {}
 
     private companion object ChromeClient : WebChromeClient() {
-        const val MAX_LOAD_RETRIES = 3
         val posterBmp by lazy { createBitmap(10, 10) }
 
         private class ChromeClient(
@@ -181,7 +180,10 @@ class SWWebView internal constructor(
 
     private var lastWebViewClient: WebViewClient? = null
     private var lastLoadedUrl: String? = null
-    private var loadRetryCount = 0
+    private val loadRetrier =
+        PaywallLoadRetrier(scope = mainScope) { url ->
+            if (!viewDestroyed) loadUrl(url)
+        }
 
     private var hostPaused = false
     private var viewDestroyed = false
@@ -215,6 +217,10 @@ class SWWebView internal constructor(
     // page detached mid-load keeps running until it is ready instead of getting stuck half-loaded.
     private var paywallReady = false
 
+    // Whether the page's runtime has started, for telling a failed runtime request that fails
+    // the page from one that doesn't. Unlike paywallReady, an optimistic Ready doesn't count.
+    private val runtimeReadiness = PaywallRuntimeReadiness()
+
     private fun pauseRendering() {
         if (viewDestroyed) return
         renderingPaused = true
@@ -229,6 +235,10 @@ class SWWebView internal constructor(
 
     override fun onPaywallReady() {
         paywallReady = true
+        runtimeReadiness.readyReported()
+        // A runtime request that failed before this may have a reload waiting. The paywall
+        // started without it, so reloading now would throw away a working page.
+        if (runtimeReadiness.confirmed) loadRetrier.cancel()
         if (!isAttachedToWindow) pauseRendering()
     }
 
@@ -286,6 +296,7 @@ class SWWebView internal constructor(
     internal fun prepareWebview() {
         // A reload (a config refresh of a cached paywall) must render until it is ready again.
         paywallReady = false
+        runtimeReadiness.pageLoadStarted()
         if (renderingPaused) resumeRendering()
         addJavascriptInterface(messageHandler, "SWAndroid")
 
@@ -324,6 +335,8 @@ class SWWebView internal constructor(
                 ioScope = ioScope,
                 loadUrl = {
                     lastLoadedUrl = it.url
+                    // Each fallback URL is a page of its own.
+                    runtimeReadiness.pageLoadStarted()
                     super.loadUrl(transformUri(it.url))
                 },
                 stopLoading = {
@@ -343,6 +356,7 @@ class SWWebView internal constructor(
                 },
                 localResourceHandler = localResourceHandler,
                 onPageStartedHook = onPageStartedPreloadHook,
+                isPaywallReady = { runtimeReadiness.confirmed },
             )
         this.webViewClient = client
         lastWebViewClient = client
@@ -423,6 +437,7 @@ class SWWebView internal constructor(
                 },
                 localResourceHandler = localResourceHandler,
                 onPageStartedHook = onPageStartedPreloadHook,
+                isPaywallReady = { runtimeReadiness.confirmed },
             )
         this.webViewClient = client
         lastWebViewClient = client
@@ -536,17 +551,22 @@ class SWWebView internal constructor(
                                                 }
 
                                                 is DefaultWebviewClient -> {
-                                                    if (lastLoadedUrl == null) {
-                                                        false
-                                                    } else if (loadRetryCount < MAX_LOAD_RETRIES) {
-                                                        loadRetryCount += 1
-                                                        log(
-                                                            "Paywall loading failed - retrying $lastLoadedUrl",
-                                                        )
-                                                        loadUrl(lastLoadedUrl!!)
+                                                    val url = lastLoadedUrl
+                                                    if (url == null) {
                                                         false
                                                     } else {
-                                                        true
+                                                        when (val outcome = loadRetrier.onLoadFailed(url)) {
+                                                            is PaywallLoadRetrier.Outcome.Scheduled -> {
+                                                                log(
+                                                                    "Paywall loading failed - retrying $url in ${outcome.delayMs}ms",
+                                                                )
+                                                                false
+                                                            }
+
+                                                            PaywallLoadRetrier.Outcome.AlreadyScheduled -> false
+
+                                                            PaywallLoadRetrier.Outcome.Exhausted -> true
+                                                        }
                                                     }
                                                 }
 
@@ -583,23 +603,25 @@ class SWWebView internal constructor(
                             is WebviewClientEvent.OnPageFinished -> {
                                 // Reinstall after navigation in case the early injection was lost.
                                 updateMediaPlayback()
-                                // The client records page-level failures synchronously on the
-                                // WebViewClient callback thread, so this can't miss an error
-                                // whose async OnError event hasn't been processed yet.
-                                if (!client.hadMainFrameError) {
-                                    loadRetryCount = 0
-                                }
+                                // The reloads are not restored here: a page-level failure can
+                                // arrive after the page finished, and restoring them would let
+                                // such a page be reloaded forever. setup() starts each load afresh.
                                 asEither {
                                     mainScope.launch {
                                         this@SWWebView.scrollTo(0, 0)
                                     }
                                 }
                                 if (options().optimisticLoading) {
-                                    delegate?.updateState(
-                                        PaywallViewState.Updates.SetLoadingState(
-                                            PaywallLoadingState.Ready,
-                                        ),
-                                    )
+                                    delegate?.let { delegate ->
+                                        // A failed page finishes too, so this Ready doesn't
+                                        // show that the runtime started.
+                                        runtimeReadiness.optimisticReadySent()
+                                        delegate.updateState(
+                                            PaywallViewState.Updates.SetLoadingState(
+                                                PaywallLoadingState.Ready,
+                                            ),
+                                        )
+                                    }
                                 }
                                 onFinishedLoading?.invoke(it.url)
                             }
@@ -699,6 +721,7 @@ class SWWebView internal constructor(
 
     override fun destroy() {
         viewDestroyed = true
+        loadRetrier.cancel()
         onScrollChangeListener = null
         super.destroy()
     }
@@ -720,7 +743,7 @@ class SWWebView internal constructor(
         this.onRenderCrashed = onRenderCrashed
         this.onLoadFailed = onLoadFailed
         scrollEnabled = delegate?.state?.paywall?.isScrollEnabled ?: true
-        loadRetryCount = 0
+        loadRetrier.reset()
         mainScope.launch {
             val state = delegate?.state ?: return@launch
             if (state.paywall.onDeviceCache is OnDeviceCaching.Enabled) {

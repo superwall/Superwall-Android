@@ -894,6 +894,181 @@ class PaywallViewTest {
     }
 
     @Test
+    fun appTakesOverViewWhileOldActivityFinishes_oldTeardownLeavesTheAppsPresentationAlone() {
+        Given("a paywall presented by the SDK in SuperwallPaywallActivity") {
+            clearMocks(delegateAdapter, answers = false)
+            val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+            val view = makePaywallView(cache)
+            val sdkPublisher =
+                MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                    replay = 1,
+                    extraBufferCapacity = 8,
+                )
+            val activityController = presentInActivity(view, sdkPublisher)
+            try {
+                When("the user closes it, and the app shows the same cached view before the old activity is destroyed") {
+                    activityController.get().finish()
+                    activityController.pause().stop()
+                    idleMainLooper()
+
+                    val (appCallback, appPublisher) = takeOverForTheApp(view)
+                    val appContainer = android.widget.FrameLayout(context)
+                    appContainer.addView(view)
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+
+                    activityController.destroy()
+                    idleMainLooper()
+
+                    Then("the app's paywall stays on screen, presented, with its callback") {
+                        assertEquals(appContainer, view.parent)
+                        assertEquals(appCallback, view.callback)
+                        assertTrue(view.state.isPresented)
+                        assertTrue(dismissedStates(appPublisher).isEmpty())
+                    }
+                }
+            } finally {
+                com.superwall.sdk.dependencies.SuperwallGraph
+                    .detach(com.superwall.sdk.dependencies.SuperwallGraph.container)
+            }
+        }
+    }
+
+    /** What getPaywall() does on a cache hit, before the app adds the view to its own layout. */
+    private fun takeOverForTheApp(
+        view: PaywallView,
+    ): Pair<
+        com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter,
+        MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>,
+    > {
+        val appCallback = mockk<com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter>(relaxed = true)
+        val appPublisher =
+            MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                replay = 1,
+                extraBufferCapacity = 8,
+            )
+        view.callback = appCallback
+        view.updateState(
+            PaywallViewState.Updates.SetRequest(
+                req = mockk(relaxed = true),
+                publisher = appPublisher,
+                occurrence = null,
+                experiment = null,
+            ),
+        )
+        view.resetTransientPresentationState()
+        view.prepareToDisplay()
+        return appCallback to appPublisher
+    }
+
+    @Test
+    fun appTakesOverViewButHasNotAttachedItYet_oldTeardownLeavesItAlone() {
+        Given("a paywall presented by the SDK in SuperwallPaywallActivity") {
+            clearMocks(delegateAdapter, answers = false)
+            val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+            val view = makePaywallView(cache)
+            val sdkPublisher =
+                MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                    replay = 1,
+                    extraBufferCapacity = 8,
+                )
+            val activityController = presentInActivity(view, sdkPublisher)
+            try {
+                When("the app takes the view over, and the old activity is destroyed before the app has attached it") {
+                    activityController.get().finish()
+                    activityController.pause().stop()
+                    idleMainLooper()
+
+                    val (appCallback, appPublisher) = takeOverForTheApp(view)
+                    // Stands in for the web view, which this test's view doesn't add.
+                    view.addView(android.view.View(context))
+                    val childCount = view.childCount
+                    assertEquals(null, view.parent)
+
+                    activityController.destroy()
+                    idleMainLooper()
+
+                    Then("the view keeps its callback and children, and lets go of the old activity") {
+                        assertEquals(appCallback, view.callback)
+                        assertTrue(childCount > 0)
+                        assertEquals(childCount, view.childCount)
+                        assertTrue(dismissedStates(appPublisher).isEmpty())
+                        assertEquals(null, view.encapsulatingActivity)
+                    }
+                }
+            } finally {
+                com.superwall.sdk.dependencies.SuperwallGraph
+                    .detach(com.superwall.sdk.dependencies.SuperwallGraph.container)
+            }
+        }
+    }
+
+    @Test
+    fun appTakesOverViewBeforeOldActivityStops_oldTeardownDoesNotDismissIt() {
+        Given("a paywall presented by the SDK in SuperwallPaywallActivity") {
+            clearMocks(delegateAdapter, answers = false)
+            val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+            val view = makePaywallView(cache)
+            val sdkPublisher =
+                MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                    replay = 1,
+                    extraBufferCapacity = 8,
+                )
+            val activityController = presentInActivity(view, sdkPublisher)
+            try {
+                When("the app takes the view over as soon as the old activity finishes") {
+                    activityController.get().finish()
+                    val (appCallback, appPublisher) = takeOverForTheApp(view)
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+
+                    activityController.pause().stop().destroy()
+                    idleMainLooper()
+
+                    Then("the app's presentation isn't dismissed or told it finished") {
+                        assertEquals(appCallback, view.callback)
+                        assertTrue(view.state.isPresented)
+                        assertTrue(dismissedStates(appPublisher).isEmpty())
+                        coVerify(exactly = 0) { appCallback.onFinished(any(), any(), any()) }
+                    }
+                }
+            } finally {
+                com.superwall.sdk.dependencies.SuperwallGraph
+                    .detach(com.superwall.sdk.dependencies.SuperwallGraph.container)
+            }
+        }
+    }
+
+    @Test
+    fun activityDestroyed_withoutTakeover_stillCleansUpItsView() {
+        Given("a paywall presented by the SDK in SuperwallPaywallActivity, with a callback") {
+            clearMocks(delegateAdapter, answers = false)
+            val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+            val view = makePaywallView(cache)
+            val statePublisher =
+                MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                    replay = 1,
+                    extraBufferCapacity = 8,
+                )
+            val activityController = presentInActivity(view, statePublisher)
+            view.callback = mockk(relaxed = true)
+            try {
+                When("the activity finishes and is destroyed") {
+                    activityController.get().finish()
+                    activityController.pause().stop().destroy()
+                    idleMainLooper()
+
+                    Then("its view is cleaned up") {
+                        assertEquals(null, view.callback)
+                        assertEquals(null, view.parent)
+                    }
+                }
+            } finally {
+                com.superwall.sdk.dependencies.SuperwallGraph
+                    .detach(com.superwall.sdk.dependencies.SuperwallGraph.container)
+            }
+        }
+    }
+
+    @Test
     fun activityFinishedWhileVisible_runsFinishingTeardownOnce() {
         Given("a paywall presented in SuperwallPaywallActivity") {
             clearMocks(delegateAdapter, answers = false)
@@ -1675,8 +1850,12 @@ class PaywallViewTest {
                             assertEquals(second, idAfterWillPresent)
                             assertEquals(second, willInfos[1].presentationId)
                             assertEquals(second, didInfos[1].presentationId)
+                            // Events are still being tracked on other threads. Iterating a
+                            // synchronizedList isn't synchronized, but copying it is.
                             val opens =
-                                trackedEvents.filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen>()
+                                trackedEvents
+                                    .toList()
+                                    .filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen>()
                             assertEquals(listOf("first", second), opens.map { it.paywallInfo.presentationId })
                         }
                     }

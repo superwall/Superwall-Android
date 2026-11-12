@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view.webview
 
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
@@ -21,23 +22,41 @@ internal open class DefaultWebviewClient(
     private val onWebViewCrash: (view: WebView, RenderProcessGoneDetail) -> Unit = { v, d -> },
     private val localResourceHandler: LocalResourceHandler? = null,
     private val onPageStartedHook: (WebView) -> Unit = {},
+    // Whether the page's runtime has confirmed it started. A runtime request that fails after
+    // that was not one the paywall needed in order to start.
+    private val isPaywallReady: () -> Boolean = { false },
 ) : WebViewClient() {
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
 
-    // True once the currently loading page suffered a page-level failure (main frame
-    // or its essential runtime bundle). Set synchronously on the WebViewClient callback
-    // thread — before the corresponding OnError coroutine is launched — so consumers of
-    // OnPageFinished can consult it without racing the async event; cleared when a new
-    // page starts.
-    @Volatile
-    internal var hadMainFrameError = false
-        private set
+    // The page failed if its own request failed, or if one of the paywall runtime's scripts
+    // failed before the paywall became ready: without it the paywall never starts. Anything
+    // else (fonts and images, including those under the runtime path, and analytics and pixel
+    // scripts, which DNS or ad blockers commonly stop), and anything that fails once the
+    // paywall is ready, is a resource error that leaves the paywall working.
+    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean {
+        if (request?.isForMainFrame == true) return true
+        val url = request?.url ?: return false
+        return isRuntimeScript(url) && !isPaywallReady()
+    }
 
-    // The paywall runtime JS bundle is essential — without it the page is broken —
-    // so its failure is treated as page-level rather than as a mere resource error.
-    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean =
-        request?.isForMainFrame == true || request?.url?.toString()?.contains("runtime") == true
+    // The runtime is served from <content host>.superwalleditor.com/runtime. Nearly every URL
+    // a paywall requests has "superwall" in its host, so the host alone doesn't tell. Fonts
+    // and other files are served under the same path, and a paywall starts without them, so
+    // only a script counts.
+    private fun isRuntimeScript(url: Uri): Boolean {
+        val host = url.host?.lowercase() ?: return false
+        val path = url.path ?: return false
+        val isRuntimeHost = host == RUNTIME_DOMAIN || host.endsWith(".$RUNTIME_DOMAIN")
+        val isScript = SCRIPT_EXTENSIONS.any { path.endsWith(it, ignoreCase = true) }
+        return isRuntimeHost && path.startsWith(RUNTIME_PATH) && isScript
+    }
+
+    private companion object {
+        const val RUNTIME_DOMAIN = "superwalleditor.com"
+        const val RUNTIME_PATH = "/runtime"
+        val SCRIPT_EXTENSIONS = listOf(".js", ".mjs")
+    }
 
     override fun shouldOverrideUrlLoading(
         view: WebView?,
@@ -60,7 +79,6 @@ internal open class DefaultWebviewClient(
         favicon: Bitmap?,
     ) {
         super.onPageStarted(view, url, favicon)
-        hadMainFrameError = false
         view?.let(onPageStartedHook)
     }
 
@@ -84,9 +102,6 @@ internal open class DefaultWebviewClient(
             return
         }
         val isPageLevel = isPageLevelFailure(request)
-        if (isPageLevel) {
-            hadMainFrameError = true
-        }
         ioScope.launch {
             Logger.debug(
                 LogLevel.error,
@@ -128,9 +143,6 @@ internal open class DefaultWebviewClient(
     ) {
         val requestUrl = request?.url?.toString()
         val isPageLevel = isPageLevelFailure(request)
-        if (isPageLevel) {
-            hadMainFrameError = true
-        }
         ioScope.launch {
             val (code, desc) =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

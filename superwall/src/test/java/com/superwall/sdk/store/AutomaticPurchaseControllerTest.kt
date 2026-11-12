@@ -13,6 +13,7 @@ import com.superwall.sdk.products.mockProductDetails
 import io.mockk.slot
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
+import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.billing.StorePurchase
@@ -21,6 +22,7 @@ import com.superwall.sdk.billing.StorePurchaseState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -30,7 +32,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -67,7 +71,13 @@ class AutomaticPurchaseControllerTest {
             coEvery { acknowledge(any()) } coAnswers { onAcknowledge(firstArg()) }
         }
 
-    private fun TestScope.makeController(store: BillingStore): AutomaticPurchaseController =
+    private fun TestScope.makeController(
+        store: BillingStore,
+        appForegrounded: Flow<Unit> = emptyFlow(),
+        // Lets a sync run to completion without a configured SDK
+        configurationState: Flow<ConfigurationStatus> = MutableStateFlow(ConfigurationStatus.Configured),
+        setSubscriptionStatus: (SubscriptionStatus) -> Unit = {},
+    ): AutomaticPurchaseController =
         AutomaticPurchaseController(
             scope = IOScope(UnconfinedTestDispatcher(testScheduler)),
             store = store,
@@ -76,10 +86,17 @@ class AutomaticPurchaseControllerTest {
             passIdentifiersToPlayStore = { false },
             userId = { "user" },
             externalAccountId = { "external" },
-            // Lets a sync run to completion without a configured SDK
-            configurationState = { MutableStateFlow(ConfigurationStatus.Configured) },
-            setSubscriptionStatus = {},
+            configurationState = { configurationState },
+            setSubscriptionStatus = setSubscriptionStatus,
+            appForegrounded = appForegrounded,
         )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun hasInitialized(): MutableStateFlow<Boolean> =
+        Superwall::class.java
+            .getDeclaredField("_hasInitialized")
+            .apply { isAccessible = true }
+            .get(null) as MutableStateFlow<Boolean>
 
     private fun purchase(
         token: String,
@@ -171,6 +188,125 @@ class AutomaticPurchaseControllerTest {
                         )
                     }
                 }
+            }
+        }
+
+    @Test
+    fun `purchases are read again when the app returns to the foreground`() =
+        runTest {
+            hasInitialized().value = true
+            try {
+                Given("a controller that has finished its launch sync") {
+                    val store = store()
+                    val foregrounded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+                    makeController(store, foregrounded)
+                    advanceUntilIdle()
+                    coVerify(exactly = 1) { store.activePurchases() }
+
+                    When("the app returns to the foreground") {
+                        foregrounded.emit(Unit)
+                        advanceUntilIdle()
+
+                        Then("Play is asked for the purchases again") {
+                            coVerify(exactly = 2) { store.activePurchases() }
+                        }
+                    }
+                }
+            } finally {
+                hasInitialized().value = false
+            }
+        }
+
+    @Test
+    fun `a foreground during the launch sync does not start a second sync`() =
+        runTest {
+            Given("a controller whose launch sync is waiting for the SDK to initialize") {
+                val store = store()
+                val foregrounded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+                makeController(store, foregrounded)
+
+                When("the app comes to the foreground and the SDK then initializes") {
+                    foregrounded.emit(Unit)
+                    hasInitialized().value = true
+                    try {
+                        advanceUntilIdle()
+                    } finally {
+                        hasInitialized().value = false
+                    }
+
+                    Then("the purchases are read once") {
+                        coVerify(exactly = 1) { store.activePurchases() }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a foreground after the launch sync read the purchases reads them again`() =
+        runTest {
+            hasInitialized().value = true
+            try {
+                Given("a launch sync that read an active purchase and is waiting for the config") {
+                    val store = store(listOf(purchase("a", acknowledged = true)))
+                    val configuration = MutableStateFlow<ConfigurationStatus>(ConfigurationStatus.Pending)
+                    val foregrounded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+                    makeController(store, foregrounded, configuration)
+                    advanceUntilIdle()
+                    coVerify(exactly = 1) { store.activePurchases() }
+
+                    When("the app returns to the foreground and the config then arrives") {
+                        foregrounded.emit(Unit)
+                        advanceUntilIdle()
+                        coVerify(exactly = 1) { store.activePurchases() }
+                        configuration.value = ConfigurationStatus.Configured
+                        advanceUntilIdle()
+
+                        Then("Play is asked for the purchases again once the launch sync has finished") {
+                            coVerify(exactly = 2) { store.activePurchases() }
+                        }
+                    }
+                }
+            } finally {
+                hasInitialized().value = false
+            }
+        }
+
+    @Test
+    fun `a sync that finishes after a later one does not publish its older read`() =
+        runTest {
+            hasInitialized().value = true
+            Superwall.initialized = true
+            try {
+                Given("a sync that read an active subscription and is waiting for the config") {
+                    val active = listOf(purchase("a", acknowledged = true))
+                    val store = store(active)
+                    every { entitlements.byProductId(any()) } returns setOf(Entitlement("pro"))
+                    val configuration = MutableStateFlow<ConfigurationStatus>(ConfigurationStatus.Pending)
+                    val published = mutableListOf<SubscriptionStatus>()
+                    val controller =
+                        makeController(store, configurationState = configuration, setSubscriptionStatus = { published += it })
+                    advanceUntilIdle()
+
+                    When("a later sync finds the subscription gone, and the older one finishes after it") {
+                        coEvery { store.activePurchases() } returns Result.success(emptyList())
+                        // Nothing active only waits for the config to settle, so this one publishes.
+                        configuration.value = ConfigurationStatus.Failed
+                        controller.restorePurchases()
+                        val afterLaterSync = published.toList()
+                        // And this lets the older one through.
+                        configuration.value = ConfigurationStatus.Configured
+                        advanceUntilIdle()
+
+                        Then("only the later read is published") {
+                            assertEquals(1, afterLaterSync.size)
+                            assertTrue(afterLaterSync.single() !is SubscriptionStatus.Active)
+                            assertEquals(afterLaterSync, published)
+                        }
+                    }
+                }
+            } finally {
+                Superwall.initialized = false
+                hasInitialized().value = false
             }
         }
 

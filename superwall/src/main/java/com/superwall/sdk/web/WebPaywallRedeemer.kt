@@ -9,8 +9,10 @@ import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asEither
+import com.superwall.sdk.misc.flatMap
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
@@ -46,6 +48,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
+import kotlin.coroutines.CoroutineContext
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -111,10 +114,17 @@ class WebPaywallRedeemer(
     }
 
     private var pollingJob: Job? = null
+
+    // Polling runs off the scope's own dispatcher; tests replace this to control it.
+    internal var pollingContext: CoroutineContext = Dispatchers.IO
     private var redemptionJob: Job? = null
     // Code redemptions launch independently on IOScope; hold this across track() so two
     // overlapping same-code calls cannot both observe an empty set and emit twice.
     private val trialTrackingMutex = Mutex()
+
+    // The poll and a foreground refresh can run at the same time. Held from a fetch until its
+    // result is applied, so a response can't be applied after one that was requested later.
+    private val refreshMutex = Mutex()
 
     private suspend fun track(event: Trackable) = factory.track(event)
 
@@ -432,47 +442,57 @@ class WebPaywallRedeemer(
     suspend fun checkForWebEntitlements(
         userId: UserId?,
         deviceId: DeviceVendorId,
-    ) = withErrorTracking {
-        val webEntitlementsResult =
-            if (userId == null) {
-                network.webEntitlementsByDeviceID(deviceId)
-            } else {
-                network.webEntitlementsByUserId(userId, deviceId)
-            }
-        val webEntitlementsResponse = webEntitlementsResult.getSuccess()
+    ): Either<Set<Entitlement>, Throwable> =
+        fetchWebCustomerInfo(userId, deviceId).flatMap { withErrorTracking { storeWebCustomerInfo(it) } }
 
-        // Extract CustomerInfo from response or construct from entitlements
-        val webCustomerInfo =
-            webEntitlementsResponse?.customerInfo ?: run {
-                // Fallback for backward compatibility
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.customerInfo,
-                    message = "Backend didn't return customerInfo, constructing from entitlements",
-                )
-                CustomerInfo(
-                    subscriptions = emptyList(),
-                    nonSubscriptions = emptyList(),
-                    userId = userId?.value ?: "",
-                    entitlements = emptyList(),
-                    isPlaceholder = false,
-                )
-            }
+    // Only fetches: the caller decides whether the answer still belongs to the current user
+    // before anything is stored.
+    private suspend fun fetchWebCustomerInfo(
+        userId: UserId?,
+        deviceId: DeviceVendorId,
+    ): Either<CustomerInfo, Throwable> =
+        withErrorTracking {
+            val webEntitlementsResult =
+                if (userId == null) {
+                    network.webEntitlementsByDeviceID(deviceId)
+                } else {
+                    network.webEntitlementsByUserId(userId, deviceId)
+                }
+            val webEntitlementsResponse = webEntitlementsResult.getSuccess()
 
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.customerInfo,
-            message =
-                "Fetched web CustomerInfo: ${webCustomerInfo.subscriptions.size} subs, " +
-                    "${webCustomerInfo.nonSubscriptions.size} non-subs",
-        )
+            // Extract CustomerInfo from response or construct from entitlements
+            val webCustomerInfo =
+                webEntitlementsResponse?.customerInfo ?: run {
+                    // Fallback for backward compatibility
+                    Logger.debug(
+                        logLevel = LogLevel.debug,
+                        scope = LogScope.customerInfo,
+                        message = "Backend didn't return customerInfo, constructing from entitlements",
+                    )
+                    CustomerInfo(
+                        subscriptions = emptyList(),
+                        nonSubscriptions = emptyList(),
+                        userId = userId?.value ?: "",
+                        entitlements = emptyList(),
+                        isPlaceholder = false,
+                    )
+                }
 
-        // Store web CustomerInfo
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.customerInfo,
+                message =
+                    "Fetched web CustomerInfo: ${webCustomerInfo.subscriptions.size} subs, " +
+                        "${webCustomerInfo.nonSubscriptions.size} non-subs",
+            )
+
+            webCustomerInfo
+        }
+
+    private fun storeWebCustomerInfo(webCustomerInfo: CustomerInfo): Set<Entitlement> {
         storage.write(LatestWebCustomerInfo, webCustomerInfo)
         storage.write(LastWebEntitlementsFetchDate, System.currentTimeMillis())
-
-        // Return for compatibility with existing code
-        webCustomerInfo.entitlements.toSet()
+        return webCustomerInfo.entitlements.toSet()
     }
 
     fun clear(ownership: RedemptionOwnershipType) {
@@ -528,8 +548,24 @@ class WebPaywallRedeemer(
      * something outside the app, such as a web management page, may have changed them and the
      * next poll is too far off. Makes a network request, so call it off the main thread.
      */
-    suspend fun refreshWebEntitlements() {
-        checkForWebEntitlements(factory.getUserId(), factory.getDeviceId())
+    suspend fun refreshWebEntitlements() = refreshMutex.withLock { fetchAndApplyWebEntitlements() }
+
+    private suspend fun fetchAndApplyWebEntitlements() {
+        val requestedFor = currentUser()
+        val fetched = fetchWebCustomerInfo(requestedFor.first, factory.getDeviceId())
+        // The fetch answers for the user it was sent for. If the user changed meanwhile
+        // (identify or reset), these entitlements aren't theirs, so drop them before anything
+        // is stored; the identity change starts a redeem and poll of its own.
+        if (fetched is Either.Success && currentUser() != requestedFor) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.webEntitlements,
+                message = "Dropping web entitlements fetched for a user who is no longer current",
+            )
+            return
+        }
+        fetched
+            .flatMap { withErrorTracking { storeWebCustomerInfo(it) } }
             .fold(
                 onFailure = {
                     it.printStackTrace()
@@ -589,10 +625,27 @@ class WebPaywallRedeemer(
             )
     }
 
+    /**
+     * Refreshes web entitlements when the last fetch is older than the polling interval. The
+     * poll's timer doesn't advance while the device sleeps, so after a long time in the
+     * background the next poll can be far later than intended. Does nothing until polling has
+     * started, or before the first fetch. A fetch that is already running is waited for, and
+     * if it succeeded there is nothing stale left to refresh.
+     */
+    internal suspend fun refreshWebEntitlementsIfStale() {
+        if (pollingJob == null) return
+        refreshMutex.withLock {
+            val lastFetch = storage.read(LastWebEntitlementsFetchDate) ?: return
+            if (factory.currentTimeMillis() - lastFetch >= factory.maxAge()) {
+                fetchAndApplyWebEntitlements()
+            }
+        }
+    }
+
     private fun startPolling(maxAge: Long = factory.maxAge()) {
         pollingJob?.cancel()
         pollingJob =
-            (ioScope + Dispatchers.IO).launch {
+            (ioScope + pollingContext).launch {
                 while (true) {
                     refreshWebEntitlements()
                     delay(maxAge)
