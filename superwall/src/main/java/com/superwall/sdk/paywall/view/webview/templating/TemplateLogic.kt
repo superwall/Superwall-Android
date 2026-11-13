@@ -1,3 +1,4 @@
+import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -7,6 +8,8 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.PlayStoreProduct
 import com.superwall.sdk.models.product.ProductItem
+import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.paywall.view.webview.templating.models.ExperimentTemplate
 import com.superwall.sdk.paywall.view.webview.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
@@ -29,7 +32,11 @@ object TemplateLogic {
 
         val variablesTemplate =
             factory.makeJsonVariables(
-                products = paywall.productVariables,
+                products =
+                    productVariablesWithSubscribedState(
+                        paywall = paywall,
+                        activeProductIds = factory.activePurchasedProductIds(),
+                    ),
                 computedPropertyRequests = paywall.computedPropertyRequests,
                 event = event,
             )
@@ -66,6 +73,36 @@ object TemplateLogic {
         ) { "!!! Template Logic: $templatesString" }
 
         return encodeToBase64(templatesString)
+    }
+
+    /**
+     * The paywall's product variables, each Play Store product's with `isSubscribed` set to
+     * whether the user has an active purchase of it. A purchase matches a product with the
+     * same subscription id, and the same base plan when both name one: a purchase can be
+     * recorded without its base plan, and a product can let the SDK pick it.
+     */
+    internal fun productVariablesWithSubscribedState(
+        paywall: Paywall,
+        activeProductIds: Set<String>,
+    ): List<ProductVariable>? {
+        val variables = paywall.productVariables ?: return null
+        val active = activeProductIds.map { DecomposedProductIds.from(it) }
+        val productsByName =
+            paywall.playStoreProducts
+                .mapNotNull { product ->
+                    (product.storeProduct as? CrossplatformProduct.StoreProduct.PlayStore)
+                        ?.let { product.name to it }
+                }.toMap()
+        return variables.map { variable ->
+            val product = productsByName[variable.name] ?: return@map variable
+            val basePlanId = BasePlanType.from(product.basePlanIdentifier).specificId
+            val isSubscribed =
+                active.any {
+                    it.subscriptionId == product.productIdentifier &&
+                        (basePlanId == null || it.basePlanId == null || it.basePlanId == basePlanId)
+                }
+            variable.copy(attributes = variable.attributes + ("isSubscribed" to isSubscribed))
+        }
     }
 
     /**

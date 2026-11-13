@@ -1514,9 +1514,17 @@ class DependencyContainer internal constructor(
             products = products ?: listOf(),
             params = event?.parameters ?: emptyMap(),
             userAttributes = identityManager.userAttributes,
-            templateDeviceDictionary = templateDeviceDictionary,
+            // Only the paywall page gets the customer info. The device attributes also go
+            // to enrichment and audience filters, so it isn't added to them.
+            templateDeviceDictionary =
+                templateDeviceDictionary +
+                    ("customerInfo" to customerInfoManager.customerInfo.value.toTemplateParams()),
         ).templated()
     }
+
+    override suspend fun activePurchasedProductIds(): Set<String> =
+        storeManager.receiptManager.purchasedFullProductIds +
+            customerInfoManager.customerInfo.value.activeSubscriptionProductIds
 
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction =
         StoreTransaction(
