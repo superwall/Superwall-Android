@@ -133,6 +133,10 @@ class ReceiptManager internal constructor(
     val purchases: Set<String>
         get() = _purchases.map { it.productIdentifier }.toSet()
 
+    /** The full product ids of [purchases], with the base plan when it's known. */
+    val purchasedFullProductIds: Set<String>
+        get() = _purchases.map { it.fullIdentifier }.toSet()
+
     /**
      * Loads purchased products from device receipts and builds enriched entitlements.
      *

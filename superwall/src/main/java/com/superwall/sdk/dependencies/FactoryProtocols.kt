@@ -222,6 +222,12 @@ interface VariablesFactory {
         computedPropertyRequests: List<ComputedPropertyRequest>,
         event: EventData?,
     ): JsonVariables
+
+    /**
+     * Ids of the products the user has an active purchase of, from Google Play and the
+     * merged customer info. They set each product variable's `isSubscribed`.
+     */
+    suspend fun activePurchasedProductIds(): Set<String> = emptySet()
 }
 
 interface ConfigManagerFactory {

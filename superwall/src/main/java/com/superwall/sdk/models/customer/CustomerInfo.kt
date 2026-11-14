@@ -11,6 +11,7 @@ import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
 /**
@@ -62,6 +63,20 @@ data class CustomerInfo(
             .mapValues { (_, value) -> value.convertFromJsonElement() }
     }
 
+    /**
+     * The customer info for the paywall page's `device.customerInfo`. Unlike [toParams], the keys
+     * stay camelCase, as the iOS SDK sends them, so a paywall reads the same names on both.
+     *
+     * Returns an empty map when [isPlaceholder] is true.
+     */
+    internal fun toTemplateParams(): Map<String, Any?> {
+        if (isPlaceholder) return emptyMap()
+        return templateJson
+            .encodeToJsonElement(serializer(), this)
+            .jsonObject
+            .mapValues { (_, value) -> value.convertFromJsonElement() }
+    }
+
     override fun toString(): String =
         buildString {
             appendLine("CustomerInfo(")
@@ -86,6 +101,9 @@ data class CustomerInfo(
         }
 
     companion object {
+        /** [JsonFactory.JSON] without its snake_case renaming. */
+        private val templateJson = Json(JsonFactory.JSON) { namingStrategy = null }
+
         /**
          * Creates a blank CustomerInfo instance for testing or default states.
          */

@@ -202,6 +202,7 @@ class CachedProductPricesReproductionTest {
             coEvery { variablesFactory.makeJsonVariables(any(), any(), any()) } coAnswers {
                 Variables(firstArg(), emptyMap(), emptyMap(), emptyMap()).templated()
             }
+            coEvery { variablesFactory.activePurchasedProductIds() } returns emptySet()
             return json.parseToJsonElement(TemplateLogic.getBase64EncodedTemplates(json, paywall, null, variablesFactory) { it }).jsonArray
         }
     }
