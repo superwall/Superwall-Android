@@ -65,13 +65,14 @@ class ReceiptManagerBasePlanTest {
         token: String = "token",
         orderId: String = "GPA.1",
         time: Long = purchaseTime,
+        state: Int = PurchaseState.PURCHASED,
     ): Purchase =
         mockk {
             every { products } returns listOf(rawId)
             every { this@mockk.orderId } returns orderId
             every { purchaseToken } returns token
             every { purchaseTime } returns time
-            every { purchaseState } returns PurchaseState.PURCHASED
+            every { purchaseState } returns state
             every { isAutoRenewing } returns true
             every { isAcknowledged } returns true
         }
@@ -400,6 +401,40 @@ class ReceiptManagerBasePlanTest {
                         val subscription = storage.read(LatestDeviceCustomerInfo)!!.subscriptions.single()
                         assertEquals(rawId, subscription.productId)
                         assertNull(subscription.expirationDate)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a paid purchase is listed as completed with its base plan`() =
+        runTest {
+            Given("a monthly purchase that is paid for") {
+                val manager = receiptManager(FakeStorage(), billing { listOf(purchase()) })
+                manager.recordPurchasedProduct(monthly, emptySet())
+
+                When("purchases are loaded") {
+                    manager.loadPurchases(twoBasePlans)
+
+                    Then("its full id is a completed purchase") {
+                        assertEquals(setOf(monthly), manager.completedPurchaseFullProductIds)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a pending purchase is not listed as completed`() =
+        runTest {
+            Given("a monthly purchase still waiting on payment") {
+                val manager = receiptManager(FakeStorage(), billing { listOf(purchase(state = PurchaseState.PENDING)) })
+                manager.recordPurchasedProduct(monthly, emptySet())
+
+                When("purchases are loaded") {
+                    manager.loadPurchases(twoBasePlans)
+
+                    Then("no purchase is completed, so no paywall product shows as subscribed") {
+                        assertTrue(manager.completedPurchaseFullProductIds.isEmpty())
                     }
                 }
             }
