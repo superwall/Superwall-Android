@@ -1523,7 +1523,7 @@ class DependencyContainer internal constructor(
     }
 
     override suspend fun activePurchasedProductIds(): Set<String> =
-        storeManager.receiptManager.purchasedFullProductIds +
+        storeManager.receiptManager.completedPurchaseFullProductIds +
             customerInfoManager.customerInfo.value.activeSubscriptionProductIds
 
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction =

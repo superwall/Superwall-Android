@@ -133,9 +133,13 @@ class ReceiptManager internal constructor(
     val purchases: Set<String>
         get() = _purchases.map { it.productIdentifier }.toSet()
 
-    /** The full product ids of [purchases], with the base plan when it's known. */
-    val purchasedFullProductIds: Set<String>
-        get() = _purchases.map { it.fullIdentifier }.toSet()
+    /**
+     * The full product ids, with the base plan when it's known, of the purchases that are paid
+     * for. Pending purchases, still waiting on payment, are left out.
+     */
+    @Volatile
+    internal var completedPurchaseFullProductIds: Set<String> = emptySet()
+        private set
 
     /**
      * Loads purchased products from device receipts and builds enriched entitlements.
@@ -262,6 +266,7 @@ class ReceiptManager internal constructor(
             }
 
         val purchases: MutableSet<InAppPurchase> = mutableSetOf()
+        val completedFullProductIds: MutableSet<String> = mutableSetOf()
         val originalTransactionIds: MutableSet<String> = mutableSetOf()
         transactionReceipts.clear()
 
@@ -326,6 +331,7 @@ class ReceiptManager internal constructor(
                         fullIdentifier = adapter.productId,
                     ),
                 )
+                if (!adapter.isPending) completedFullProductIds.add(adapter.productId)
 
                 // Map to entitlements - adapter.productId is now the full product ID
                 val serverEntitlements = serverEntitlementsByProductId[adapter.productId]
@@ -396,6 +402,7 @@ class ReceiptManager internal constructor(
         }
 
         _purchases = purchases
+        completedPurchaseFullProductIds = completedFullProductIds
 
         // Build device CustomerInfo from local receipts (including historical)
         val deviceCustomerInfo =
@@ -535,6 +542,7 @@ class ReceiptManager internal constructor(
      */
     suspend fun reloadForNewUser(serverEntitlementsByProductId: Map<String, Set<Entitlement>>) {
         _purchases = mutableSetOf()
+        completedPurchaseFullProductIds = emptySet()
         latestSubscriptionWillAutoRenew = null
         latestSubscriptionPeriodType = null
         latestSubscriptionState.value = LatestSubscriptionState.UNKNOWN

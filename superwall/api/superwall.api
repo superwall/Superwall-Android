@@ -4044,6 +4044,7 @@ public final class com/superwall/sdk/dependencies/DependencyContainer : com/supe
 	public fun activeEntitlements ()Ljava/util/Set;
 	public fun activePaywallId ()Ljava/lang/String;
 	public fun activeProductIds (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun activePurchasedProductIds (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun advertisedMemory ()J
 	public fun closePaywallIfExists ()V
 	public fun codecs ()Ljava/util/List;
@@ -4262,7 +4263,12 @@ public abstract interface class com/superwall/sdk/dependencies/UserAttributesEve
 }
 
 public abstract interface class com/superwall/sdk/dependencies/VariablesFactory {
+	public abstract fun activePurchasedProductIds (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun makeJsonVariables (Ljava/util/List;Ljava/util/List;Lcom/superwall/sdk/models/events/EventData;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/superwall/sdk/dependencies/VariablesFactory$DefaultImpls {
+	public static fun activePurchasedProductIds (Lcom/superwall/sdk/dependencies/VariablesFactory;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class com/superwall/sdk/dependencies/ViewFactory {

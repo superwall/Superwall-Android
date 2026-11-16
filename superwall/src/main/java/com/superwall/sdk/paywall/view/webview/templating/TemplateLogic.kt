@@ -67,10 +67,12 @@ object TemplateLogic {
 //            json.encodeToString(swProductTemplate)
             )
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"
+        // Not the templates themselves: they hold the user's attributes and customer info, and
+        // logs reach the app's delegate.
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-        ) { "!!! Template Logic: $templatesString" }
+        ) { "Built paywall templates (${templatesString.length} characters)" }
 
         return encodeToBase64(templatesString)
     }

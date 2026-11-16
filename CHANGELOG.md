@@ -6,7 +6,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Enhancements
 - Paywalls can now read `device.customerInfo`, the user's subscriptions, non-subscription purchases and entitlements, as on iOS. The keys are camelCase, matching the iOS SDK.
-- Each Play Store product's variables now include `isSubscribed`, whether the user has an active purchase of that product (for example `products.primary.isSubscribed`). A purchase counts for a product with the same subscription ID, and the same base plan when both name one.
+- Each Play Store product's variables now include `isSubscribed`, whether the user has an active purchase of that product (for example `products.primary.isSubscribed`). A purchase counts for a product with the same subscription ID, and the same base plan when both name one. A purchase still waiting on payment doesn't count.
+
+## Fixes
+- Logs no longer include the variables sent to a paywall, such as user attributes, or the scripts that carry them. They reached `SuperwallDelegate.handleLog` at the debug level. The logs now give only their size.
 
 ## 2.10.2
 
