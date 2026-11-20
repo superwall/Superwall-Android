@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.10.3
+
+## Fixes
+- Fixes an in-window Fullscreen paywall leaving a strip of the host app showing across the top 5% of the screen, over the top of the paywall, when the host renders into a surface behind its window, as Unity does. Reproduced on a Galaxy S20 with Android 13 and a Galaxy Tab S8 with Android 14, and reported on Samsung tablets with Android 10 and 11; rotating the device cleared it. The paywall's window is now laid out again when the Fullscreen or Push enter animation finishes.
+
 ## 2.10.2
 
 ## Fixes
