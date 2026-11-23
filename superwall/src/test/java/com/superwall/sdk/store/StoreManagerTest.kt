@@ -666,6 +666,60 @@ class StoreManagerTest {
             }
         }
 
+    @Test
+    fun `getProducts resolves a product whose composite id differs from its store product id`() =
+        runTest {
+            Given("a paywall product whose composite id has no offer segment, in test mode") {
+                val testProduct =
+                    mockk<StoreProduct> {
+                        every { fullIdentifier } returns "pro_yearly:yearly"
+                        every { attributes } returns mapOf("price" to "$34.99")
+                        every { hasFreeTrial } returns true
+                    }
+                val testMode = makeActiveTestMode()
+                testMode.setTestProducts(mapOf("pro_yearly:yearly" to testProduct))
+                storeManager.testMode = testMode
+                val paywall =
+                    Paywall.stub().copy(
+                        productIds = listOf("pro_yearly:yearly"),
+                        _productItemsV3 =
+                            listOf(
+                                CrossplatformProduct(
+                                    compositeId = "pro_yearly:yearly",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
+                                            productIdentifier = "pro_yearly",
+                                            basePlanIdentifier = "yearly",
+                                            offer = Offer.Automatic(),
+                                        ),
+                                    entitlements = entitlementsBasic.toList(),
+                                    name = "yearly",
+                                ),
+                            ),
+                    )
+
+                When("getProducts is called and the paywall's variables are built from it") {
+                    val result = storeManager.getProducts(null, paywall, null)
+                    val outcome =
+                        com.superwall.sdk.paywall.request.PaywallLogic.getVariablesAndFreeTrial(
+                            productItems = result.productItems,
+                            productsByFullId = result.productsByFullId,
+                            isFreeTrialAvailableOverride = null,
+                            customerInfo =
+                                com.superwall.sdk.models.customer.CustomerInfo
+                                    .empty(),
+                        )
+
+                    Then("the product's variables and trial reach the paywall") {
+                        assertEquals(listOf("yearly"), outcome.productVariables.map { it.name })
+                        assertEquals(mapOf("price" to "$34.99"), outcome.productVariables.single().attributes)
+                        junitAssertTrue(outcome.isFreeTrialAvailable)
+                        coVerify(exactly = 0) { billing.awaitGetProducts(any()) }
+                    }
+                }
+            }
+        }
+
     // ---- Custom (store == CUSTOM) products ----
 
     private fun customProductsResponse(vararg ids: String): SuperwallProductsResponse =

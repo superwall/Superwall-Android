@@ -251,6 +251,16 @@ class StoreManager internal constructor(
             }
         }
 
+        // Products are loaded by the paywall's ids, which start out as the server's composite
+        // ids. A composite id can differ from the id computed from the item's store product
+        // (e.g. it has no offer segment), and that computed id is what the paywall's
+        // variables and trial state are looked up by.
+        processingResult.productItems
+            .filter { it.fullProductId !in productsById }
+            .forEach { item ->
+                productsById[item.compositeId]?.let { productsById[item.fullProductId] = it }
+            }
+
         return GetProductsResponse(
             productsByFullId = productsById,
             productItems = processingResult.productItems,
