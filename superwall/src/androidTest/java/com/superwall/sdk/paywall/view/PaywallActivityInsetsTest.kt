@@ -2,7 +2,10 @@ package com.superwall.sdk.paywall.view
 
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.drawable.ColorDrawable
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
@@ -21,6 +24,8 @@ import com.superwall.sdk.dependencies.SuperwallGraph
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.network.JsonFactory
+import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.manager.PaywallViewRegistry
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
@@ -97,6 +102,43 @@ class PaywallActivityInsetsTest {
             assertEquals(0, params.rightMargin)
             assertEquals(0, params.bottomMargin)
         }
+    }
+
+    /**
+     * The strip the SDK paints behind the navigation bar must use the background for the style
+     * set with `Superwall.setInterfaceStyle`, like the page does, not the system's.
+     */
+    @Test
+    fun navigationBarStripFollowsInterfaceStyleOverride() {
+        val systemIsDark =
+            (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        val override = if (systemIsDark) InterfaceStyle.LIGHT else InterfaceStyle.DARK
+        val expected = Color.parseColor(if (systemIsDark) LIGHT_BACKGROUND else DARK_BACKGROUND)
+
+        launch(PaywallPresentationStyle.Fullscreen, "interface-style", interfaceStyle = override)
+        // The enter animation must finish before the screen is sampled.
+        SystemClock.sleep(1_000)
+
+        var bottomInset = 0
+        instrumentation.runOnMainSync {
+            val decor = activity!!.window.decorView
+            bottomInset = ViewCompat.getRootWindowInsets(decor)!!.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            assertEquals(expected, (paywallView.background as ColorDrawable).color)
+        }
+        assertTrue("The device must have a bottom navigation bar", bottomInset > 0)
+
+        val bitmap = instrumentation.uiAutomation.takeScreenshot()!!
+        File(context.getExternalFilesDir(null), "interface-style-${override.rawValue}.png").outputStream().use {
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+        // Left edge of the strip, clear of the navigation buttons and the gesture handle.
+        val pixel = bitmap.getPixel(4, bitmap.height - bottomInset / 2)
+        bitmap.recycle()
+        assertEquals(
+            "navigation bar strip is #${Integer.toHexString(pixel)}, expected #${Integer.toHexString(expected)}",
+            expected,
+            pixel,
+        )
     }
 
     private fun finishActivity() {
@@ -198,6 +240,7 @@ class PaywallActivityInsetsTest {
     private fun launch(
         style: PaywallPresentationStyle,
         name: String,
+        interfaceStyle: InterfaceStyle? = null,
     ) {
         instrumentation.runOnMainSync {
             webView =
@@ -225,7 +268,7 @@ class PaywallActivityInsetsTest {
             coEvery { factory.track(any()) } returns Result.success(mockk(relaxed = true))
             val state =
                 PaywallViewState(
-                    Paywall.stub().copy(backgroundColorHex = "#edf4ff"),
+                    Paywall.stub().copy(backgroundColorHex = LIGHT_BACKGROUND, darkBackgroundColorHex = DARK_BACKGROUND),
                     "en-US",
                     presentationDidFinishPrepare = true,
                     loadingState = PaywallLoadingState.Ready,
@@ -233,7 +276,8 @@ class PaywallActivityInsetsTest {
             val view =
                 PaywallView(
                     context,
-                    deviceHelper = mockk(relaxed = true),
+                    // Stubbed, not left to the relaxed mock: a relaxed answer would mock the enum.
+                    deviceHelper = mockk<DeviceHelper>(relaxed = true) { every { interfaceStyleOverride } returns interfaceStyle },
                     factory = factory,
                     storage = mockk(relaxed = true),
                     webView = webUI,
@@ -284,6 +328,11 @@ class PaywallActivityInsetsTest {
                 .putExtra("presentationStyleKey", style.toIntentString(JsonFactory.JSON_POLYMORPHIC))
         activity = instrumentation.startActivitySync(intent) as SuperwallPaywallActivity
         await("paywall layout") { webView.width > 0 && ViewCompat.getRootWindowInsets(webView) != null }
+    }
+
+    private companion object {
+        const val LIGHT_BACKGROUND = "#edf4ff"
+        const val DARK_BACKGROUND = "#0e0e0e"
     }
 
     private fun await(
