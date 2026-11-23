@@ -6,6 +6,8 @@ import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.models.config.ComputedPropertyRequest
+import com.superwall.sdk.models.customer.CustomerInfo
+import com.superwall.sdk.models.customer.SubscriptionTransaction
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -24,6 +26,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Date
@@ -38,7 +42,10 @@ class TemplateLogicTest {
     private class TestVariablesFactory(
         private val userAttributes: Map<String, Any?>,
         private val deviceAttributes: Map<String, Any?>,
+        private val activeProductIds: Set<String> = emptySet(),
     ) : VariablesFactory {
+        override suspend fun activePurchasedProductIds(): Set<String> = activeProductIds
+
         override suspend fun makeJsonVariables(
             products: List<ProductVariable>?,
             computedPropertyRequests: List<ComputedPropertyRequest>,
@@ -964,6 +971,236 @@ class TemplateLogicTest {
                         assertTrue("nested email key is filtered out", !prefs.containsKey("email"))
                         assertEquals("dark", prefs["theme"]!!.jsonPrimitive.content)
                     }
+                }
+            }
+        }
+
+    // endregion
+
+    // region Subscription state
+
+    private fun playStoreProduct(
+        name: String,
+        productIdentifier: String,
+        basePlanIdentifier: String,
+    ) = CrossplatformProduct(
+        compositeId = "$productIdentifier:$basePlanIdentifier:sw-auto",
+        storeProduct =
+            CrossplatformProduct.StoreProduct.PlayStore(
+                productIdentifier = productIdentifier,
+                basePlanIdentifier = basePlanIdentifier,
+                offer = Offer.Automatic(),
+            ),
+        entitlements = listOf(Entitlement("pro")),
+        name = name,
+    )
+
+    private fun subscriptionPaywall(basePlanIdentifier: String = "monthly") =
+        Paywall.stub().apply {
+            _productItemsV3 =
+                listOf(
+                    playStoreProduct("primary", "com.test.pro", basePlanIdentifier),
+                    playStoreProduct("secondary", "com.test.plus", "annual"),
+                )
+            productVariables =
+                listOf(
+                    ProductVariable("primary", mapOf("price" to "9.99")),
+                    ProductVariable("secondary", mapOf("price" to "19.99")),
+                )
+        }
+
+    private suspend fun isSubscribedValues(
+        paywall: Paywall,
+        activeProductIds: Set<String>,
+    ): Pair<Boolean?, Boolean?> {
+        val result =
+            TemplateLogic.getBase64EncodedTemplates(
+                json = json,
+                paywall = paywall,
+                event = null,
+                factory =
+                    TestVariablesFactory(
+                        userAttributes = emptyMap(),
+                        deviceAttributes = emptyMap(),
+                        activeProductIds = activeProductIds,
+                    ),
+                encodeToBase64 = { it },
+            )
+        val variables = variablesFromResult(result)
+        fun isSubscribed(name: String) =
+            variables[name]!!.jsonObject["isSubscribed"]?.jsonPrimitive?.content?.toBooleanStrict()
+        return isSubscribed("primary") to isSubscribed("secondary")
+    }
+
+    @Test
+    fun `isSubscribed is true only for the product with an active purchase`() =
+        runTest {
+            Given("an active purchase of the primary product's base plan") {
+                val paywall = subscriptionPaywall()
+
+                val (primary, secondary) =
+                    When("the templates are built") {
+                        isSubscribedValues(paywall, setOf("com.test.pro:monthly:sw-auto"))
+                    }
+
+                Then("primary is subscribed and secondary isn't") {
+                    assertEquals(true, primary)
+                    assertEquals(false, secondary)
+                }
+            }
+        }
+
+    @Test
+    fun `isSubscribed is false for a different base plan of the same subscription`() =
+        runTest {
+            Given("an active purchase of another base plan") {
+                val paywall = subscriptionPaywall()
+
+                val (primary, _) =
+                    When("the templates are built") {
+                        isSubscribedValues(paywall, setOf("com.test.pro:annual"))
+                    }
+
+                Then("primary isn't subscribed") {
+                    assertEquals(false, primary)
+                }
+            }
+        }
+
+    @Test
+    fun `isSubscribed matches a purchase recorded without its base plan`() =
+        runTest {
+            Given("an active purchase known only by its subscription id") {
+                val paywall = subscriptionPaywall()
+
+                val (primary, secondary) =
+                    When("the templates are built") {
+                        isSubscribedValues(paywall, setOf("com.test.pro"))
+                    }
+
+                Then("primary is subscribed") {
+                    assertEquals(true, primary)
+                    assertEquals(false, secondary)
+                }
+            }
+        }
+
+    @Test
+    fun `isSubscribed matches any base plan when the product lets the SDK pick one`() =
+        runTest {
+            Given("a primary product with an automatic base plan") {
+                val paywall = subscriptionPaywall(basePlanIdentifier = "sw-auto")
+
+                val (primary, _) =
+                    When("the user has an active annual purchase") {
+                        isSubscribedValues(paywall, setOf("com.test.pro:annual"))
+                    }
+
+                Then("primary is subscribed") {
+                    assertEquals(true, primary)
+                }
+            }
+        }
+
+    @Test
+    fun `isSubscribed is false for every product when nothing is active`() =
+        runTest {
+            Given("no active purchases") {
+                val paywall = subscriptionPaywall()
+
+                val (primary, secondary) =
+                    When("the templates are built") {
+                        isSubscribedValues(paywall, emptySet())
+                    }
+
+                Then("no product is subscribed") {
+                    assertEquals(false, primary)
+                    assertEquals(false, secondary)
+                }
+            }
+        }
+
+    @Test
+    fun `product variables without a Play Store product get no isSubscribed`() =
+        runTest {
+            Given("a product variable with no matching Play Store product") {
+                val paywall =
+                    Paywall.stub().apply {
+                        productVariables = listOf(ProductVariable("primary", mapOf("price" to "9.99")))
+                    }
+
+                val (primary, _) =
+                    When("the templates are built") {
+                        isSubscribedValues(paywall, setOf("com.test.pro"))
+                    }
+
+                Then("primary has no isSubscribed") {
+                    assertNull(primary)
+                }
+            }
+        }
+
+    @Test
+    fun `customer info in the device variables reaches the page`() =
+        runTest {
+            Given("device variables holding the customer info") {
+                val customerInfo =
+                    CustomerInfo(
+                        subscriptions =
+                            listOf(
+                                SubscriptionTransaction(
+                                    transactionId = "t1",
+                                    productId = "com.test.pro:monthly",
+                                    purchaseDate = Date(0),
+                                    willRenew = true,
+                                    isRevoked = false,
+                                    isInGracePeriod = false,
+                                    isInBillingRetryPeriod = false,
+                                    isActive = true,
+                                    expirationDate = null,
+                                ),
+                            ),
+                        nonSubscriptions = emptyList(),
+                        userId = "user",
+                        entitlements = listOf(Entitlement("pro")),
+                    )
+                val factory =
+                    TestVariablesFactory(
+                        userAttributes = emptyMap(),
+                        deviceAttributes = mapOf("customerInfo" to customerInfo.toTemplateParams()),
+                    )
+
+                val result =
+                    When("the templates are built") {
+                        TemplateLogic.getBase64EncodedTemplates(
+                            json = json,
+                            paywall = Paywall.stub(),
+                            event = null,
+                            factory = factory,
+                            encodeToBase64 = { it },
+                        )
+                    }
+
+                Then("device.customerInfo has the subscription and entitlement") {
+                    val info = variablesFromResult(result)["device"]!!.jsonObject["customerInfo"]!!.jsonObject
+                    val subscription = info["subscriptions"]!!.jsonArray[0].jsonObject
+                    assertEquals("com.test.pro:monthly", subscription["productId"]!!.jsonPrimitive.content)
+                    assertEquals("true", subscription["isActive"]!!.jsonPrimitive.content)
+                    assertEquals("pro", info["entitlements"]!!.jsonArray[0].jsonObject["identifier"]!!.jsonPrimitive.content)
+                    assertEquals("user", info["userId"]!!.jsonPrimitive.content)
+                }
+            }
+        }
+
+    @Test
+    fun `placeholder customer info is sent as an empty object`() =
+        runTest {
+            Given("customer info that hasn't loaded yet") {
+                val params = CustomerInfo.empty().toTemplateParams()
+
+                Then("it has no fields, so the page can't read stale data") {
+                    assertTrue(params.isEmpty())
+                    assertFalse(params.containsKey("subscriptions"))
                 }
             }
         }

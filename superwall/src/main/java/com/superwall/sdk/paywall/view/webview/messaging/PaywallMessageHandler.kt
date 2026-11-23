@@ -477,10 +477,12 @@ class PaywallMessageHandler(
       window.paywall.accept64('$base64String');
     """
 
+        // The script carries the templates, which hold user attributes and customer info, and
+        // logs reach the app's delegate, so only its size is logged.
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.paywallView,
-            info = { mapOf("message" to templateScript) },
+            info = { mapOf("length" to templateScript.length) },
             message = { "Posting Message" },
         )
 
@@ -506,7 +508,7 @@ class PaywallMessageHandler(
             logLevel = LogLevel.error,
             scope = LogScope.paywallView,
             error = java.lang.Exception(result),
-            info = { mapOf("message" to script) },
+            info = { mapOf("length" to script.length) },
             message = { "Error Evaluating JS" },
         )
     }
@@ -560,15 +562,11 @@ class PaywallMessageHandler(
       window.paywall.accept64('$htmlSubstitutions');
     """
 
-        Logger.debug(
-            LogLevel.debug,
-            LogScope.superwallCore,
-        ) { "!! PaywallMessageHandler: $scriptSrc" }
-
+        // Only the size: the script carries the templates, see passMessageToWebView.
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.paywallView,
-            info = { mapOf("message" to scriptSrc) },
+            info = { mapOf("length" to scriptSrc.length) },
             message = { "Posting Message" },
         )
 
