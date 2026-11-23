@@ -139,8 +139,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                     )
                     putExtra(
                         IS_LIGHT_BACKGROUND_KEY,
-                        view.state.paywall.backgroundColor
-                            .isLightColor(),
+                        view.backgroundColor.isLightColor(),
                     )
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
