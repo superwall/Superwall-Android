@@ -11,6 +11,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Fixes
 - Fixes an in-window Fullscreen paywall leaving a strip of the host app showing across the top 5% of the screen, over the top of the paywall, when the host renders into a surface behind its window, as Unity does. Reproduced on a Galaxy S20 with Android 13 and a Galaxy Tab S8 with Android 14, and reported on Samsung tablets with Android 10 and 11; rotating the device cleared it. The paywall's window is now laid out again when the Fullscreen or Push enter animation finishes.
 - Logs no longer include the variables sent to a paywall, such as user attributes, or the scripts that carry them. They reached `SuperwallDelegate.handleLog` at the debug level. The logs now give only their size.
+- Fixes the paywall's background ignoring `Superwall.setInterfaceStyle`. The page followed the overridden style, but the area the SDK paints around it, such as the strip behind the navigation bar, the window background and the loading shimmer, used the color for the system's light or dark mode. It now uses the paywall's light or dark background color for the overridden style, including on a paywall preloaded before the style was set. The status bar icons now also follow the background color in use, instead of always the light one.
 
 ## 2.10.2
 

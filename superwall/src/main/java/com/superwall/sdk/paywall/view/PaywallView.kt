@@ -48,6 +48,7 @@ import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -243,21 +244,25 @@ class PaywallView internal constructor(
             controller.updateState(SetLoadingState(value))
         }
 
+    /**
+     * The paywall's background color for the interface style its page is rendered in: the
+     * style set with `Superwall.setInterfaceStyle`, or the system's when none is set.
+     */
     val backgroundColor: Int
         get() {
-
-            val style =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                } else {
-                    Configuration.UI_MODE_NIGHT_UNDEFINED
+            val isDark =
+                when (deviceHelper.interfaceStyleOverride) {
+                    InterfaceStyle.DARK -> true
+                    InterfaceStyle.LIGHT -> false
+                    null ->
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                            (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                            Configuration.UI_MODE_NIGHT_YES
                 }
-            return when (style) {
-                Configuration.UI_MODE_NIGHT_YES ->
-                    state.paywall.darkBackgroundColor
-                        ?: state.paywall.backgroundColor
-
-                else -> state.paywall.backgroundColor
+            return if (isDark) {
+                state.paywall.darkBackgroundColor ?: state.paywall.backgroundColor
+            } else {
+                state.paywall.backgroundColor
             }
         }
     //endregion
@@ -797,6 +802,9 @@ class PaywallView internal constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+
+        // The view may have been created (preloaded) under another interface style.
+        setBackgroundColor(backgroundColor)
 
         // Assert if no `request`
         // fatalAssert(request != null, "Must be presenting a Paywallview with a `request` instance.")
