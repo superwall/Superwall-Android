@@ -20,13 +20,15 @@ class ModifiedImage(
 }
 
 /**
- * Custom screenshot comparator that takes into account the system bar height.
+ * Screenshot comparator that leaves the status bar out, as its clock and icons change between
+ * runs. The height is the device's own: a phone with a camera cutout has a much taller one
+ * than the emulator.
  */
 class CustomComparator(
     maxDistance: Float = 0.004f,
     hShift: Int = 0,
     vShift: Int = 0,
-    private val systemBarHeight: Int = 50,
+    private val systemBarHeight: Int = statusBarHeightPx(),
 ) : ImageComparator {
     private val simpleComparator = SimpleImageComparator(maxDistance, hShift, vShift)
 

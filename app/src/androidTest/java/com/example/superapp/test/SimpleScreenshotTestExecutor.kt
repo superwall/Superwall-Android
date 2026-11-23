@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
+import com.example.superapp.utils.DeviceStateRule
 import com.example.superapp.utils.FlowTestConfiguration
 import com.example.superapp.utils.awaitUntilDialogAppears
 import com.example.superapp.utils.awaitUntilShimmerDisappears
@@ -35,7 +36,10 @@ import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 class SimpleScreenshotTestExecutor {
-    @get:Rule
+    @get:Rule(order = 0)
+    val deviceState = DeviceStateRule()
+
+    @get:Rule(order = 1)
     val dropshots =
         Dropshots(
             resultValidator = ThresholdValidator(0.06f),

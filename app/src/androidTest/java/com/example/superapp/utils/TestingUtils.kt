@@ -45,13 +45,21 @@ class ScreenshotTestFlow(
 ) {
     var steps: LinkedList<Step> = LinkedList()
 
-    // Pinned to a stable identifier so snapshot filenames don't shift when the
-    // emulator system image renames Build.MODEL (e.g. sdk_gphone_arm64 vs sdk_gphone64_arm64).
-    private val device = "Google_sdk_gphone64_arm64"
+    // Baselines are kept per device profile, as full-screen captures only compare between
+    // devices with the same screen and system bars. See ScreenshotProfile.
+    private val device = ScreenshotDevice.profile.prefix
 
+    /**
+     * Runs [action], waits for the screen to stop changing and compares it with the baseline.
+     *
+     * [timeline], when given, is checked against the events recorded so far before the
+     * screenshot is compared. Both are always checked, so a failure reports what the SDK did
+     * as well as what the screen looked like.
+     */
     @ScreenshotTestDSL
     fun step(
         name: String? = null,
+        timeline: (EventTimeline.() -> Unit)? = null,
         action: suspend CoroutineScope.(UITestInfo) -> Unit,
     ) {
         val stepName = name ?: "step_${steps.size + 1}"
@@ -67,12 +75,21 @@ class ScreenshotTestFlow(
                 )
 
                 action(et, it)
-                et.delayFor(300.milliseconds)
+                val frame = awaitScreenSettled()
+                val timelineFailure = runCatching { timeline?.invoke(testInfo.timeline) }.exceptionOrNull()
                 Log.e("Testing Flow", "Taking screenshot of $step")
-                assertSnapshot(
-                    step,
-                )
+                val screenshotFailure = runCatching { assertSnapshot(frame, step) }.exceptionOrNull()
                 Log.e("Testing Flow", "Taken screenshot of $step")
+                when {
+                    timelineFailure != null && screenshotFailure != null ->
+                        throw AssertionError(
+                            "Events and screenshot both failed.\nEvents: ${timelineFailure.message}\n" +
+                                "Screenshot: ${screenshotFailure.message}",
+                            timelineFailure,
+                        ).apply { addSuppressed(screenshotFailure) }
+                    timelineFailure != null -> throw timelineFailure
+                    screenshotFailure != null -> throw screenshotFailure
+                }
             },
         )
     }
@@ -95,6 +112,7 @@ fun Dropshots.screenshotFlow(
     config: FlowTestConfiguration = FlowTestConfiguration(),
     flow: ScreenshotTestFlow.() -> Unit,
 ) {
+    ScreenshotDevice.requireComparable()
     val flow = ScreenshotTestFlow(testInfo).apply(flow)
     val scenario = ActivityScenario.launch(MainActivity::class.java)
     val testCase = testInfo
@@ -142,30 +160,38 @@ fun Dropshots.screenshotFlow(
     scenario.close()
 }
 
+/**
+ * The paywall presents: the events say it loaded and opened, and the screen matches the baseline.
+ */
 @ScreenshotTestDSL
 fun Dropshots.paywallPresentsFor(
     testInfo: UITestInfo,
     config: FlowTestConfiguration = FlowTestConfiguration(),
 ) {
     screenshotFlow(testInfo, config) {
-        step("") {
-            it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
-            // Since there is a delay between webview finishing loading and the actual render
-            // We need to wait for the webview to finish loading before taking the snapshot
+        step("", timeline = { assertPaywallPresented() }) {
+            it.timeline.awaitPaywallLoaded()
             awaitUntilShimmerDisappears()
             awaitUntilWebviewAppears()
-            delay(1000)
+            // The load event comes before the page's fonts and images, and the open event can
+            // come after it. The step then waits for the screen to stop changing.
+            awaitPaywallContentReady()
+            it.timeline.awaitEvent { it is SuperwallEvent.PaywallOpen }
         }
     }
 }
 
+/**
+ * The paywall doesn't present: the events say the request was turned down and nothing opened,
+ * and the screen still matches the baseline of the app without a paywall.
+ */
 @ScreenshotTestDSL
 fun Dropshots.paywallDoesntPresentFor(
     testInfo: UITestInfo,
     config: FlowTestConfiguration = FlowTestConfiguration(),
 ) {
     screenshotFlow(testInfo, config) {
-        step("") {
+        step("", timeline = { assertPaywallNotPresented() }) {
             it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
             delayFor(1.seconds)
@@ -179,7 +205,7 @@ fun Dropshots.paywallDoesntPresentForNoConfig(
     config: FlowTestConfiguration = FlowTestConfiguration(false),
 ) {
     screenshotFlow(testInfo, config) {
-        step("") {
+        step("", timeline = { assertPaywallNotPresented() }) {
             it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
             delayFor(1.seconds)
