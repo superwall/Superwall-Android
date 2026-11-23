@@ -2,6 +2,19 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.11.0
+
+## Enhancements
+- Paywalls can now read `device.customerInfo`, the user's subscriptions, non-subscription purchases and entitlements, as on iOS. The keys are camelCase, matching the iOS SDK.
+- Each Play Store product's variables now include `isSubscribed`, whether the user has an active purchase of that product (for example `products.primary.isSubscribed`). A purchase counts for a product with the same subscription ID, and the same base plan when both name one. A purchase still waiting on payment doesn't count. When a product is overridden, `isSubscribed` is for the product that replaced it.
+
+## Fixes
+- Fixes an in-window Fullscreen paywall leaving a strip of the host app showing across the top 5% of the screen, over the top of the paywall, when the host renders into a surface behind its window, as Unity does. Reproduced on a Galaxy S20 with Android 13 and a Galaxy Tab S8 with Android 14, and reported on Samsung tablets with Android 10 and 11; rotating the device cleared it. The paywall's window is now laid out again when the Fullscreen or Push enter animation finishes.
+- Logs no longer include the variables sent to a paywall, such as user attributes, or the scripts that carry them. They reached `SuperwallDelegate.handleLog` at the debug level. The logs now give only their size.
+- Fixes the paywall's background ignoring `Superwall.setInterfaceStyle`. The page followed the overridden style, but the area the SDK paints around it, such as the strip behind the navigation bar, the window background and the loading shimmer, used the color for the system's light or dark mode. It now uses the paywall's light or dark background color for the overridden style, including on a paywall preloaded before the style was set. The status bar icons now also follow the background color in use, instead of always the light one.
+- Fixes a paywall receiving no product variables, and no free trial, for a Play Store product whose identifier on the paywall has no offer part (for example `pro_yearly:yearly` rather than `pro_yearly:yearly:sw-auto`). The product loaded and could be purchased, but its price and trial were missing from the paywall. Reported for a paywall built with the Superwall framework in test mode.
+- Fixes a subscription that expired or was refunded or revoked while the app was in the background staying active when the SDK's config had failed to load. With an active purchase at launch and no config, the SDK's first read of Google Play purchases never finished, and since 2.10.2 every recheck on return to the foreground waited for it. The foreground recheck no longer waits. This applies when the SDK manages purchases (no `PurchaseController`).
+
 ## 2.10.2
 
 ## Fixes

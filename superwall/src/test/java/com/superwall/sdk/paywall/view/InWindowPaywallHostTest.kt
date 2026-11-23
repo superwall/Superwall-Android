@@ -1,6 +1,8 @@
 package com.superwall.sdk.paywall.view
 
 import android.Manifest
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Looper
@@ -334,6 +336,67 @@ class InWindowPaywallHostTest {
                     assertEquals(0.8f, params.matchConstraintPercentWidth, 0.001f)
                     assertEquals(0.6f, params.matchConstraintPercentHeight, 0.001f)
                     assertTrue(card.clipToOutline)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun fullscreenAndPush_areLaidOutAgainOnceTheyHaveSlidIn() {
+        listOf(PaywallPresentationStyle.Fullscreen, PaywallPresentationStyle.Push).forEach { style ->
+            Given("a $style paywall sliding in") {
+                val host = InWindowPaywallHost.show(activity, paywallView, style).getOrThrow()
+                val container = paywallView.parent as View
+                assertTrue(container.translationX != 0f || container.translationY != 0f)
+                var slidIn = false
+                var layoutPassesSince = 0
+                container.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> if (slidIn) layoutPassesSince++ }
+                container.animate().setListener(
+                    object : AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: Animator) {
+                            slidIn = true
+                        }
+                    },
+                )
+
+                When("the enter animation finishes") {
+                    val settled =
+                        waitUntil {
+                            idleFor(100)
+                            slidIn
+                        }
+                    idleMain()
+
+                    Then("it is laid out again at its final position") {
+                        assertTrue(settled)
+                        assertEquals(0f, container.translationX)
+                        assertEquals(0f, container.translationY)
+                        assertEquals(1, layoutPassesSince)
+                    }
+                }
+
+                host.close()
+                waitUntil {
+                    idleFor(700)
+                    InWindowPaywallHost.current == null
+                }
+            }
+        }
+    }
+
+    @Test
+    fun fullscreenWithoutAnimation_doesNotAskForAnotherLayoutPass() {
+        Given("a paywall shown in-window without an animation") {
+            show(PaywallPresentationStyle.FullscreenNoAnimation)
+            val container = paywallView.parent as View
+            var layoutPasses = 0
+            container.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> layoutPasses++ }
+
+            When("the enter animation's duration has passed") {
+                idleFor(700)
+
+                Then("it is not laid out again") {
+                    assertEquals(0, layoutPasses)
                 }
             }
         }

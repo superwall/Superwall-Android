@@ -16,10 +16,6 @@ plugins {
 }
 true
 
-buildscript {
-    apply(from = "./scripts/old-agp-auto-downgrade.gradle.kts")
-}
-
 val superwallVersionFromEnv = System.getenv("SUPERWALL_VERSION")
 val superwallVersionFromFile =
     rootDir.resolve("version.env").let { file ->

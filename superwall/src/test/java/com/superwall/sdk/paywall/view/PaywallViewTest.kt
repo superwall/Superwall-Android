@@ -17,6 +17,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.webview.PaywallUIDelegate
@@ -134,6 +135,84 @@ class PaywallViewTest {
                 sendMessages = sendMessages,
                 redeemer = redeemer,
             )
+    }
+
+    private fun viewWithBackgrounds(): PaywallView {
+        val paywall = Paywall.stub().copy(backgroundColorHex = "#faf4ed", darkBackgroundColorHex = "#0e0e0e")
+        return PaywallView(
+            context = context,
+            eventCallback = null,
+            callback = null,
+            deviceHelper = deviceHelper,
+            factory = factory,
+            storage = storage,
+            webView = fakeWebUI,
+            cache = null,
+            controller = PaywallView.PaywallController(PaywallViewState(paywall = paywall, locale = "en-US")),
+            sendMessages = sendMessages,
+            redeemer = redeemer,
+        )
+    }
+
+    private val lightBackground = android.graphics.Color.parseColor("#faf4ed")
+    private val darkBackground = android.graphics.Color.parseColor("#0e0e0e")
+
+    @Test
+    fun backgroundColor_followsDarkInterfaceStyleOverride_whenSystemIsLight() {
+        Given("the system in light mode and the interface style overridden to dark") {
+            every { deviceHelper.interfaceStyleOverride } returns InterfaceStyle.DARK
+
+            Then("the paywall uses its dark background") {
+                assertEquals(darkBackground, viewWithBackgrounds().backgroundColor)
+            }
+        }
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "night")
+    fun backgroundColor_followsLightInterfaceStyleOverride_whenSystemIsDark() {
+        Given("the system in dark mode and the interface style overridden to light") {
+            every { deviceHelper.interfaceStyleOverride } returns InterfaceStyle.LIGHT
+
+            Then("the paywall uses its light background") {
+                assertEquals(lightBackground, viewWithBackgrounds().backgroundColor)
+            }
+        }
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "night")
+    fun backgroundColor_followsSystem_whenNoInterfaceStyleOverride() {
+        Given("the system in dark mode and no interface style override") {
+            every { deviceHelper.interfaceStyleOverride } returns null
+
+            Then("the paywall uses its dark background") {
+                assertEquals(darkBackground, viewWithBackgrounds().backgroundColor)
+            }
+        }
+    }
+
+    @Test
+    fun attaching_repaintsBackground_whenInterfaceStyleChangedAfterCreation() {
+        Given("a paywall view created before the interface style was overridden to dark") {
+            every { deviceHelper.interfaceStyleOverride } returns null
+            val view = viewWithBackgrounds()
+            assertEquals(lightBackground, (view.background as android.graphics.drawable.ColorDrawable).color)
+            every { deviceHelper.interfaceStyleOverride } returns InterfaceStyle.DARK
+
+            When("the view is attached to a window") {
+                val activity =
+                    org.robolectric.Robolectric
+                        .buildActivity(Activity::class.java)
+                        .setup()
+                        .get()
+                activity.setContentView(view)
+
+                Then("its own background is the dark one") {
+                    assertEquals(darkBackground, (view.background as android.graphics.drawable.ColorDrawable).color)
+                }
+            }
+        }
     }
 
     @Test
