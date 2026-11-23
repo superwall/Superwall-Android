@@ -50,7 +50,7 @@ data class GoogleBillingPurchaseTransaction(
     constructor(transaction: Purchase) : this(
         underlyingSK2Transaction = transaction,
         transactionDate = Date(transaction.purchaseTime),
-        originalTransactionIdentifier = transaction.orderId,
+        originalTransactionIdentifier = originalOrderId(transaction.orderId),
         state = StoreTransactionState.Purchased,
         storeTransactionId = transaction.orderId,
         originalTransactionDate = Date(transaction.purchaseTime),
@@ -66,4 +66,15 @@ data class GoogleBillingPurchaseTransaction(
         purchaseToken = transaction.purchaseToken,
         signature = transaction.signature,
     )
+
+    companion object {
+        private val RECURRENCE_SUFFIX = Regex("""\.\.\d+$""")
+
+        /**
+         * Returns the original transaction id for a Google Play order id by stripping
+         * the recurrence suffix that renewals append, e.g.
+         * `GPA.1234-1234-1234-12345..1` -> `GPA.1234-1234-1234-12345`.
+         */
+        internal fun originalOrderId(orderId: String?): String? = orderId?.replace(RECURRENCE_SUFFIX, "")
+    }
 }
