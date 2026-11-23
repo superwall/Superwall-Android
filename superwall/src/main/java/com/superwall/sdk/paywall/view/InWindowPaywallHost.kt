@@ -350,6 +350,7 @@ internal class InWindowPaywallHost private constructor(
                     .translationY(0f)
                     .setDuration(ENTER_MS)
                     .setInterpolator(DecelerateInterpolator())
+                    .withEndAction(::relayoutAfterEnter)
                     .start()
                 return { onEnd ->
                     container
@@ -369,6 +370,7 @@ internal class InWindowPaywallHost private constructor(
                     .translationX(0f)
                     .setDuration(ENTER_MS)
                     .setInterpolator(DecelerateInterpolator())
+                    .withEndAction(::relayoutAfterEnter)
                     .start()
                 return { onEnd ->
                     container
@@ -380,6 +382,21 @@ internal class InWindowPaywallHost private constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Asks for a layout pass once a Rise or Push paywall has slid into place.
+     *
+     * Over a host that renders into a surface behind its window (a game engine), the strip the
+     * paywall slid across kept showing the host afterwards: the top 5% of the screen for Rise, on a
+     * Galaxy S20 with Android 13 and a Galaxy Tab S8 with Android 14, until something like a rotation
+     * laid the window out again. The likely cause is that the part of the window the surface shows
+     * through is worked out during layout, from each view's position including its translation, and
+     * the slide is a translation with no layout pass after it.
+     */
+    private fun relayoutAfterEnter() {
+        if (closed.get()) return
+        container.requestLayout()
     }
 
     /**
