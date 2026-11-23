@@ -61,6 +61,7 @@ class IdentityManager internal constructor(
         effect(
             IdentityState.Actions.Configure(
                 neverCalledStaticConfig = neverCalledStaticConfig,
+                enableUserIdSeed = options().enableUserIdSeed,
             ),
         )
     }
@@ -69,7 +70,13 @@ class IdentityManager internal constructor(
         userId: String,
         options: IdentityOptions? = null,
     ) {
-        effect(IdentityState.Actions.Identify(userId, options))
+        effect(
+            IdentityState.Actions.Identify(
+                userId,
+                options,
+                enableUserIdSeed = this.options().enableUserIdSeed,
+            ),
+        )
     }
 
     fun reset() {

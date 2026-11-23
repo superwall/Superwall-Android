@@ -12,6 +12,7 @@ import com.superwall.sdk.storage.AliasId
 import com.superwall.sdk.storage.AppUserId
 import com.superwall.sdk.storage.DidTrackFirstSeen
 import com.superwall.sdk.storage.Seed
+import com.superwall.sdk.storage.SeedAwaitsConfig
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
 import com.superwall.sdk.web.WebPaywallRedeemer
@@ -89,9 +90,15 @@ data class IdentityState(
     internal sealed class Updates(
         override val reduce: (IdentityState) -> IdentityState,
     ) : Reducer<IdentityState> {
+        /**
+         * Logs in as [userId]. They take [seed] when the app's options derive seeds from
+         * user ids. Without one they keep the current seed, which is pending until the
+         * config says whether to derive it.
+         */
         data class Identify(
             val userId: String,
             val restoreAssignments: Boolean,
+            val seed: Int? = null,
         ) : Updates({ state ->
 
             if (userId == state.appUserId) {
@@ -113,42 +120,55 @@ data class IdentityState(
                             mapOf(
                                 Keys.APP_USER_ID to userId,
                                 Keys.ALIAS_ID to base.aliasId,
-                                Keys.SEED to base.seed,
+                                Keys.SEED to (seed ?: base.seed),
                             ),
                         oldAttributes = base.userAttributes,
                         appInstalledAtString = state.appInstalledAtString,
                     )
 
                 val existing = (state.phase as? Phase.Pending)?.items.orEmpty()
+                val pending =
+                    existing +
+                        buildSet {
+                            if (seed == null) add(Pending.Seed)
+                            if (restoreAssignments) add(Pending.Assignments)
+                        }
                 base.copy(
                     appUserId = userId,
+                    seed = seed ?: base.seed,
                     userAttributes = merged,
-                    phase = Phase.Pending(existing + buildSet {
-                        add(Pending.Seed)
-                        if (restoreAssignments) add(Pending.Assignments)
-                    }),
+                    phase = if (pending.isEmpty()) Phase.Ready else Phase.Pending(pending),
                 )
             }
         })
 
+        /**
+         * Applies a seed derived from [userId]. If they're no longer the logged in user,
+         * the seed isn't theirs to take, so it only resolves the pending seed.
+         */
         data class SeedResolved(
             val seed: Int,
+            val userId: String? = null,
         ) : Updates({ state ->
-            val merged =
-                IdentityLogic.mergeAttributes(
-                    newAttributes =
-                        mapOf(
-                            Keys.APP_USER_ID to state.userId,
-                            Keys.ALIAS_ID to state.aliasId,
-                            Keys.SEED to seed,
-                        ),
-                    oldAttributes = state.userAttributes,
-                    appInstalledAtString = state.appInstalledAtString,
-                )
+            if (userId != null && userId != state.appUserId) {
+                state.resolve(Pending.Seed)
+            } else {
+                val merged =
+                    IdentityLogic.mergeAttributes(
+                        newAttributes =
+                            mapOf(
+                                Keys.APP_USER_ID to state.userId,
+                                Keys.ALIAS_ID to state.aliasId,
+                                Keys.SEED to seed,
+                            ),
+                        oldAttributes = state.userAttributes,
+                        appInstalledAtString = state.appInstalledAtString,
+                    )
 
-            state
-                .copy(seed = seed, userAttributes = merged)
-                .resolve(Pending.Seed)
+                state
+                    .copy(seed = seed, userAttributes = merged)
+                    .resolve(Pending.Seed)
+            }
         })
 
         object SeedSkipped : Updates({ state ->
@@ -178,6 +198,12 @@ data class IdentityState(
 
         data class EndIdentify(val id: String) : Updates({ state ->
             state.resolve(Pending.Identification(id))
+        })
+
+        /** A seed left waiting on the config by an earlier launch is being asked for again. */
+        object BeginSeed : Updates({ state ->
+            val existing = (state.phase as? Phase.Pending)?.items ?: emptySet()
+            state.copy(phase = Phase.Pending(existing + Pending.Seed))
         })
 
         object BeginAttributes : Updates({ state ->
@@ -247,7 +273,20 @@ data class IdentityState(
     ) : TypedAction<IdentityContext> {
         data class Configure(
             val neverCalledStaticConfig: Boolean,
+            val enableUserIdSeed: Boolean = false,
         ) : Actions({
+            // A user identified in an earlier launch whose seed the config never answered
+            // for: ask again. Made pending before configuration resolves, so the identity
+            // isn't ready with the old seed in between.
+            val current = actor.state.value
+            val userAwaitingSeed =
+                current.appUserId?.takeIf {
+                    Pending.Seed !in current.pending && storage.read(SeedAwaitsConfig) == true
+                }
+            if (userAwaitingSeed != null) {
+                update(Updates.BeginSeed)
+            }
+
             val isFirstAppOpen = !(storage.read(DidTrackFirstSeen) ?: false)
             val needsAssignments =
                 IdentityLogic.shouldGetAssignments(
@@ -256,6 +295,9 @@ data class IdentityState(
                     isFirstAppOpen = isFirstAppOpen,
                 )
             update(Updates.Configure(needsAssignments = needsAssignments))
+            if (userAwaitingSeed != null) {
+                effect(ResolveSeed(userAwaitingSeed, enableUserIdSeed))
+            }
             if (needsAssignments) {
                 effect(FetchAssignments)
             }
@@ -264,6 +306,7 @@ data class IdentityState(
         data class Identify(
             val userId: String,
             val options: IdentityOptions?,
+            val enableUserIdSeed: Boolean = false,
         ) : Actions({
             val sanitized = IdentityLogic.sanitize(userId)
             if (sanitized.isNullOrEmpty()) {
@@ -281,8 +324,22 @@ data class IdentityState(
                     immediate(Reset)
                 }
 
+                // With user id seeds turned on in the options, the seed is known now, so it's
+                // set and saved in the same update as the user id.
+                val seedFromOptions = if (enableUserIdSeed) sanitized.sha256MappedToRange() else null
+
                 // Update state (pure) — persistence handled by interceptor
-                update(Updates.Identify(sanitized, options?.restorePaywallAssignments == true))
+                update(
+                    Updates.Identify(
+                        sanitized,
+                        options?.restorePaywallAssignments == true,
+                        seedFromOptions,
+                    ),
+                )
+                if (seedFromOptions == null) {
+                    // Saved until the config has answered, so a later launch can ask again.
+                    persist(SeedAwaitsConfig, true)
+                }
 
                 val newState = state.value
                 immediate(
@@ -290,6 +347,7 @@ data class IdentityState(
                         sanitized,
                         newState.aliasId,
                         options?.restorePaywallAssignments,
+                        resolvesSeed = seedFromOptions == null,
                     ),
                 )
             }
@@ -299,6 +357,7 @@ data class IdentityState(
             val id: String,
             val alias: String,
             val restoreAssignments: Boolean?,
+            val resolvesSeed: Boolean = true,
         ) : Actions({
             track(InternalSuperwallEvent.IdentityAlias())
 
@@ -312,7 +371,9 @@ data class IdentityState(
                 ),
             )
 
-            effect(ResolveSeed(id))
+            if (resolvesSeed) {
+                effect(ResolveSeed(id))
+            }
             effect(CheckWebEntitlements)
             sdkContext.reevaluateTestMode(id, alias)
 
@@ -324,29 +385,52 @@ data class IdentityState(
             }
         })
 
+        /**
+         * Settles the seed of [userId] once it's known whether to derive it from their id:
+         * straight away when the app's options turn that on ([enableUserIdSeed]), otherwise
+         * once the config has said. If the config doesn't arrive, the seed stays as it is
+         * and [SeedAwaitsConfig] stays saved, so the next launch asks again.
+         */
         data class ResolveSeed(
             val userId: String,
+            val enableUserIdSeed: Boolean = false,
         ) : Actions({
-            try {
-                val config = sdkContext.awaitConfig()
-                if (config != null && config.featureFlags.enableUserIdSeed) {
-                    userId.sha256MappedToRange()?.let { mapped ->
-                        update(Updates.SeedResolved(mapped))
-                        // Track user_attributes after seed change.
-                        // Old code did this via saveIds() → _mergeUserAttributes(shouldTrackMerge=true).
-                        val current = state.value
-                        track(
-                            InternalSuperwallEvent.Attributes(
-                                appInstalledAtString = current.appInstalledAtString,
-                                audienceFilterParams = HashMap(current.userAttributes),
-                            ),
-                        )
-                    } ?: update(Updates.SeedSkipped)
+            // Null while it isn't known, because the config didn't arrive.
+            val derivesSeed: Boolean? =
+                if (enableUserIdSeed) {
+                    true
+                } else {
+                    try {
+                        sdkContext.awaitConfig()?.featureFlags?.enableUserIdSeed
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            if (derivesSeed == null) {
+                update(Updates.SeedSkipped)
+            } else {
+                val mapped = if (derivesSeed) userId.sha256MappedToRange() else null
+                val seedBefore = state.value.seed
+                if (mapped != null) {
+                    update(Updates.SeedResolved(mapped, userId))
                 } else {
                     update(Updates.SeedSkipped)
                 }
-            } catch (_: Exception) {
-                update(Updates.SeedSkipped)
+
+                val current = state.value
+                if (current.appUserId == userId) {
+                    delete(SeedAwaitsConfig)
+                }
+                if (current.seed != seedBefore) {
+                    // Track user_attributes after seed change.
+                    // Old code did this via saveIds() → _mergeUserAttributes(shouldTrackMerge=true).
+                    track(
+                        InternalSuperwallEvent.Attributes(
+                            appInstalledAtString = current.appInstalledAtString,
+                            audienceFilterParams = HashMap(current.userAttributes),
+                        ),
+                    )
+                }
             }
         })
 

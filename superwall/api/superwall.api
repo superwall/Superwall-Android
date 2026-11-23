@@ -3030,6 +3030,7 @@ public final class com/superwall/sdk/config/options/SuperwallOptions {
 	public final fun getAdConsent ()Lcom/superwall/sdk/config/options/AdConsent;
 	public final fun getCustomerCenter ()Lcom/superwall/sdk/customercenter/CustomerCenterConfiguration;
 	public final fun getEnableExperimentalDeviceVariables ()Z
+	public final fun getEnableUserIdSeed ()Z
 	public final fun getEventTrackingBehavior ()Lcom/superwall/sdk/config/options/EventTrackingBehavior;
 	public final fun getLocaleIdentifier ()Ljava/lang/String;
 	public final fun getLogging ()Lcom/superwall/sdk/config/options/SuperwallOptions$Logging;
@@ -3044,6 +3045,7 @@ public final class com/superwall/sdk/config/options/SuperwallOptions {
 	public final fun setAdConsent (Lcom/superwall/sdk/config/options/AdConsent;)V
 	public final fun setCustomerCenter (Lcom/superwall/sdk/customercenter/CustomerCenterConfiguration;)V
 	public final fun setEnableExperimentalDeviceVariables (Z)V
+	public final fun setEnableUserIdSeed (Z)V
 	public final fun setEventTrackingBehavior (Lcom/superwall/sdk/config/options/EventTrackingBehavior;)V
 	public final fun setExternalDataCollectionEnabled (Z)V
 	public final fun setGameControllerEnabled (Z)V

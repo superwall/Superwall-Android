@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.11.1
+
+## Enhancements
+- Adds `SuperwallOptions.enableUserIdSeed`, which derives `user.seed` from the ID passed to `identify`. Users who are already identified keep their current seed.
+
+## Fixes
+- Fixes a user identified while the config couldn't load keeping a random `user.seed`, when user ID seeds are turned on for your app.
+- Fixes the seed derived from the user ID being applied to a user who had since logged out or switched.
+
 ## 2.11.0
 
 ## Enhancements
