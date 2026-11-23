@@ -50,12 +50,20 @@ internal class ResponseVerifier(
     }
 
     /**
-     * What the response is about. [subject] is the public API key for config, and the user ID in
-     * the path for entitlements. [nonce] is the request's `X-Superwall-Nonce`, or empty.
+     * What the response must be about, from the request this SDK sent:
+     * - [apiKey]: the public API key the request used.
+     * - [subject]: entitlements only, the user ID in the path (not URL-encoded); empty for config.
+     * - [deviceId]: entitlements only, the `deviceId` query value; empty for config.
+     * - [nonce]: the `X-Superwall-Nonce` this request sent; empty for config.
+     *
+     * Callers that enforce must also treat [Result.Unsigned] as a failure, always send a fresh
+     * nonce for entitlements, and reject a response with more than one signature header.
      */
     data class Context(
         val endpoint: Endpoint,
+        val apiKey: String,
         val subject: String,
+        val deviceId: String,
         val nonce: String,
     )
 
@@ -69,13 +77,14 @@ internal class ResponseVerifier(
         INVALID_CREDENTIAL_SIGNATURE("invalid_credential_signature"),
         CREDENTIAL_NOT_VALID_AT_SIGNING_TIME("credential_not_valid_at_signing_time"),
         SIGNED_IN_FUTURE("signed_in_future"),
+        CREDENTIAL_EXPIRED("credential_expired"),
         INVALID_SIGNATURE("invalid_signature"),
     }
 
     sealed class Result {
-        object Verified : Result()
+        data object Verified : Result()
 
-        object Unsigned : Result()
+        data object Unsigned : Result()
 
         data class Failed(
             val reason: Failure,
@@ -87,6 +96,16 @@ internal class ResponseVerifier(
         val notBefore: Long,
         val notAfter: Long,
     )
+
+    private sealed interface CredentialCheck {
+        class Accepted(
+            val key: VerifiedKey,
+        ) : CredentialCheck
+
+        class Rejected(
+            val reason: Failure,
+        ) : CredentialCheck
+    }
 
     /** Verified credentials, keyed by their SHA-256, so a reused credential is checked once. */
     private val credentialCache =
@@ -112,27 +131,29 @@ internal class ResponseVerifier(
         }
 
         val credentialHash = sha256(envelope.credential)
-        val cacheKey = "${envelope.kind.token}:${credentialHash.toHex()}"
+        val cacheKey = envelope.kind.token + ":" + StrictBase64.encode(credentialHash)
         val key =
             synchronized(credentialCache) { credentialCache[cacheKey] }
                 ?: when (
-                    val verified =
+                    val check =
                         when (envelope.kind) {
                             SignatureEnvelope.CredentialKind.RAW -> verifyRawCredential(envelope.credential)
-                            SignatureEnvelope.CredentialKind.X509 ->
-                                verifyX509Credential(envelope.credential, envelope.signedAt)
+                            SignatureEnvelope.CredentialKind.X509 -> verifyX509Credential(envelope.credential)
                         }
                 ) {
-                    is Failure -> return Result.Failed(verified)
-                    is VerifiedKey -> verified
-                    else -> return Result.Failed(Failure.MALFORMED_CREDENTIAL)
+                    is CredentialCheck.Rejected -> return Result.Failed(check.reason)
+                    is CredentialCheck.Accepted -> check.key
                 }
 
         if (envelope.signedAt < key.notBefore || envelope.signedAt > key.notAfter) {
             return Result.Failed(Failure.CREDENTIAL_NOT_VALID_AT_SIGNING_TIME)
         }
-        if (envelope.signedAt > nowSeconds + MAX_CLOCK_SKEW_SECONDS) {
+        if (envelope.signedAt > nowSeconds + CLOCK_TOLERANCE_SECONDS) {
             return Result.Failed(Failure.SIGNED_IN_FUTURE)
+        }
+        // Bounds what a leaked signing key, or a replayed config, is good for.
+        if (nowSeconds > key.notAfter + CLOCK_TOLERANCE_SECONDS) {
+            return Result.Failed(Failure.CREDENTIAL_EXPIRED)
         }
         // Only cache a credential once it's been used for a valid signing time.
         synchronized(credentialCache) { credentialCache[cacheKey] = key }
@@ -147,27 +168,27 @@ internal class ResponseVerifier(
 
     // region Raw key statements
 
-    private fun verifyRawCredential(bytes: ByteArray): Any {
+    private fun verifyRawCredential(bytes: ByteArray): CredentialCheck {
         // u8 version | u8 alg | [32] rootKeyId | i64 notBefore | i64 notAfter | [65] key
         // u16 sigLen | [sigLen] root signature over KEY_STATEMENT_PREFIX || statement
-        if (bytes.size < STATEMENT_LENGTH + 2) return Failure.MALFORMED_CREDENTIAL
-        if (bytes[0].toInt() != 1 || bytes[1].toInt() != 1) return Failure.MALFORMED_CREDENTIAL
+        if (bytes.size < STATEMENT_LENGTH + 2) return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
+        if (bytes[0].toInt() != 1 || bytes[1].toInt() != 1) return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
         val buffer = ByteBuffer.wrap(bytes)
         val signatureLength = buffer.getShort(STATEMENT_LENGTH).toInt() and 0xffff
-        if (bytes.size != STATEMENT_LENGTH + 2 + signatureLength) return Failure.MALFORMED_CREDENTIAL
+        if (bytes.size != STATEMENT_LENGTH + 2 + signatureLength) return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
 
         val rootKeyId = bytes.copyOfRange(2, 34)
         val root =
             roots.firstOrNull { MessageDigest.isEqual(it.keyId, rootKeyId) }
-                ?: return Failure.UNKNOWN_ROOT
-        val rootKey = root.javaPublicKey ?: return Failure.UNKNOWN_ROOT
+                ?: return CredentialCheck.Rejected(Failure.UNKNOWN_ROOT)
+        val rootKey = root.javaPublicKey ?: return CredentialCheck.Rejected(Failure.UNKNOWN_ROOT)
         val statement = bytes.copyOfRange(0, STATEMENT_LENGTH)
         val rootSignature = bytes.copyOfRange(STATEMENT_LENGTH + 2, bytes.size)
         if (!verifyEcdsa(rootKey, rootSignature, KEY_STATEMENT_PREFIX + statement)) {
-            return Failure.INVALID_CREDENTIAL_SIGNATURE
+            return CredentialCheck.Rejected(Failure.INVALID_CREDENTIAL_SIGNATURE)
         }
-        val signingKey = p256PublicKey(bytes.copyOfRange(50, 115)) ?: return Failure.MALFORMED_CREDENTIAL
-        return VerifiedKey(signingKey, buffer.getLong(34), buffer.getLong(42))
+        val signingKey = p256PublicKey(bytes.copyOfRange(50, 115)) ?: return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
+        return CredentialCheck.Accepted(VerifiedKey(signingKey, buffer.getLong(34), buffer.getLong(42)))
     }
 
     // endregion
@@ -175,50 +196,61 @@ internal class ResponseVerifier(
     // region X.509
 
     /**
-     * Validates the certificate against the embedded roots at the signing time, with revocation
-     * checks off: there's no CRL or OCSP for these certificates, and a lookup could hang.
+     * Validates the chain against the embedded roots only, with revocation checks off: there's no
+     * CRL or OCSP for these certificates, and a lookup could hang. The chain is checked at the
+     * certificate's own start, so it covers signatures and structure; the signing time and the
+     * device clock are checked against the validity in [verify], the same way for both kinds.
      */
-    private fun verifyX509Credential(
-        bytes: ByteArray,
-        signedAt: Long,
-    ): Any {
+    private fun verifyX509Credential(bytes: ByteArray): CredentialCheck {
         val certificate =
             runCatching {
                 CertificateFactory
                     .getInstance("X.509")
                     .generateCertificate(ByteArrayInputStream(bytes)) as X509Certificate
-            }.getOrNull() ?: return Failure.MALFORMED_CREDENTIAL
+            }.getOrNull()
+        // Exactly one DER certificate: the factory would also take PEM, or ignore trailing bytes.
+        if (certificate == null || !certificate.encoded.contentEquals(bytes)) {
+            return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
+        }
         // A CA certificate never signs responses, a trusted root included.
-        if (certificate.basicConstraints != -1) return Failure.MALFORMED_CREDENTIAL
-        if (roots.any { it.certificate.contentEquals(bytes) }) return Failure.MALFORMED_CREDENTIAL
+        if (certificate.basicConstraints != -1) return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
 
         val anchors = roots.mapNotNull { it.x509Certificate }.map { TrustAnchor(it, null) }.toSet()
-        if (anchors.isEmpty()) return Failure.UNKNOWN_ROOT
+        if (anchors.isEmpty()) return CredentialCheck.Rejected(Failure.UNKNOWN_ROOT)
         val valid =
             runCatching {
                 val parameters =
                     PKIXParameters(anchors).apply {
                         isRevocationEnabled = false
-                        date = Date(signedAt * 1000)
+                        date = certificate.notBefore
                     }
                 val path = CertificateFactory.getInstance("X.509").generateCertPath(listOf(certificate))
                 CertPathValidator.getInstance("PKIX").validate(path, parameters)
             }.isSuccess
-        if (!valid) return Failure.INVALID_CREDENTIAL_SIGNATURE
+        if (!valid) return CredentialCheck.Rejected(Failure.INVALID_CREDENTIAL_SIGNATURE)
 
-        val publicKey = p256PublicKey(certificate.publicKey.encoded) ?: return Failure.MALFORMED_CREDENTIAL
-        return VerifiedKey(
-            publicKey,
-            certificate.notBefore.time / 1000,
-            certificate.notAfter.time / 1000,
+        val publicKey =
+            p256PublicKey(certificate.publicKey.encoded)
+                ?: return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
+        return CredentialCheck.Accepted(
+            VerifiedKey(
+                publicKey,
+                certificate.notBefore.time / 1000,
+                certificate.notAfter.time / 1000,
+            ),
         )
     }
 
     // endregion
 
     companion object {
-        /** Signatures dated further ahead than this, by the device's clock, are rejected. */
-        const val MAX_CLOCK_SKEW_SECONDS = 5 * 60L
+        /**
+         * How far the device clock may be from the server's: a signature dated further ahead
+         * than this is rejected, and so is any response once the clock is this far past the
+         * signing key's expiry. Generous, because device clocks are often wrong; entitlements get
+         * their freshness from the nonce, not the clock.
+         */
+        const val CLOCK_TOLERANCE_SECONDS = 24 * 60 * 60L
 
         private const val STATEMENT_LENGTH = 1 + 1 + 32 + 8 + 8 + 65
 
@@ -246,7 +278,9 @@ internal class ResponseVerifier(
                 credentialHash,
                 signedAt.toString().toByteArray(Charsets.UTF_8),
                 context.endpoint.wireName.toByteArray(Charsets.UTF_8),
+                context.apiKey.toByteArray(Charsets.UTF_8),
                 context.subject.toByteArray(Charsets.UTF_8),
+                context.deviceId.toByteArray(Charsets.UTF_8),
                 context.nonce.toByteArray(Charsets.UTF_8),
                 sha256(body),
             )) {
@@ -287,7 +321,5 @@ internal class ResponseVerifier(
             }.getOrDefault(false)
 
         internal fun sha256(bytes: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(bytes)
-
-        private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
     }
 }

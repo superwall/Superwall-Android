@@ -9,6 +9,7 @@ import kotlinx.serialization.json.long
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -36,7 +37,7 @@ class ResponseVerifierTest {
     @Test
     fun `every vector reaches the expected result`() {
         val cases = vectors["cases"]!!.jsonArray
-        assert(cases.size >= 30)
+        assertTrue(cases.size >= 39)
         for (element in cases) {
             val case = element.jsonObject
             val name = case["name"]!!.jsonPrimitive.content
@@ -51,7 +52,9 @@ class ResponseVerifierTest {
                                 ResponseVerifier.Endpoint.values().first {
                                     it.wireName == context["endpoint"]!!.jsonPrimitive.content
                                 },
+                            apiKey = context["apiKey"]!!.jsonPrimitive.content,
                             subject = context["subject"]!!.jsonPrimitive.content,
+                            deviceId = context["deviceId"]!!.jsonPrimitive.content,
                             nonce = context["nonce"]!!.jsonPrimitive.content,
                         ),
                     body = base64(case["body"]!!.jsonPrimitive.content),
@@ -63,7 +66,7 @@ class ResponseVerifierTest {
                 "verified" -> assertEquals(name, ResponseVerifier.Result.Verified, result)
                 "unsigned" -> assertEquals(name, ResponseVerifier.Result.Unsigned, result)
                 "failed" -> {
-                    assert(result is ResponseVerifier.Result.Failed) { "$name: expected failure, got $result" }
+                    assertTrue("$name: expected failure, got $result", result is ResponseVerifier.Result.Failed)
                     if (case["reasonIsPortable"]!!.jsonPrimitive.content == "true") {
                         assertEquals(
                             name,
@@ -86,7 +89,13 @@ class ResponseVerifierTest {
                 .map { it.jsonObject }
                 .first { it["name"]!!.jsonPrimitive.content == "raw_entitlements_verified" }
         val context =
-            ResponseVerifier.Context(ResponseVerifier.Endpoint.ENTITLEMENTS, "user_123", "q83vEjRWeJAAAAAAAAAAAA")
+            ResponseVerifier.Context(
+                endpoint = ResponseVerifier.Endpoint.ENTITLEMENTS,
+                apiKey = "pk_test_abc",
+                subject = "user_123",
+                deviceId = "\$SuperwallDevice:ABC-123",
+                nonce = "q83vEjRWeJAAAAAAAAAAAA",
+            )
         repeat(2) {
             assertEquals(
                 ResponseVerifier.Result.Verified,
@@ -107,6 +116,16 @@ class ResponseVerifierTest {
                 case["now"]!!.jsonPrimitive.long,
             ),
         )
+    }
+
+    @Test
+    fun `base64 round-trips`() {
+        for (size in 0..7) {
+            val bytes = ByteArray(size) { (it * 37 + 200).toByte() }
+            assertArrayEquals(bytes, StrictBase64.decode(StrictBase64.encode(bytes)))
+        }
+        assertEquals("AQID", StrictBase64.encode(byteArrayOf(1, 2, 3)))
+        assertEquals("AQ==", StrictBase64.encode(byteArrayOf(1)))
     }
 
     @Test

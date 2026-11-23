@@ -68,6 +68,21 @@ internal class SignatureEnvelope(
 internal object StrictBase64 {
     private const val ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
+    fun encode(bytes: ByteArray): String {
+        val out = StringBuilder((bytes.size + 2) / 3 * 4)
+        for (start in bytes.indices step 3) {
+            val count = minOf(3, bytes.size - start)
+            var chunk = 0
+            for (offset in 0 until 3) {
+                chunk = (chunk shl 8) or (if (offset < count) bytes[start + offset].toInt() and 0xff else 0)
+            }
+            for (index in 0 until 4) {
+                out.append(if (index <= count) ALPHABET[(chunk shr (18 - 6 * index)) and 0x3f] else '=')
+            }
+        }
+        return out.toString()
+    }
+
     fun decode(value: String): ByteArray? {
         if (value.length % 4 != 0) return null
         val padding = value.length - value.trimEnd('=').length

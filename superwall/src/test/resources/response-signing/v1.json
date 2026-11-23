@@ -4,13 +4,13 @@
   "roots": [
     {
       "name": "Superwall Response Signing Test Root R1",
-      "publicKey": "BDXBZImwAxJRpfWKhMmMluWXut1mo20TvsKRuyEXsf4R/FzRwi2cl2r9X+t48Su9/3S6nvzkYarCS8+TJTjpE68=",
-      "certificate": "MIIBpjCCAUygAwIBAgIQT8FHx6RyQLAifVTUg4Aj8zAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwIBcNMjYxMDE5MTEwNjQwWhgPMjA1MTExMTIxMTA2NDBaMDIxMDAuBgNVBAMMJ1N1cGVyd2FsbCBSZXNwb25zZSBTaWduaW5nIFRlc3QgUm9vdCBSMTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDXBZImwAxJRpfWKhMmMluWXut1mo20TvsKRuyEXsf4R/FzRwi2cl2r9X+t48Su9/3S6nvzkYarCS8+TJTjpE6+jQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMB0GA1UdDgQWBBRLqdsxFHXkiZMRDTUVgr6r9dPmaTAKBggqhkjOPQQDAgNIADBFAiAU1sNZp5HUlvxU8MrghuRV0xwBBDQS8l9sqgVu4b4uJAIhAOyw5LJ69wtkU+4Jl/I41QXER7ZP6aD/LdIwJZcyQSml"
+      "publicKey": "BOn4yl3IXfSCSAj547IjBA29kE/WTBSAo043uxakj6elqS+wf3KmRpIGDvnUL6dSVDyy02AwOjmDbDIlKjhlwUw=",
+      "certificate": "MIIBpjCCAUygAwIBAgIQPfPpC1nVXbotCSvAyOasyTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwIBcNMjYxMDE5MTEwNjQwWhgPMjA1MTExMTIxMTA2NDBaMDIxMDAuBgNVBAMMJ1N1cGVyd2FsbCBSZXNwb25zZSBTaWduaW5nIFRlc3QgUm9vdCBSMTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOn4yl3IXfSCSAj547IjBA29kE/WTBSAo043uxakj6elqS+wf3KmRpIGDvnUL6dSVDyy02AwOjmDbDIlKjhlwUyjQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMB0GA1UdDgQWBBTE5RcLeAamU4N0cHijMu+OHwUShDAKBggqhkjOPQQDAgNIADBFAiEA2EeCXZUvQT1hj7XPMJTS9HPRBv7YT17Ag0evBkekfY0CIBiIA3pYCS9G1JETytOnrN+reb0sfxmEMnYN1OjycnVN"
     },
     {
       "name": "Superwall Response Signing Test Root R2",
-      "publicKey": "BI4C+It3scxl7n6+UzsbAMWqD16V0swlxTR0lJu0lPwhBl4JB4KppT5Di/uOLMajiVclGMHqK5BDFwKtHl9+rZA=",
-      "certificate": "MIIBpjCCAUygAwIBAgIQeQtopP/zSTywg2ioQ+brgzAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjIwIBcNMjYxMDE5MTEwNjQwWhgPMjA1MTExMTIxMTA2NDBaMDIxMDAuBgNVBAMMJ1N1cGVyd2FsbCBSZXNwb25zZSBTaWduaW5nIFRlc3QgUm9vdCBSMjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABI4C+It3scxl7n6+UzsbAMWqD16V0swlxTR0lJu0lPwhBl4JB4KppT5Di/uOLMajiVclGMHqK5BDFwKtHl9+rZCjQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMB0GA1UdDgQWBBSv4X9D5TYMczCNl4dZFPsS0NnhCTAKBggqhkjOPQQDAgNIADBFAiAdDp20zaDQrwqkKnAtGqgMNjzHFZ78Omx2LV6fa5EGmwIhAKZ6Om8y6gQoJC77WlsVH0qeeiEWdCsHKOAfJdJtYXdG"
+      "publicKey": "BDuK5HKQnH/fU8TX8sKnyJ581tWJ6LAI49zKtUdSb1Ejxd0I22KhkOkCxdFrVILIpt/K0/VyyoG9XlWyDX241uE=",
+      "certificate": "MIIBpTCCAUygAwIBAgIQASuw9YJk47+bL7oZF9XYCDAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjIwIBcNMjYxMDE5MTEwNjQwWhgPMjA1MTExMTIxMTA2NDBaMDIxMDAuBgNVBAMMJ1N1cGVyd2FsbCBSZXNwb25zZSBTaWduaW5nIFRlc3QgUm9vdCBSMjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDuK5HKQnH/fU8TX8sKnyJ581tWJ6LAI49zKtUdSb1Ejxd0I22KhkOkCxdFrVILIpt/K0/VyyoG9XlWyDX241uGjQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMB0GA1UdDgQWBBRYoD24ZIHSNOsGDeyVVCyrjZ1uCDAKBggqhkjOPQQDAgNHADBEAiA/pVsAe/qebhF55dQdmWa5favDziOnPLDEghFHmZ/LYgIgXT0PQiQFXy5cO+742P6XF/FfMBKzYA9GZ2IR59EOzKE="
     }
   ],
   "cases": [
@@ -20,11 +20,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:MEQCICFM7BrHqPTiqivntwtP4PmZQ1NLJANHJiThMLwHcM4BAiASdtNnpsBrxgi0oJvWIIqgimyet9tuQCj/z83rzibDTg==:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCIH0JpOGv8a6HfMc07auVGddXMRQq5h1pAYpue3hZg01XAiAvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
       "expected": {
         "status": "verified"
       },
@@ -36,11 +38,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "static_config",
-        "subject": "pk_test_abc",
+        "apiKey": "pk_test_abc",
+        "subject": "",
+        "deviceId": "",
         "nonce": ""
       },
       "body": "eyJidWlsZF9pZCI6ImFiYyIsInRyaWdnZXJzIjpbXSwicGF5d2FsbHMiOltdLCJ0cyI6MTc5NTAwMDAwMDAwMH0=",
-      "header": "v=1, t=1794992800, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:MEUCIHz3e6agK4gn4om728kp6ZsRrzXdV9r8UHJ7GOyiEmF1AiEAoxy+OAT5grienaXl3XjxSjrV/ko7RSoSRhteM6oe9zE=:",
+      "header": "v=1, t=1794992800, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEYCIQDiVU9At/hfROqO1Ozgag3pfMhNHEvTFWE5rZ3uQI/CUAIhAImTs/Vqeod/+k/83U/D36HPGFpqNNMghb7od3uY+uWU:",
       "expected": {
         "status": "verified"
       },
@@ -52,11 +56,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBujCCAV+gAwIBAgIQOyMER0sM72QYVp5n5vrgbDAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjIwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATjHtCvCgaxbRP01CcRxFM6T0V8mcCAevQm1PjEWI+EcQ6YVGtL8B3+1NMzYPUVItoIZN9Y3FUCH8beS8OzoKb0o2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQURyaBxvmBlDlP7LZ6wXZyu65eQEYwHwYDVR0jBBgwFoAUr+F/Q+U2DHMwjZeHWRT7EtDZ4QkwCgYIKoZIzj0EAwIDSQAwRgIhAK+45AzSE7/jn8IrHpN3cqPx7/ql+hRkiW6Kf//7EHo5AiEA5yOqeNLtMu0JupKFA5Ts+ChsDJNhr/B/ENLLiaWLLGg=:, sig=:MEUCIQDfeexv+5j/K6va1vvwedu8lWUw5RMpJ5es7EPdeBgSBwIgRCqt/eaV2IAOgPE+oli0dOLTXZJIvJJrCX3tORbtGs4=:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuDCCAV+gAwIBAgIQF+7Q9Txo6j5vAtxBKUtbCDAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjIwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS1Unh9aoNbPfC8HZtWJYGQb5qRQ2Tbu7VNaDzOH3+ZW+0pPKsdwkZCKVv0Ec2wLmp9aGA8NarjX5cA51yiKyNlo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUWDg219U2JubpvjXGwBOGhGP/v60wHwYDVR0jBBgwFoAUWKA9uGSB0jTrBg3slVQsq42dbggwCgYIKoZIzj0EAwIDRwAwRAIgDDdDfnUe2TD2Py8ZT899y3p9fCw1U1rpo6BZM13ueUsCIE9ZkES0AMnh0bTkVcPoUiALePjLhWi/Gy/8zW076bZI:, sig=:MEUCIBGAgXD9LK6o7wk+5wTzwUGoPaG33029LzUwToLx3mVZAiEAzOxtx7vN4NtKJCunchq8UBzsojP2LDWMKcCZ0EFD0X8=:",
       "expected": {
         "status": "verified"
       },
@@ -68,11 +74,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOltdfQ==",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:MEQCICFM7BrHqPTiqivntwtP4PmZQ1NLJANHJiThMLwHcM4BAiASdtNnpsBrxgi0oJvWIIqgimyet9tuQCj/z83rzibDTg==:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCIH0JpOGv8a6HfMc07auVGddXMRQq5h1pAYpue3hZg01XAiAvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -85,11 +93,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_456",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:MEQCICFM7BrHqPTiqivntwtP4PmZQ1NLJANHJiThMLwHcM4BAiASdtNnpsBrxgi0oJvWIIqgimyet9tuQCj/z83rzibDTg==:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCIH0JpOGv8a6HfMc07auVGddXMRQq5h1pAYpue3hZg01XAiAvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -102,11 +112,51 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "AAAAAAAAAAAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:MEQCICFM7BrHqPTiqivntwtP4PmZQ1NLJANHJiThMLwHcM4BAiASdtNnpsBrxgi0oJvWIIqgimyet9tuQCj/z83rzibDTg==:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCIH0JpOGv8a6HfMc07auVGddXMRQq5h1pAYpue3hZg01XAiAvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
+      "expected": {
+        "status": "failed",
+        "reason": "invalid_signature"
+      },
+      "reasonIsPortable": true
+    },
+    {
+      "name": "x509_api_key_changed",
+      "description": "The same user's response from another app.",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "entitlements",
+        "apiKey": "pk_other_app",
+        "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
+        "nonce": "q83vEjRWeJAAAAAAAAAAAA"
+      },
+      "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCIH0JpOGv8a6HfMc07auVGddXMRQq5h1pAYpue3hZg01XAiAvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
+      "expected": {
+        "status": "failed",
+        "reason": "invalid_signature"
+      },
+      "reasonIsPortable": true
+    },
+    {
+      "name": "x509_device_changed",
+      "description": "A response for another device.",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
+        "subject": "user_123",
+        "deviceId": "$SuperwallDevice:OTHER",
+        "nonce": "q83vEjRWeJAAAAAAAAAAAA"
+      },
+      "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCIH0JpOGv8a6HfMc07auVGddXMRQq5h1pAYpue3hZg01XAiAvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -119,11 +169,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "static_config",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:MEQCICFM7BrHqPTiqivntwtP4PmZQ1NLJANHJiThMLwHcM4BAiASdtNnpsBrxgi0oJvWIIqgimyet9tuQCj/z83rzibDTg==:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCIH0JpOGv8a6HfMc07auVGddXMRQq5h1pAYpue3hZg01XAiAvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -136,11 +188,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBujCCAV+gAwIBAgIQbaEgNcvsustELEsaNwiYDDAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATHZqCqn3G5W5YAwY+a3RSiEkK/POFnZtMs3Xw5a07pJIPFdvGrfHuFa7L0d5tOrjGidC+sP8zNKybs7Xd462Mko2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUUCDuzold7fy57l+2Bovn2iXH3OowHwYDVR0jBBgwFoAUCteg/stDOo3DjfFBy/kK38QRZmcwCgYIKoZIzj0EAwIDSQAwRgIhANdVWjFPzR75jy9vKYL2CCEcWRUzefU61NdvAVHaC+NyAiEA3R88OeCknxRQ492eFFkdu4DZZ9hV/w6i3swY4h04ic8=:, sig=:MEUCIBIhb9ZPAqpqNTC4P5iER6TxHRriOa/g2UseprKpTa/RAiEArhKDRtzzf4lzzlG+K9va3hlzudZpyrtWZzARs4CxP2M=:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuDCCAV+gAwIBAgIQX23NXa+bqN2sxvUC7i/ntjAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQ+m590g6O5h2M1NaUf5GiAm4c2BLe0KmcNK8qbrVdihha3FzAVGpwW2ShrDB+6KasH7USHyfruthiNL2482Dwro2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUlm61QXSFg4VCv5qOze0cnLvtiUAwHwYDVR0jBBgwFoAUm6hiJKbbSmGgVJlfqZaRz5otXQwwCgYIKoZIzj0EAwIDRwAwRAIgc/WHkC3i0j7u/7gBGU43Y8F+YpWGIzu82vQX+fkR7KkCIB1ayugSJd1ELUrXkSaWg6CX8GA5U5jwYjRTlvL7qxK3:, sig=:MEUCIGMyo61iv6qruGHJntpaP8W7QNrs3paZuLBeiGDZBB+iAiEA7+GuVe5ph8G1SuoYcxqCK073VFbSngRpWM/zYVrtaNc=:",
       "expected": {
         "status": "failed",
         "reason": "invalid_credential_signature"
@@ -153,11 +207,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1793012801, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQd8A8azGxUMVK1OTMu1djfjAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMDE5MTAwNjQwWhcNMjYxMDI2MTEwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQbqVuBa0RVzRoAictXTKghGk+FUxEnazwDnXLMxKxm28K+RCGVnBn1zU7+v2G5/UMjKfw2MOqNVuceFH0zET88o2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUCi4/6l8zPyCY2gUJynzBlGQv6eYwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgEr3kMfWVE701iQeb59jIezsigr7qqFBe1s3W4ZUADRUCIQDIIgU3ybM9+FzQYpfRpV6lmyGBYE7XWPyhsl8+6YByIQ==:, sig=:MEUCIQCHWZsYJbOfBNujgo67ZyKXpsX3W2JYD+jMEE3dS16JHAIgL3NHyDJp//rpbgez80conZiUFzDpevluuRXCp+YnmYc=:",
+      "header": "v=1, t=1793012801, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQa3lwgLGhlViE9fQ+YWFdDTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMDE5MTEwNjQwWhcNMjYxMDI2MTEwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASjuxLVSmO8HZN8dqEr18LH6sVoFnbb5EryJbxlmsfcXcRyULJrj5L5En56NaHDHiwP2z1g1Ijkb7vnt1//YLNPo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQU14T4uGMIZ0v3WBBkKuChGXazg2gwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgV9twQTLU7zu8K+21KqWO2PRDxBLjho+tjwiYnC2WZV8CIQDRwiZd1dqGp0Wz0F190Ub/KsCncCoewZwEDwfL48p0fQ==:, sig=:MEUCIQD60yzHQQ8y9Ej8d08mbYMk5oNBpXyRi7pQWVtPrFqYLQIgCGN6IbF1L2XokY/oTApLAk69WkJ4uh4fQ8NyHuxWmBw=:",
       "expected": {
         "status": "failed",
         "reason": "credential_not_valid_at_signing_time"
@@ -165,19 +221,58 @@
       "reasonIsPortable": false
     },
     {
-      "name": "x509_signed_in_future",
-      "description": "Signed an hour ahead of the device clock.",
+      "name": "x509_slow_device_clock_verified",
+      "description": "Signed an hour ahead of the device clock: within the tolerance.",
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795003600, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:MEYCIQDiV1h6tDjsUcaP3goN5cWDqNoC1QTuVTxLj4A6y529wwIhAOjgS78e+LGyxBQp2f+ucKzdqCx55Mk8UsjM8e05APVH:",
+      "header": "v=1, t=1795003600, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCICR1j7g3Hno5BBzKfmI5tW8bR549qo8QU/MdSNCt3vgFAiA+WdwnPhDsOjU5AKLAOZwzp/r3H41fs0OkaKNeT+6EGA==:",
+      "expected": {
+        "status": "verified"
+      },
+      "reasonIsPortable": true
+    },
+    {
+      "name": "x509_signed_in_future",
+      "description": "Signed two days ahead of the device clock.",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
+        "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
+        "nonce": "q83vEjRWeJAAAAAAAAAAAA"
+      },
+      "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
+      "header": "v=1, t=1795172800, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEYCIQDFJkD0OB+TcXUzp8oaxK+4oUNHTCq2PM44ZWP8ZDmV0gIhAPHX0ybRhnze54aFeXg+dIBZbUOYyNxZsFAwBwEkTcg4:",
       "expected": {
         "status": "failed",
         "reason": "signed_in_future"
+      },
+      "reasonIsPortable": true
+    },
+    {
+      "name": "x509_key_expired_on_device",
+      "description": "Validly signed while the key was valid, received long after it expired (a leaked key, or a replayed config).",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "static_config",
+        "apiKey": "pk_test_abc",
+        "subject": "",
+        "deviceId": "",
+        "nonce": ""
+      },
+      "body": "eyJidWlsZF9pZCI6ImFiYyIsInRyaWdnZXJzIjpbXSwicGF5d2FsbHMiOltdLCJ0cyI6MTc5NTAwMDAwMDAwMH0=",
+      "header": "v=1, t=1793012740, kind=x509, cred=:MIIBujCCAV+gAwIBAgIQG3bfHeAuAN3F/VvcJ3D5ajAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMDE5MTEwNjQwWhcNMjYxMDI2MTEwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARHYHI1RenlqrS5Hn6b3zZ86uTQt2Iqh+8CWUeGUvGKe+wHghvZ/q3Luuq5v0eFLoImdArxvLCKC+GzAqMC1B+To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUfFKzf/kyf6KTjRGcYXJIIRlne30wHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSQAwRgIhAJbZIHknMpglRgpc/Ur4HjO2OFeEDpbPqrho+/E/HzPJAiEA9Nu4BRenjZmPLpZheStb6N6zSpTVca/VcEaFjMzlkxg=:, sig=:MEQCIEvor2VQSLFmr73LhiTQ9ihj5sCZeisvrhTVVp/9Sn19AiB8XO0ZO2Sw1UuZ6gzu1KSpKBL+AGCggt2fvDEJvp1lGw==:",
+      "expected": {
+        "status": "failed",
+        "reason": "credential_expired"
       },
       "reasonIsPortable": true
     },
@@ -187,11 +282,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=2, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:MEQCICFM7BrHqPTiqivntwtP4PmZQ1NLJANHJiThMLwHcM4BAiASdtNnpsBrxgi0oJvWIIqgimyet9tuQCj/z83rzibDTg==:",
+      "header": "v=2, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:MEQCIH0JpOGv8a6HfMc07auVGddXMRQq5h1pAYpue3hZg01XAiAvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
       "expected": {
         "status": "failed",
         "reason": "unsupported_version"
@@ -204,11 +301,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQE6heTjOA3yHVvS+SCJ9dCTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDkwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQgtUngRkZndl5u/Ew633n+qB0lJE3WqkRyym9tRCSM6xMsuDZkWW+6XmdmFbNrZbu34VGuQZfRMOuzftxqXLjo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUQ6V7i8AjrO76IBQrjgMycF4igvEwHwYDVR0jBBgwFoAUS6nbMRR15ImTEQ01FYK+q/XT5mkwCgYIKoZIzj0EAwIDSAAwRQIgV18Lr0gIXUC0CYyD9jfqkT87scu7qNFBpvLOp8S7t2QCIQD3Y1kwI0BN+rKZr6EV6KFsqmU8BOovaM1Vh50+jrr81Q==:, sig=:IUzsGseo9OKqK+e3C0/g+ZlDU0skA0cmJOEwvAdwzgESdtNnpsBrxgi0oJvWIIqgimyet9tuQCj/z83rzibDTg==:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQQ9QvPQYMXv9XPgNlIq1ofTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MDgwNjQwWhcNMjYxMTI1MDgwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASeO/1Ctk6IafFEXwOvFP6QTh3iu9pu+zy5ucqq1eH5E95ZlSgdAzyJAVZODUT7s86XGFpydiaIDal5T1HX212To2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUMGxPhRChCBUPgtjrvIcaIN+SlxIwHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIgbPjEPubtmpMJ5XEaiiCo23XDanLldKtyyAhvMzpu9xsCIQCmCK+5tqLLATKsUopKbD6vJ/FAka8EDGKN89UTrEum9g==:, sig=:fQmk4a/xrod8xzTtq5UZ11cxFCrmHWkBim57eFmDTVcvotnzcKx13C/shx2c+N1brNZiRKm2K5Jjt1Kg7L9ScQ==:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -221,11 +320,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:MEQCIArmAyipy8DKjALUR9VCD/qztta+HpSWdHo5rPRUHyFBAiBmRDYk2miBjiIaq7V/FNbDirEaNOhUai0/vrcvttiVLQ==:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEYCIQDWz0kxKmluYNX3SSW3SVfNQjp/JWTrs9BJbfrKm7vc7wIhAIg9zQMpa7vGzEFcbz+nDpuld8z/bp26BvXlS9T0YYIy:",
       "expected": {
         "status": "verified"
       },
@@ -237,11 +338,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "static_config",
-        "subject": "pk_test_abc",
+        "apiKey": "pk_test_abc",
+        "subject": "",
+        "deviceId": "",
         "nonce": ""
       },
       "body": "eyJidWlsZF9pZCI6ImFiYyIsInRyaWdnZXJzIjpbXSwicGF5d2FsbHMiOltdLCJ0cyI6MTc5NTAwMDAwMDAwMH0=",
-      "header": "v=1, t=1794992800, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:MEQCIH85qwjECtMp4ZaJ7GoNaNgNV4mQHW2KE24/GR7ffRKqAiBlbcyu2GRzCHvDywHYiiMnutTeskHDKvO0ZJBDQ8vpPA==:",
+      "header": "v=1, t=1794992800, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEUCIFvJxIeL5v9ntbnMSFSAzAfS90xSGgyT86nB0V36dcLEAiEAvEXghM7FfjYCAUbUt4JPv/7fhj/LICJNVXNEY2g38tc=:",
       "expected": {
         "status": "verified"
       },
@@ -253,11 +356,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQEi4FnodnZlwxm1EcwLk1cwU+0fUgB3jBNf+I6pPr+U1QAAAABq/WqgAAAAAGsGszAE3Zk2JPjdTR+vWxthuGwg9fiz3HC+Ra4DPJvmlmXYCQB3nyzVsYnki84wRJQysNUtEmDcDlLTgHYWYgUGATLzOwBHMEUCIQD8axhEJe1NmWdcv0DsDdASiNx+Bng8CUredXzHoeTVLgIgdjqShNJBquR4aCWgmQP8/g/kEPmUTlZpAUDQRq5CRvI=:, sig=:MEYCIQDD8X9Z2aSOsrmKpJQlMuF3c89ZiDbKVheiyRasK6ns2QIhAMRchmSUGAX+y3Eth7ZUGhrClZHTWsO3WqV0NPdFhAMO:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHIo5RogRTNzeFwd0zkN1j7+Z/sCHS80jzmHFcDmYMrjwAAAABq/VyQAAAAAGsGlxAEHbjMefTkl7b4ywTTflq44fpX0MeYavcEBEAElq+4ctiCdoTJwnH18M5h/TR2mmls0GEeGnUYzuJWNeJ1ItIEbwBHMEUCIQDqEzddTI1Kwea2E7LGMk9JhiCrleE8oUuBq2O4CVu+lAIgP1QgoBn3JJc/k0CNhofrGQJlo9NyO8RgTeiMd1UmDOU=:, sig=:MEUCIQCbLzAQqAr3oqGsQZEih06gxiKBRoI6HCvDF5k6HHOJiQIgO1+csnUFoh/f9P004K3AmsY304+ikIuYrW0k8jlPzeI=:",
       "expected": {
         "status": "verified"
       },
@@ -269,11 +374,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOltdfQ==",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:MEQCIArmAyipy8DKjALUR9VCD/qztta+HpSWdHo5rPRUHyFBAiBmRDYk2miBjiIaq7V/FNbDirEaNOhUai0/vrcvttiVLQ==:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEYCIQDWz0kxKmluYNX3SSW3SVfNQjp/JWTrs9BJbfrKm7vc7wIhAIg9zQMpa7vGzEFcbz+nDpuld8z/bp26BvXlS9T0YYIy:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -286,11 +393,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_456",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:MEQCIArmAyipy8DKjALUR9VCD/qztta+HpSWdHo5rPRUHyFBAiBmRDYk2miBjiIaq7V/FNbDirEaNOhUai0/vrcvttiVLQ==:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEYCIQDWz0kxKmluYNX3SSW3SVfNQjp/JWTrs9BJbfrKm7vc7wIhAIg9zQMpa7vGzEFcbz+nDpuld8z/bp26BvXlS9T0YYIy:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -303,11 +412,51 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "AAAAAAAAAAAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:MEQCIArmAyipy8DKjALUR9VCD/qztta+HpSWdHo5rPRUHyFBAiBmRDYk2miBjiIaq7V/FNbDirEaNOhUai0/vrcvttiVLQ==:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEYCIQDWz0kxKmluYNX3SSW3SVfNQjp/JWTrs9BJbfrKm7vc7wIhAIg9zQMpa7vGzEFcbz+nDpuld8z/bp26BvXlS9T0YYIy:",
+      "expected": {
+        "status": "failed",
+        "reason": "invalid_signature"
+      },
+      "reasonIsPortable": true
+    },
+    {
+      "name": "raw_api_key_changed",
+      "description": "The same user's response from another app.",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "entitlements",
+        "apiKey": "pk_other_app",
+        "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
+        "nonce": "q83vEjRWeJAAAAAAAAAAAA"
+      },
+      "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEYCIQDWz0kxKmluYNX3SSW3SVfNQjp/JWTrs9BJbfrKm7vc7wIhAIg9zQMpa7vGzEFcbz+nDpuld8z/bp26BvXlS9T0YYIy:",
+      "expected": {
+        "status": "failed",
+        "reason": "invalid_signature"
+      },
+      "reasonIsPortable": true
+    },
+    {
+      "name": "raw_device_changed",
+      "description": "A response for another device.",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
+        "subject": "user_123",
+        "deviceId": "$SuperwallDevice:OTHER",
+        "nonce": "q83vEjRWeJAAAAAAAAAAAA"
+      },
+      "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEYCIQDWz0kxKmluYNX3SSW3SVfNQjp/JWTrs9BJbfrKm7vc7wIhAIg9zQMpa7vGzEFcbz+nDpuld8z/bp26BvXlS9T0YYIy:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -320,11 +469,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "static_config",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:MEQCIArmAyipy8DKjALUR9VCD/qztta+HpSWdHo5rPRUHyFBAiBmRDYk2miBjiIaq7V/FNbDirEaNOhUai0/vrcvttiVLQ==:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEYCIQDWz0kxKmluYNX3SSW3SVfNQjp/JWTrs9BJbfrKm7vc7wIhAIg9zQMpa7vGzEFcbz+nDpuld8z/bp26BvXlS9T0YYIy:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -337,11 +488,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQHkpqdL3/ZChv/nN5J2ujh+77Xg2SSm2ldFNGZG7FKioAAAAABq/WqgAAAAAGsGszAEmix60Yc38cknZpQx6Ol0x0fXPOvPigAXjk3gIIPyYbwSaDPI8rvlx7VqASLCLf3JmviwvwmrdBhZ76kqAfl14wBIMEYCIQDzwWRejai59zjE+1Ejp1d1AwJgzWKtK+HQnVdQsUkm+AIhAJyURmmEpt2FmR+Y45f/nF+uX/Bt5dQa/BOCdAelcwr1:, sig=:MEUCIQCBGEPBbJ6ZcQMT4reRyVUEeKhhLKBfiW7SPQ4FVt6GLwIgfXk5a6WCHHLDqOf/bHUbj1gbbPXynGybSWxpkvQt3AE=:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQEgPRDL182MZIHSXhSn9FhC2vGBtaiqLSnrin1m+V+1MwAAAABq/VyQAAAAAGsGlxAETeVDtQHDSD1sX9cKdtaI5XgZuaMjBWZ5dP3SXciirvwW0Ma+NMt3CYPULe5vgyY9IsiH/qBUIRoeBc1x8FydSABHMEUCIBzEfEEfVtqXV/7S6RUhFLRAhPZG6J0lhQzvsclNr2iAAiEA8adaTUxkIULriNtkopyZTeosuxq2JZ2Y9PSblhov1EE=:, sig=:MEYCIQDAETv0PYi2jHq7OB0pohRrBeUnVd0eFbh47KXNwuBOzgIhAOdpehqDkZzpZe6lU9lgKdMXkzTTbETN4pMMTTKMnuuO:",
       "expected": {
         "status": "failed",
         "reason": "unknown_root"
@@ -354,11 +507,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1793012801, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq1euwAAAAAGrfNEAEiVhNnE2KIAqi4Bcr78bczx1njEz0QYeH2kCHVD2i5R6u7TvuOdK3ruyPwNO0LAhOKj9nkzt3sCfOaqTVaHt9CABHMEUCIHuca3uOeIqRaYETDZv18pgDyqZnapVYbtzm3NMof26nAiEAwXJzVd28Be/NnxH/KF7eyh5jdNMscPmX28wtz5Yh9NM=:, sig=:MEQCIEIIJIr9L4tqVJfP0MX5cwCuC8b8VKf/1sEMa1aWT/gMAiAk/u8W3s+i6L0RGVsMrLME9jFG/xiTIGtNZqtLI13w1Q==:",
+      "header": "v=1, t=1793012801, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq1fnAAAAAAGrfNEAE9K4fXR5zu9Wfc69XwPMvmBZilwwmovyc9P+c+Opv9obB473MoAgvkaDjQ6kFBrpDFxpzfscwYDDBNOTF0YtIfgBHMEUCIB+Cg3yTd9dnAecotVndSO3t/ivkG2gu5A9eWPXGQ644AiEA/ePICT/+FE0alFwJ8TG8SUob+fqorvvCslC/G4sJwmY=:, sig=:MEQCIBBM+gbjWMVxxdRn5ecMohKV/33yT9+87o4r3MUhv4P8AiAI0WPNlDZDNXf+UFPDAz657dhMfmSUF3Gx9r8siL3bxw==:",
       "expected": {
         "status": "failed",
         "reason": "credential_not_valid_at_signing_time"
@@ -366,19 +521,58 @@
       "reasonIsPortable": false
     },
     {
-      "name": "raw_signed_in_future",
-      "description": "Signed an hour ahead of the device clock.",
+      "name": "raw_slow_device_clock_verified",
+      "description": "Signed an hour ahead of the device clock: within the tolerance.",
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795003600, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:MEUCIQDqQBFBPHJtA9ZVr6A9H7DFg+XmSx/BV102DHkISSPY3wIgOLq4RRDbx9V4xS+xXQbU40EnjOzOsVTbDZ3ZnbWSF/E=:",
+      "header": "v=1, t=1795003600, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEUCIQDpClGzaDf26BNt1RD3ZmdZ29jIeKC8DAz8YlYWeLr6HwIgbIWEKqt0Zd5AsU7wgAkF56UgCOmJEePInnL98K2XYzM=:",
+      "expected": {
+        "status": "verified"
+      },
+      "reasonIsPortable": true
+    },
+    {
+      "name": "raw_signed_in_future",
+      "description": "Signed two days ahead of the device clock.",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
+        "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
+        "nonce": "q83vEjRWeJAAAAAAAAAAAA"
+      },
+      "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
+      "header": "v=1, t=1795172800, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEQCIGQWIQAcjyet9KiZzmsaKyq/QPCjNyuDaLbaN4DS64q5AiACmuGW4AWXBs3ceqdT3Tuvnm1FKPH/6YcEhGW/XX76Qw==:",
       "expected": {
         "status": "failed",
         "reason": "signed_in_future"
+      },
+      "reasonIsPortable": true
+    },
+    {
+      "name": "raw_key_expired_on_device",
+      "description": "Validly signed while the key was valid, received long after it expired (a leaked key, or a replayed config).",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "static_config",
+        "apiKey": "pk_test_abc",
+        "subject": "",
+        "deviceId": "",
+        "nonce": ""
+      },
+      "body": "eyJidWlsZF9pZCI6ImFiYyIsInRyaWdnZXJzIjpbXSwicGF5d2FsbHMiOltdLCJ0cyI6MTc5NTAwMDAwMDAwMH0=",
+      "header": "v=1, t=1793012740, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq1fnAAAAAAGrfNEAEA7MX9DfDhmtEJcP7XxM2l5N48gXjsSRIo1vAEUBUgXXl759pTyePX5v/+5FTXi1sm1vJtf5xHc7FB9F/SLJ9+QBIMEYCIQCOEc8Pzxg1VWfFksyUTZ1stmIHAAlWwf5ybfVF/FIZcgIhAP9IGlSeQmBIIFPzUgkjMvj7jUdtTRAtasT/5qq6u73P:, sig=:MEQCIHH8W59OQjWz8QsWgRsEnFcyNdt9r5KXKa63OwR4E6F5AiByIaKo7BxFLpdg3myfkf5P+fCsS1QD5Os7MiaCXcz5sA==:",
+      "expected": {
+        "status": "failed",
+        "reason": "credential_expired"
       },
       "reasonIsPortable": true
     },
@@ -388,11 +582,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=2, t=1795000000, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:MEQCIArmAyipy8DKjALUR9VCD/qztta+HpSWdHo5rPRUHyFBAiBmRDYk2miBjiIaq7V/FNbDirEaNOhUai0/vrcvttiVLQ==:",
+      "header": "v=2, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:MEYCIQDWz0kxKmluYNX3SSW3SVfNQjp/JWTrs9BJbfrKm7vc7wIhAIg9zQMpa7vGzEFcbz+nDpuld8z/bp26BvXlS9T0YYIy:",
       "expected": {
         "status": "failed",
         "reason": "unsupported_version"
@@ -405,11 +601,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAE8qYOCdWx2Gfyaa2HLbrpKPS9/aJnvRoCYrk2Qfk6G0JFbJr3bxHproTEIEgTDWMgK47qL4WeS2ykFk+BG48jfgBGMEQCIAQEfaGTUtJff6eyVwumE3ahZ7ekLinLBWBKMIWZ/6kxAiBvbi+n+6IGAT/04tQ+pq8eLGc7O2RWK5BanMmJg4cw6g==:, sig=:CuYDKKnLwMqMAtRH1UIP+rO21r4elJZ0ejms9FQfIUFmRDYk2miBjiIaq7V/FNbDirEaNOhUai0/vrcvttiVLQ==:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/VyQAAAAAGsGlxAEobDDpOA9TFfchDFdb5dZCKZDsloWcyTrxWT0obUhDWeAdFuB6NVOgwZ/qFQU8CYJtzXFJS36tPpaUmEu3ae1CQBHMEUCIQCFccRuTmW4wHPso2C5X8e+3+vmpI3u28pXbbSDs0lPtQIgI2+BcGFWHU0gZGPPSTLii8jGLbNi8H1v9/0RhvMpYyo=:, sig=:1s9JMSppbmDV90klt0lXzUI6fyVk67PQSW36ypu73O+IPc0DKWu7xsxBXG8/pw6bpXfM/26dugb15UvU9GGCMg==:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -422,11 +620,13 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBpjCCAUygAwIBAgIQT8FHx6RyQLAifVTUg4Aj8zAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwIBcNMjYxMDE5MTEwNjQwWhgPMjA1MTExMTIxMTA2NDBaMDIxMDAuBgNVBAMMJ1N1cGVyd2FsbCBSZXNwb25zZSBTaWduaW5nIFRlc3QgUm9vdCBSMTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDXBZImwAxJRpfWKhMmMluWXut1mo20TvsKRuyEXsf4R/FzRwi2cl2r9X+t48Su9/3S6nvzkYarCS8+TJTjpE6+jQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMB0GA1UdDgQWBBRLqdsxFHXkiZMRDTUVgr6r9dPmaTAKBggqhkjOPQQDAgNIADBFAiAU1sNZp5HUlvxU8MrghuRV0xwBBDQS8l9sqgVu4b4uJAIhAOyw5LJ69wtkU+4Jl/I41QXER7ZP6aD/LdIwJZcyQSml:, sig=:MEYCIQCeRUIfKi0N8lMrReqpYdwbx98tAm5YNPgW69rzdhoKdAIhAL+7SVTWgxKqCvcOfFYnEg41HNRZZs0qEcmRk+NiSGDc:",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBpjCCAUygAwIBAgIQPfPpC1nVXbotCSvAyOasyTAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwIBcNMjYxMDE5MTEwNjQwWhgPMjA1MTExMTIxMTA2NDBaMDIxMDAuBgNVBAMMJ1N1cGVyd2FsbCBSZXNwb25zZSBTaWduaW5nIFRlc3QgUm9vdCBSMTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOn4yl3IXfSCSAj547IjBA29kE/WTBSAo043uxakj6elqS+wf3KmRpIGDvnUL6dSVDyy02AwOjmDbDIlKjhlwUyjQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMB0GA1UdDgQWBBTE5RcLeAamU4N0cHijMu+OHwUShDAKBggqhkjOPQQDAgNIADBFAiEA2EeCXZUvQT1hj7XPMJTS9HPRBv7YT17Ag0evBkekfY0CIBiIA3pYCS9G1JETytOnrN+reb0sfxmEMnYN1OjycnVN:, sig=:MEYCIQC7e0MH3bBAtIj4ivLlFKwoDq/kr/VKhOSSLJ92dlaUvgIhAOK9fN998fcKUY2bAGLWM9lCBTOF4yLPFWX43foXLdps:",
       "expected": {
         "status": "failed",
         "reason": "malformed_credential"
@@ -434,16 +634,37 @@
       "reasonIsPortable": false
     },
     {
+      "name": "x509_trailing_bytes_after_certificate",
+      "description": "A certificate followed by extra bytes is malformed.",
+      "now": 1795000000,
+      "context": {
+        "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
+        "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
+        "nonce": "q83vEjRWeJAAAAAAAAAAAA"
+      },
+      "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
+      "header": "v=1, t=1795000000, kind=x509, cred=:MIIBuTCCAV+gAwIBAgIQYQ25ij3vHvNWM92xVZjdXDAKBggqhkjOPQQDAjAyMTAwLgYDVQQDDCdTdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBUZXN0IFJvb3QgUjEwHhcNMjYxMTE4MTAwNjQwWhcNMjYxMTI1MTAwNjQwWjApMScwJQYDVQQDDB5TdXBlcndhbGwgUmVzcG9uc2UgU2lnbmluZyBLZXkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASDCDjQjZKn2slmmFRYuAk7Y2X9uLPKYiCgr6e8fd7qYfbcEwQ/69QJXMqac6MhL0GFM/hqo5TLusxxTYNon5u6o2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQULz8fEvV13+zVWo//dMXYU1Y1F74wHwYDVR0jBBgwFoAUxOUXC3gGplODdHB4ozLvjh8FEoQwCgYIKoZIzj0EAwIDSAAwRQIhAJbKYwtFOCJQ7bjWDc1nBgNtaroI+BcounDw2uEfAeLfAiBN4vt0kMk2gNI5l49EVMJMtbu8kJPR6RZVubaW1+aS9gECAw==:, sig=:MEQCICBGtqREPblkXpJ6fxwUCEiE1ZTDRJtX1wlnQic43QZCAiBHT0bzPMOO8s7HdSFepOy6BeTJDQMFBZAMfSN6aNc59A==:",
+      "expected": {
+        "status": "failed",
+        "reason": "malformed_credential"
+      },
+      "reasonIsPortable": true
+    },
+    {
       "name": "raw_statement_signature_as_response_signature",
       "description": "Domain separation: the root's statement signature is not a response signature.",
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
-      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAwrBej0FIvFnkwmD7CI4UYqra/P54KEKgg20AcR0iDgAAAABq/WqgAAAAAGsGszAEq681w1B6TCRG80ASVqBGOsaof/AvyHghlGOBHp5I08NFrIVgButuD8qGdWX9jtbjjpFzBWH78C3I58p+4g1N9wBGMEQCIHmXzWjZSyJznOxvgYZZ989t3aDzUxPP0jHIXcmIstZYAiBxwjHWsPUrRRC4bL+dNlE18+lS+JxeJSvMkGg3jInoDg==:, sig=:MEQCIHmXzWjZSyJznOxvgYZZ989t3aDzUxPP0jHIXcmIstZYAiBxwjHWsPUrRRC4bL+dNlE18+lS+JxeJSvMkGg3jInoDg==:",
+      "header": "v=1, t=1795000000, kind=raw, cred=:AQHAvpY95TLD46HMb8xR5NvfZnLZ7tZSH3Y2nq4JmmlD8AAAAABq/XiwAAAAAGsGszAEUUutVT+lKJ29Yvi+3JDFo7yfCpxri6HkuJiekTvE/ZFXa6m2Wh9IYWrc3IAQVV7TPP054dP2cPF4XVGvDCVrHgBHMEUCIQCq0m1sIDGTVM5xugjKhB9fxKzs+2MqoZPHS1T68kznKQIgCWptpETGpgaGn3rK7Cl18oShJPhOl3DQhVaxGMvDQW0=:, sig=:MEUCIQCq0m1sIDGTVM5xugjKhB9fxKzs+2MqoZPHS1T68kznKQIgCWptpETGpgaGn3rK7Cl18oShJPhOl3DQhVaxGMvDQW0=:",
       "expected": {
         "status": "failed",
         "reason": "invalid_signature"
@@ -456,7 +677,9 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
@@ -472,7 +695,9 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
@@ -489,7 +714,9 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
@@ -506,7 +733,9 @@
       "now": 1795000000,
       "context": {
         "endpoint": "entitlements",
+        "apiKey": "pk_test_abc",
         "subject": "user_123",
+        "deviceId": "$SuperwallDevice:ABC-123",
         "nonce": "q83vEjRWeJAAAAAAAAAAAA"
       },
       "body": "eyJlbnRpdGxlbWVudHMiOlt7ImlkZW50aWZpZXIiOiJwcm8iLCJ0eXBlIjoiU0VSVklDRV9MRVZFTCIsImlzQWN0aXZlIjp0cnVlfV19",
