@@ -14,7 +14,9 @@ import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.AliasId
 import com.superwall.sdk.storage.AppUserId
 import com.superwall.sdk.storage.DidTrackFirstSeen
+import com.superwall.sdk.misc.sha256MappedToRange
 import com.superwall.sdk.storage.Seed
+import com.superwall.sdk.storage.SeedAwaitsConfig
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
 import io.mockk.coEvery
@@ -807,6 +809,233 @@ class IdentityManagerTest {
                     assertTrue("Seed should be in range 0-99, got: $seedAfter", seedAfter in 0..99)
                     // Verify seed was written to storage
                     verify(atLeast = 1) { storage.write(Seed, any<Int>()) }
+                }
+            }
+        }
+
+    // endregion
+
+    // region enableUserIdSeed option
+
+    private val seedUserId = "deterministic-user"
+    private val derivedSeed = seedUserId.sha256MappedToRange()!!
+
+    /** A random seed the user starts with, which can't be the derived one. */
+    private val storedSeed = (derivedSeed + 1) % 100
+
+    private fun configWithUserIdSeed(enabled: Boolean): Config =
+        Config.stub().copy(
+            rawFeatureFlags = listOf(RawFeatureFlag("enable_userid_seed", enabled)),
+        )
+
+    /** Builds a manager whose option and config say whether to derive seeds from user ids. */
+    private fun TestScope.seedManager(
+        enabledInOptions: Boolean,
+        config: Config?,
+        existingAppUserId: String? = null,
+        seedAwaitsConfig: Boolean = false,
+    ): IdentityManager {
+        every { storage.read(Seed) } returns storedSeed
+        every { storage.read(AliasId) } returns "alias-1"
+        every { storage.read(DidTrackFirstSeen) } returns true
+        every { storage.read(SeedAwaitsConfig) } returns (if (seedAwaitsConfig) true else null)
+        existingAppUserId?.let { every { storage.read(AppUserId) } returns it }
+
+        val sdkContext = mockk<com.superwall.sdk.SdkContext>(relaxed = true)
+        coEvery { sdkContext.awaitConfig() } returns config
+        val options = SuperwallOptions().apply { enableUserIdSeed = enabledInOptions }
+
+        return IdentityManager(
+            storage = storage,
+            options = { options },
+            ioScope = IOScope(coroutineContext),
+            notifyUserChange = { notifiedChanges.add(it) },
+            completeReset = { resetCalled = true },
+            tracker = { trackedEvents.add(it) },
+            webPaywallRedeemer = { mockk(relaxed = true) },
+            actor = testIdentityActor(),
+            sdkContext = sdkContext,
+        )
+    }
+
+    private fun trackedSeeds(): List<Any?> =
+        trackedEvents
+            .filterIsInstance<InternalSuperwallEvent.Attributes>()
+            .map { it.audienceFilterParams[Keys.SEED] }
+
+    @Test
+    fun `enableUserIdSeed option - identify sets the seed with the user id, without the config`() =
+        runTest {
+            Given("the option on and no config") {
+                val manager = seedManager(enabledInOptions = true, config = null)
+
+                When("identify is called") {
+                    manager.identify(seedUserId)
+                    manager.awaitLatestIdentity()
+                    advanceUntilIdle()
+                }
+
+                Then("the seed is derived from the user id") {
+                    assertEquals(seedUserId, manager.appUserId)
+                    assertEquals(derivedSeed, manager.seed)
+                    assertEquals(derivedSeed, manager.userAttributes[Keys.SEED])
+                }
+                And("it's saved with the user id, and isn't left waiting on the config") {
+                    verify { storage.write(AppUserId, seedUserId) }
+                    verify { storage.write(Seed, derivedSeed) }
+                    verify(exactly = 0) { storage.write(SeedAwaitsConfig, any()) }
+                }
+                And("the user's attributes are tracked once, with the derived seed") {
+                    assertEquals(listOf<Any?>(derivedSeed), trackedSeeds())
+                }
+            }
+        }
+
+    @Test
+    fun `enableUserIdSeed option - off follows the config flag`() =
+        runTest {
+            Given("the option off and a config with user id seeds on") {
+                val manager =
+                    seedManager(enabledInOptions = false, config = configWithUserIdSeed(true))
+
+                When("identify is called") {
+                    manager.identify(seedUserId)
+                    manager.awaitLatestIdentity()
+                    advanceUntilIdle()
+                }
+
+                Then("the seed is derived once the config has answered") {
+                    assertEquals(derivedSeed, manager.seed)
+                    verify { storage.write(Seed, derivedSeed) }
+                }
+                And("the seed waited on the config, and no longer does") {
+                    verify { storage.write(SeedAwaitsConfig, true) }
+                    verify { storage.delete(SeedAwaitsConfig) }
+                }
+            }
+        }
+
+    @Test
+    fun `enableUserIdSeed option - off keeps the seed when the config has user id seeds off`() =
+        runTest {
+            Given("the option off and a config with user id seeds off") {
+                val manager =
+                    seedManager(enabledInOptions = false, config = configWithUserIdSeed(false))
+
+                When("identify is called") {
+                    manager.identify(seedUserId)
+                    manager.awaitLatestIdentity()
+                    advanceUntilIdle()
+                }
+
+                Then("the seed is unchanged and no longer waits on the config") {
+                    assertEquals(storedSeed, manager.seed)
+                    verify { storage.delete(SeedAwaitsConfig) }
+                }
+            }
+        }
+
+    @Test
+    fun `enableUserIdSeed option - a seed the config never answered for keeps waiting`() =
+        runTest {
+            Given("the option off and a config that never arrives") {
+                val manager = seedManager(enabledInOptions = false, config = null)
+
+                When("identify is called") {
+                    manager.identify(seedUserId)
+                    manager.awaitLatestIdentity()
+                    advanceUntilIdle()
+                }
+
+                Then("the seed is unchanged and nothing is left pending for it") {
+                    assertEquals(storedSeed, manager.seed)
+                    assertFalse(
+                        manager.actor.state.value.pending
+                            .contains(IdentityState.Pending.Seed),
+                    )
+                }
+                And("it's still saved as waiting on the config") {
+                    verify { storage.write(SeedAwaitsConfig, true) }
+                    verify(exactly = 0) { storage.delete(SeedAwaitsConfig) }
+                }
+            }
+        }
+
+    @Test
+    fun `enableUserIdSeed option - a seed left waiting is derived on the next launch`() =
+        runTest {
+            Given("an identified user whose seed an earlier launch left waiting") {
+                val manager =
+                    seedManager(
+                        enabledInOptions = false,
+                        config = configWithUserIdSeed(true),
+                        existingAppUserId = seedUserId,
+                        seedAwaitsConfig = true,
+                    )
+                assertEquals(storedSeed, manager.seed)
+
+                When("the SDK configures") {
+                    manager.configure(neverCalledStaticConfig = false)
+                    manager.awaitLatestIdentity()
+                    advanceUntilIdle()
+                }
+
+                Then("the seed is derived from the user id") {
+                    assertEquals(derivedSeed, manager.seed)
+                    assertTrue(manager.actor.state.value.isReady)
+                    verify { storage.write(Seed, derivedSeed) }
+                    verify { storage.delete(SeedAwaitsConfig) }
+                }
+            }
+        }
+
+    @Test
+    fun `enableUserIdSeed option - a seed left waiting stays random when the config has user id seeds off`() =
+        runTest {
+            Given("an identified user whose seed an earlier launch left waiting") {
+                val manager =
+                    seedManager(
+                        enabledInOptions = false,
+                        config = configWithUserIdSeed(false),
+                        existingAppUserId = seedUserId,
+                        seedAwaitsConfig = true,
+                    )
+
+                When("the SDK configures") {
+                    manager.configure(neverCalledStaticConfig = false)
+                    manager.awaitLatestIdentity()
+                    advanceUntilIdle()
+                }
+
+                Then("the seed is unchanged and no longer waits on the config") {
+                    assertEquals(storedSeed, manager.seed)
+                    assertTrue(manager.actor.state.value.isReady)
+                    verify { storage.delete(SeedAwaitsConfig) }
+                }
+            }
+        }
+
+    @Test
+    fun `enableUserIdSeed option - a user who was already identified keeps their seed`() =
+        runTest {
+            Given("the option on, the config flag on, and a user identified before either") {
+                val manager =
+                    seedManager(
+                        enabledInOptions = true,
+                        config = configWithUserIdSeed(true),
+                        existingAppUserId = seedUserId,
+                    )
+
+                When("the SDK configures and the same user is identified again") {
+                    manager.configure(neverCalledStaticConfig = false)
+                    manager.identify(seedUserId)
+                    manager.awaitLatestIdentity()
+                    advanceUntilIdle()
+                }
+
+                Then("their seed is unchanged") {
+                    assertEquals(storedSeed, manager.seed)
+                    verify(exactly = 0) { storage.write(Seed, any<Int>()) }
                 }
             }
         }

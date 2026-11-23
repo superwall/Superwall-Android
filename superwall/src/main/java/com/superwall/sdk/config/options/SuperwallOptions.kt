@@ -188,6 +188,16 @@ class SuperwallOptions() {
     // Enables experimental device variables. These are subject to change. Defaults to `false`.
     var enableExperimentalDeviceVariables: Boolean = false
 
+    // Derives `user.seed` from the ID passed to `identify`. Defaults to `false`.
+    //
+    // When `false`, the seed is only derived from the user ID if Superwall has turned this on
+    // for your app. Set this before configuring the SDK.
+    //
+    // ID-derived seeds are numbers from 0 to 99, and the same ID always gets the same seed.
+    // Anonymous users keep their random seed until identified. Identifying the user who is
+    // already identified doesn't change their seed.
+    var enableUserIdSeed: Boolean = false
+
     // Configuration for printing to the console.
     class Logging() {
         constructor(definition: Logging.() -> Unit) : this() {

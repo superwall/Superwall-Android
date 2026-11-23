@@ -124,6 +124,21 @@ object Seed : Storable<Int> {
         get() = Int.serializer()
 }
 
+/**
+ * Whether the identified user's seed is still waiting on the config to say if it's derived
+ * from their id.
+ */
+internal object SeedAwaitsConfig : Storable<Boolean> {
+    override val key: String
+        get() = "store.seedAwaitsConfig"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Boolean>
+        get() = Boolean.serializer()
+}
+
 object DidTrackAppInstall : Storable<Boolean> {
     override val key: String
         get() = "store.didTrackAppInstall"

@@ -151,9 +151,77 @@ class IdentityStateReducerTest {
             }
         }
 
+    @Test
+    fun `Identify - with a seed logs in with it and leaves no Pending Seed`() =
+        Given("an anonymous ready state") {
+            val state = readyState(seed = 42)
+
+            val result = When("Identify is applied with a seed") {
+                Updates.Identify("user-1", restoreAssignments = false, seed = 7).reduce(state)
+            }
+
+            Then("the user id and the seed are set together") {
+                assertEquals("user-1", result.appUserId)
+                assertEquals(7, result.seed)
+                assertEquals(7, result.userAttributes[Keys.SEED])
+            }
+            And("nothing is pending") {
+                assertTrue(result.isReady)
+            }
+        }
+
+    @Test
+    fun `Identify - with a seed still waits for assignments when restoring them`() =
+        Given("an anonymous ready state") {
+            val state = readyState()
+
+            val result = When("Identify is applied with a seed and restoreAssignments") {
+                Updates.Identify("user-1", restoreAssignments = true, seed = 7).reduce(state)
+            }
+
+            Then("only Assignments is pending") {
+                assertEquals(Phase.Pending(setOf(Pending.Assignments)), result.phase)
+            }
+        }
+
     // -----------------------------------------------------------------------
     // Updates.SeedResolved
     // -----------------------------------------------------------------------
+
+    @Test
+    fun `SeedResolved - for a user who is no longer logged in only resolves Pending Seed`() =
+        Given("a state where another user has since logged in") {
+            val state = pendingState(Pending.Seed, appUserId = "user-2", seed = 42)
+
+            val result = When("SeedResolved is applied for the earlier user") {
+                Updates.SeedResolved(seed = 77, userId = "user-1").reduce(state)
+            }
+
+            Then("the seed is left alone") {
+                assertEquals(42, result.seed)
+                assertNull(result.userAttributes[Keys.SEED])
+            }
+            And("Pending Seed is resolved") {
+                assertTrue(result.isReady)
+            }
+        }
+
+    @Test
+    fun `BeginSeed - adds Pending Seed and keeps other pending items`() =
+        Given("a state with Configuration pending") {
+            val state = pendingState(Pending.Configuration, appUserId = "user-1")
+
+            val result = When("BeginSeed is applied") {
+                Updates.BeginSeed.reduce(state)
+            }
+
+            Then("both are pending") {
+                assertEquals(
+                    Phase.Pending(setOf(Pending.Configuration, Pending.Seed)),
+                    result.phase,
+                )
+            }
+        }
 
     @Test
     fun `SeedResolved - updates seed and resolves Pending Seed`() =
