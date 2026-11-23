@@ -89,11 +89,12 @@ object TemplateLogic {
     ): List<ProductVariable>? {
         val variables = paywall.productVariables ?: return null
         val active = activeProductIds.map { DecomposedProductIds.from(it) }
+        // From productItems, not playStoreProducts: after a product override the latter still
+        // holds the paywall's original products, and the variables are the override's.
         val productsByName =
-            paywall.playStoreProducts
-                .mapNotNull { product ->
-                    (product.storeProduct as? CrossplatformProduct.StoreProduct.PlayStore)
-                        ?.let { product.name to it }
+            paywall.productItems
+                .mapNotNull { item ->
+                    (item.type as? ProductItem.StoreProductType.PlayStore)?.let { item.name to it.product }
                 }.toMap()
         return variables.map { variable ->
             val product = productsByName[variable.name] ?: return@map variable

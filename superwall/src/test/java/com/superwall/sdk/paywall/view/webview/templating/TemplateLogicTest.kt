@@ -13,6 +13,8 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.Offer
+import com.superwall.sdk.models.product.PlayStoreProduct
+import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
@@ -1114,6 +1116,62 @@ class TemplateLogicTest {
                     }
 
                 Then("no product is subscribed") {
+                    assertEquals(false, primary)
+                    assertEquals(false, secondary)
+                }
+            }
+        }
+
+    // What a request with a product override leaves on a v3 paywall: the override in
+    // productItems, the original still in _productItemsV3.
+    private fun paywallWithPrimaryOverridden() =
+        subscriptionPaywall().apply {
+            productItems =
+                productItems.map { item ->
+                    if (item.name != "primary") return@map item
+                    val override =
+                        PlayStoreProduct(
+                            productIdentifier = "com.test.override",
+                            basePlanIdentifier = "monthly",
+                            offer = Offer.Automatic(),
+                        )
+                    item.copy(
+                        compositeId = override.fullIdentifier,
+                        type = ProductItem.StoreProductType.PlayStore(override),
+                    )
+                }
+        }
+
+    @Test
+    fun `isSubscribed is true for an active purchase of the product an override put in place`() =
+        runTest {
+            Given("a paywall whose primary product was overridden, and an active purchase of the override") {
+                val paywall = paywallWithPrimaryOverridden()
+
+                val (primary, secondary) =
+                    When("the templates are built") {
+                        isSubscribedValues(paywall, setOf("com.test.override:monthly:sw-auto"))
+                    }
+
+                Then("primary is subscribed and secondary isn't") {
+                    assertEquals(true, primary)
+                    assertEquals(false, secondary)
+                }
+            }
+        }
+
+    @Test
+    fun `isSubscribed is false for an active purchase of a product an override replaced`() =
+        runTest {
+            Given("a paywall whose primary product was overridden, and an active purchase of the original") {
+                val paywall = paywallWithPrimaryOverridden()
+
+                val (primary, secondary) =
+                    When("the templates are built") {
+                        isSubscribedValues(paywall, setOf("com.test.pro:monthly:sw-auto"))
+                    }
+
+                Then("neither product is subscribed") {
                     assertEquals(false, primary)
                     assertEquals(false, secondary)
                 }
