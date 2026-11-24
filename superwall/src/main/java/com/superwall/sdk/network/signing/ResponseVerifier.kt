@@ -1,6 +1,5 @@
 package com.superwall.sdk.network.signing
 
-import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.nio.ByteBuffer
@@ -8,38 +7,25 @@ import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.PublicKey
 import java.security.Signature
-import java.security.cert.CertPathValidator
-import java.security.cert.CertificateFactory
-import java.security.cert.PKIXParameters
-import java.security.cert.TrustAnchor
-import java.security.cert.X509Certificate
 import java.security.spec.X509EncodedKeySpec
-import java.util.Date
 
 /**
  * Verifies `X-Superwall-Signature` on SDK responses. The format and the shared test vectors live in
  * superwall/paywall-next `packages/response-signing`; iOS implements the same steps.
  *
- * The signing key is authorised by an embedded root, either through an X.509 certificate or a raw
- * key statement (`kind`). Both give a [VerifiedKey]; checking the response signature is the same
- * for both, so the backend can move between them without an SDK release.
+ * The response is signed by a short-lived signing key, which an embedded root authorises with a
+ * raw key statement (`kind=raw`, the only kind): a fixed layout the root signs directly. There is
+ * no X.509 and no intermediate, so there's nothing to parse but that layout.
  */
 internal class ResponseVerifier(
     private val roots: List<TrustedRoot>,
 ) {
-    /** A root the SDK trusts: its 65-byte uncompressed P-256 public key and self-signed certificate. */
+    /** A root the SDK trusts: its 65-byte uncompressed P-256 public key (see [ResponseSigningRoots]). */
     class TrustedRoot(
         val publicKey: ByteArray,
-        val certificate: ByteArray,
     ) {
         internal val keyId: ByteArray = sha256(publicKey)
         internal val javaPublicKey: PublicKey? = p256PublicKey(publicKey)
-        internal val x509Certificate: X509Certificate? =
-            runCatching {
-                CertificateFactory
-                    .getInstance("X.509")
-                    .generateCertificate(ByteArrayInputStream(certificate)) as X509Certificate
-            }.getOrNull()
     }
 
     enum class Endpoint(
@@ -131,16 +117,10 @@ internal class ResponseVerifier(
         }
 
         val credentialHash = sha256(envelope.credential)
-        val cacheKey = envelope.kind.token + ":" + StrictBase64.encode(credentialHash)
+        val cacheKey = StrictBase64.encode(credentialHash)
         val key =
             synchronized(credentialCache) { credentialCache[cacheKey] }
-                ?: when (
-                    val check =
-                        when (envelope.kind) {
-                            SignatureEnvelope.CredentialKind.RAW -> verifyRawCredential(envelope.credential)
-                            SignatureEnvelope.CredentialKind.X509 -> verifyX509Credential(envelope.credential)
-                        }
-                ) {
+                ?: when (val check = verifyRawCredential(envelope.credential)) {
                     is CredentialCheck.Rejected -> return Result.Failed(check.reason)
                     is CredentialCheck.Accepted -> check.key
                 }
@@ -193,55 +173,6 @@ internal class ResponseVerifier(
 
     // endregion
 
-    // region X.509
-
-    /**
-     * Validates the chain against the embedded roots only, with revocation checks off: there's no
-     * CRL or OCSP for these certificates, and a lookup could hang. The chain is checked at the
-     * certificate's own start, so it covers signatures and structure; the signing time and the
-     * device clock are checked against the validity in [verify], the same way for both kinds.
-     */
-    private fun verifyX509Credential(bytes: ByteArray): CredentialCheck {
-        val certificate =
-            runCatching {
-                CertificateFactory
-                    .getInstance("X.509")
-                    .generateCertificate(ByteArrayInputStream(bytes)) as X509Certificate
-            }.getOrNull()
-        // Exactly one DER certificate: the factory would also take PEM, or ignore trailing bytes.
-        if (certificate == null || !certificate.encoded.contentEquals(bytes)) {
-            return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
-        }
-        // A CA certificate never signs responses, a trusted root included.
-        if (certificate.basicConstraints != -1) return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
-
-        val anchors = roots.mapNotNull { it.x509Certificate }.map { TrustAnchor(it, null) }.toSet()
-        if (anchors.isEmpty()) return CredentialCheck.Rejected(Failure.UNKNOWN_ROOT)
-        val valid =
-            runCatching {
-                val parameters =
-                    PKIXParameters(anchors).apply {
-                        isRevocationEnabled = false
-                        date = certificate.notBefore
-                    }
-                val path = CertificateFactory.getInstance("X.509").generateCertPath(listOf(certificate))
-                CertPathValidator.getInstance("PKIX").validate(path, parameters)
-            }.isSuccess
-        if (!valid) return CredentialCheck.Rejected(Failure.INVALID_CREDENTIAL_SIGNATURE)
-
-        val publicKey =
-            p256PublicKey(certificate.publicKey.encoded)
-                ?: return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
-        return CredentialCheck.Accepted(
-            VerifiedKey(
-                publicKey,
-                certificate.notBefore.time / 1000,
-                certificate.notAfter.time / 1000,
-            ),
-        )
-    }
-
-    // endregion
 
     companion object {
         /**
@@ -302,6 +233,7 @@ internal class ResponseVerifier(
                         bytes.copyOfRange(0, P256_SPKI_PREFIX.size).contentEquals(P256_SPKI_PREFIX) -> bytes
                     else -> return null
                 }
+            // `X509EncodedKeySpec` is Java's name for a SubjectPublicKeyInfo; no certificate involved.
             return runCatching { KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(spki)) }
                 .getOrNull()
         }

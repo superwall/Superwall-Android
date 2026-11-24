@@ -2,7 +2,9 @@ package com.superwall.sdk.network.signing
 
 /**
  * The parsed `X-Superwall-Signature` header:
- * `v=1, t=<unix seconds>, kind=x509|raw, cred=:<base64>:, sig=:<base64>:`.
+ * `v=1, t=<unix seconds>, kind=raw, cred=:<base64>:, sig=:<base64>:`.
+ *
+ * `raw` is the only credential kind; anything else, `x509` included, is malformed.
  *
  * A subset of an RFC 8941 dictionary. Members may come in any order and unknown members are
  * ignored. The format is specified in superwall/paywall-next `packages/response-signing`.
@@ -10,21 +12,14 @@ package com.superwall.sdk.network.signing
 internal class SignatureEnvelope(
     val version: Int,
     val signedAt: Long,
-    val kind: CredentialKind,
     val credential: ByteArray,
     val signature: ByteArray,
 ) {
-    enum class CredentialKind(
-        val token: String,
-    ) {
-        X509("x509"),
-        RAW("raw"),
-    }
-
     companion object {
         const val SIGNATURE_HEADER = "X-Superwall-Signature"
         const val NONCE_HEADER = "X-Superwall-Nonce"
         const val VERSION = 1
+        const val KIND_RAW = "raw"
 
         /** Returns `null` for anything malformed. */
         fun parse(value: String): SignatureEnvelope? {
@@ -50,13 +45,12 @@ internal class SignatureEnvelope(
                 return StrictBase64.decode(raw.substring(1, raw.length - 1))
             }
 
-            val kind = CredentialKind.values().firstOrNull { it.token == members["kind"] } ?: return null
+            if (members["kind"] != KIND_RAW) return null
             val version = integer("v") ?: return null
             if (version > Int.MAX_VALUE) return null
             return SignatureEnvelope(
                 version = version.toInt(),
                 signedAt = integer("t") ?: return null,
-                kind = kind,
                 credential = bytes("cred") ?: return null,
                 signature = bytes("sig") ?: return null,
             )

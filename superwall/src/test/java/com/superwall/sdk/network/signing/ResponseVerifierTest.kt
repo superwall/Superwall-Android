@@ -30,14 +30,13 @@ class ResponseVerifierTest {
         vectors["roots"]!!.jsonArray.map {
             ResponseVerifier.TrustedRoot(
                 publicKey = base64(it.jsonObject["publicKey"]!!.jsonPrimitive.content),
-                certificate = base64(it.jsonObject["certificate"]!!.jsonPrimitive.content),
             )
         }
 
     @Test
     fun `every vector reaches the expected result`() {
         val cases = vectors["cases"]!!.jsonArray
-        assertTrue(cases.size >= 39)
+        assertTrue(cases.size >= 22)
         for (element in cases) {
             val case = element.jsonObject
             val name = case["name"]!!.jsonPrimitive.content
@@ -67,13 +66,11 @@ class ResponseVerifierTest {
                 "unsigned" -> assertEquals(name, ResponseVerifier.Result.Unsigned, result)
                 "failed" -> {
                     assertTrue("$name: expected failure, got $result", result is ResponseVerifier.Result.Failed)
-                    if (case["reasonIsPortable"]!!.jsonPrimitive.content == "true") {
-                        assertEquals(
-                            name,
-                            expected["reason"]!!.jsonPrimitive.content,
-                            (result as ResponseVerifier.Result.Failed).reason.wireName,
-                        )
-                    }
+                    assertEquals(
+                        name,
+                        expected["reason"]!!.jsonPrimitive.content,
+                        (result as ResponseVerifier.Result.Failed).reason.wireName,
+                    )
                 }
                 else -> error("$name: unknown status $status")
             }
@@ -145,11 +142,24 @@ class ResponseVerifierTest {
         val envelope = SignatureEnvelope.parse("sig=:AQ==:,future=1, cred=:AgM=:, kind=raw, t=12, v=1")!!
         assertEquals(1, envelope.version)
         assertEquals(12L, envelope.signedAt)
-        assertEquals(SignatureEnvelope.CredentialKind.RAW, envelope.kind)
         assertArrayEquals(byteArrayOf(2, 3), envelope.credential)
         assertNull(SignatureEnvelope.parse("v=1, v=1, t=1, kind=raw, cred=:AA==:, sig=:AA==:"))
         assertNull(SignatureEnvelope.parse("v=1, t=-1, kind=raw, cred=:AA==:, sig=:AA==:"))
+        assertNull(SignatureEnvelope.parse("v=1, t=1, kind=x509, cred=:AA==:, sig=:AA==:"))
     }
 
     private fun base64(value: String): ByteArray = StrictBase64.decode(value)!!
+
+    @Test
+    fun `embedded roots are P-256 points, and a bad one is left out`() {
+        for (encoded in listOfNotNull(ResponseSigningRoots.ACTIVE, ResponseSigningRoots.STANDBY)) {
+            assertEquals(1, ResponseSigningRoots.decode(listOf(encoded)).size)
+        }
+        val active = ResponseSigningRoots.ACTIVE
+        if (active != null) assertTrue(active != ResponseSigningRoots.STANDBY)
+
+        val vectorRoots = vectors["roots"]!!.jsonArray.map { it.jsonObject["publicKey"]!!.jsonPrimitive.content }
+        assertEquals(2, ResponseSigningRoots.decode(vectorRoots).size)
+        assertEquals(0, ResponseSigningRoots.decode(listOf("AQID", "not base64", vectorRoots[0].drop(4))).size)
+    }
 }
