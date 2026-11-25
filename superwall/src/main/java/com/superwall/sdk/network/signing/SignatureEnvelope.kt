@@ -10,7 +10,8 @@ package com.superwall.sdk.network.signing
  * ignored. The format is specified in superwall/paywall-next `packages/response-signing`.
  */
 internal class SignatureEnvelope(
-    val version: Int,
+    /** A `Long`, so any 15-digit version is `unsupported_version` rather than malformed. */
+    val version: Long,
     val signedAt: Long,
     val credential: ByteArray,
     val signature: ByteArray,
@@ -18,7 +19,7 @@ internal class SignatureEnvelope(
     companion object {
         const val SIGNATURE_HEADER = "X-Superwall-Signature"
         const val NONCE_HEADER = "X-Superwall-Nonce"
-        const val VERSION = 1
+        const val VERSION = 1L
         const val KIND_RAW = "raw"
 
         /** Returns `null` for anything malformed. */
@@ -35,7 +36,9 @@ internal class SignatureEnvelope(
 
             fun integer(key: String): Long? {
                 val raw = members[key] ?: return null
+                // Canonical decimal: 1–15 digits, no leading zeros.
                 if (raw.isEmpty() || raw.length > 15 || !raw.all { it in '0'..'9' }) return null
+                if (raw.length > 1 && raw[0] == '0') return null
                 return raw.toLong()
             }
 
@@ -47,9 +50,8 @@ internal class SignatureEnvelope(
 
             if (members["kind"] != KIND_RAW) return null
             val version = integer("v") ?: return null
-            if (version > Int.MAX_VALUE) return null
             return SignatureEnvelope(
-                version = version.toInt(),
+                version = version,
                 signedAt = integer("t") ?: return null,
                 credential = bytes("cred") ?: return null,
                 signature = bytes("sig") ?: return null,

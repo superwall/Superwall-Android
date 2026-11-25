@@ -2,7 +2,9 @@ package com.superwall.sdk.network.signing
 
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
+import java.math.BigInteger
 import java.nio.ByteBuffer
+import java.security.GeneralSecurityException
 import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.PublicKey
@@ -131,8 +133,9 @@ internal class ResponseVerifier(
         if (envelope.signedAt > nowSeconds + CLOCK_TOLERANCE_SECONDS) {
             return Result.Failed(Failure.SIGNED_IN_FUTURE)
         }
-        // Bounds what a leaked signing key, or a replayed config, is good for.
-        if (nowSeconds > key.notAfter + CLOCK_TOLERANCE_SECONDS) {
+        // Bounds what a leaked signing key, or a replayed config, is good for. A subtraction, so a
+        // far-future `notAfter` can't overflow.
+        if (nowSeconds - CLOCK_TOLERANCE_SECONDS > key.notAfter) {
             return Result.Failed(Failure.CREDENTIAL_EXPIRED)
         }
         // Only cache a credential once it's been used for a valid signing time.
@@ -167,12 +170,21 @@ internal class ResponseVerifier(
         if (!verifyEcdsa(rootKey, rootSignature, KEY_STATEMENT_PREFIX + statement)) {
             return CredentialCheck.Rejected(Failure.INVALID_CREDENTIAL_SIGNATURE)
         }
-        val signingKey = p256PublicKey(bytes.copyOfRange(50, 115)) ?: return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
-        return CredentialCheck.Accepted(VerifiedKey(signingKey, buffer.getLong(34), buffer.getLong(42)))
+        // What the root signed must still make sense: a real validity no longer than the cap, and
+        // a signing key that is a point on P-256.
+        val notBefore = buffer.getLong(34)
+        val notAfter = buffer.getLong(42)
+        val lifetime = runCatching { Math.subtractExact(notAfter, notBefore) }.getOrNull()
+        if (lifetime == null || lifetime < 0 || lifetime > MAX_SIGNING_KEY_LIFETIME_SECONDS) {
+            return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
+        }
+        val signingKey =
+            p256PublicKey(bytes.copyOfRange(50, 115))
+                ?: return CredentialCheck.Rejected(Failure.MALFORMED_CREDENTIAL)
+        return CredentialCheck.Accepted(VerifiedKey(signingKey, notBefore, notAfter))
     }
 
     // endregion
-
 
     companion object {
         /**
@@ -182,6 +194,12 @@ internal class ResponseVerifier(
          * their freshness from the nonce, not the clock.
          */
         const val CLOCK_TOLERANCE_SECONDS = 24 * 60 * 60L
+
+        /**
+         * The longest validity a key statement may give a signing key (7 days issued, plus a day).
+         * Longer ones are refused, so whoever can make the root sign can't mint long-lived keys.
+         */
+        const val MAX_SIGNING_KEY_LIFETIME_SECONDS = 8 * 24 * 60 * 60L
 
         private const val STATEMENT_LENGTH = 1 + 1 + 32 + 8 + 8 + 65
 
@@ -221,21 +239,33 @@ internal class ResponseVerifier(
             return bytes.toByteArray()
         }
 
+        private val P256_P = BigInteger("ffffffff00000001000000000000000000000000ffffffffffffffffffffffff", 16)
+        private val P256_B = BigInteger("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b", 16)
+
         /**
-         * Accepts a 65-byte uncompressed point or a P-256 SubjectPublicKeyInfo. Anything else,
-         * including other curves, is `null`.
+         * Whether `point` is a 65-byte uncompressed point on P-256: y² = x³ − 3x + b (mod p). Checked
+         * here because the desktop JDK's `KeyFactory` doesn't check it and Android's does, and
+         * every platform must agree.
          */
-        internal fun p256PublicKey(bytes: ByteArray): PublicKey? {
-            val spki =
-                when {
-                    bytes.size == 65 && bytes[0].toInt() == 0x04 -> P256_SPKI_PREFIX + bytes
-                    bytes.size == P256_SPKI_PREFIX.size + 65 &&
-                        bytes.copyOfRange(0, P256_SPKI_PREFIX.size).contentEquals(P256_SPKI_PREFIX) -> bytes
-                    else -> return null
-                }
+        internal fun isP256Point(point: ByteArray): Boolean {
+            if (point.size != 65 || point[0].toInt() != 0x04) return false
+            val x = BigInteger(1, point.copyOfRange(1, 33))
+            val y = BigInteger(1, point.copyOfRange(33, 65))
+            if (x >= P256_P || y >= P256_P) return false
+            val left = y.multiply(y).mod(P256_P)
+            val right = x.pow(3).subtract(x.multiply(BigInteger.valueOf(3))).add(P256_B).mod(P256_P)
+            return left == right
+        }
+
+        /** The key for a 65-byte uncompressed P-256 point, or `null` for anything else. */
+        internal fun p256PublicKey(point: ByteArray): PublicKey? {
+            if (!isP256Point(point)) return null
             // `X509EncodedKeySpec` is Java's name for a SubjectPublicKeyInfo; no certificate involved.
-            return runCatching { KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(spki)) }
-                .getOrNull()
+            return try {
+                KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(P256_SPKI_PREFIX + point))
+            } catch (error: GeneralSecurityException) {
+                null
+            }
         }
 
         /** ECDSA P-256 / SHA-256 with a DER signature. Malformed input is `false`. */
@@ -244,13 +274,18 @@ internal class ResponseVerifier(
             derSignature: ByteArray,
             message: ByteArray,
         ): Boolean =
-            runCatching {
+            try {
                 Signature.getInstance("SHA256withECDSA").run {
                     initVerify(publicKey)
                     update(message)
                     verify(derSignature)
                 }
-            }.getOrDefault(false)
+            } catch (error: GeneralSecurityException) {
+                // Includes `SignatureException` for a signature that isn't valid DER.
+                false
+            } catch (error: IllegalArgumentException) {
+                false
+            }
 
         internal fun sha256(bytes: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(bytes)
     }

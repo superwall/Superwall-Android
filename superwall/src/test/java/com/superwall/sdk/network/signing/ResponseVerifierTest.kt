@@ -1,5 +1,8 @@
 package com.superwall.sdk.network.signing
 
+import com.superwall.sdk.Given
+import com.superwall.sdk.Then
+import com.superwall.sdk.When
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -8,6 +11,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,140 +30,178 @@ class ResponseVerifierTest {
                     .readText(),
             ).jsonObject
 
-    private val roots =
-        vectors["roots"]!!.jsonArray.map {
-            ResponseVerifier.TrustedRoot(
-                publicKey = base64(it.jsonObject["publicKey"]!!.jsonPrimitive.content),
-            )
-        }
+    private val vectorRoots: List<String> =
+        vectors["roots"]!!.jsonArray.map { it.jsonObject["publicKey"]!!.jsonPrimitive.content }
+
+    private val roots = vectorRoots.map { ResponseVerifier.TrustedRoot(publicKey = base64(it)) }
+
+    private val cases: List<JsonObject> = vectors["cases"]!!.jsonArray.map { it.jsonObject }
+
+    private fun base64(value: String): ByteArray = StrictBase64.decode(value)!!
+
+    private fun JsonObject.string(key: String): String = this[key]!!.jsonPrimitive.content
+
+    private fun contextOf(case: JsonObject): ResponseVerifier.Context {
+        val context = case["context"]!!.jsonObject
+        return ResponseVerifier.Context(
+            endpoint = ResponseVerifier.Endpoint.entries.first { it.wireName == context.string("endpoint") },
+            apiKey = context.string("apiKey"),
+            subject = context.string("subject"),
+            deviceId = context.string("deviceId"),
+            nonce = context.string("nonce"),
+        )
+    }
+
+    private fun verifyCase(
+        verifier: ResponseVerifier,
+        case: JsonObject,
+        context: ResponseVerifier.Context = contextOf(case),
+    ): ResponseVerifier.Result {
+        val header = case["header"]!!.jsonPrimitive.takeUnless { it.content == "null" && !it.isString }
+        return verifier.verify(
+            header = header?.content,
+            context = context,
+            body = base64(case.string("body")),
+            nowSeconds = case["now"]!!.jsonPrimitive.long,
+        )
+    }
+
+    private fun case(name: String): JsonObject = cases.first { it.string("name") == name }
 
     @Test
-    fun `every vector reaches the expected result`() {
-        val cases = vectors["cases"]!!.jsonArray
-        assertTrue(cases.size >= 22)
-        for (element in cases) {
-            val case = element.jsonObject
-            val name = case["name"]!!.jsonPrimitive.content
-            val context = case["context"]!!.jsonObject
-            val header = case["header"]!!.jsonPrimitive.takeUnless { it.content == "null" && !it.isString }
-            val result =
-                ResponseVerifier(roots).verify(
-                    header = header?.content,
-                    context =
-                        ResponseVerifier.Context(
-                            endpoint =
-                                ResponseVerifier.Endpoint.values().first {
-                                    it.wireName == context["endpoint"]!!.jsonPrimitive.content
-                                },
-                            apiKey = context["apiKey"]!!.jsonPrimitive.content,
-                            subject = context["subject"]!!.jsonPrimitive.content,
-                            deviceId = context["deviceId"]!!.jsonPrimitive.content,
-                            nonce = context["nonce"]!!.jsonPrimitive.content,
-                        ),
-                    body = base64(case["body"]!!.jsonPrimitive.content),
-                    nowSeconds = case["now"]!!.jsonPrimitive.long,
-                )
-
-            val expected = case["expected"]!!.jsonObject
-            when (val status = expected["status"]!!.jsonPrimitive.content) {
-                "verified" -> assertEquals(name, ResponseVerifier.Result.Verified, result)
-                "unsigned" -> assertEquals(name, ResponseVerifier.Result.Unsigned, result)
-                "failed" -> {
-                    assertTrue("$name: expected failure, got $result", result is ResponseVerifier.Result.Failed)
-                    assertEquals(
-                        name,
-                        expected["reason"]!!.jsonPrimitive.content,
-                        (result as ResponseVerifier.Result.Failed).reason.wireName,
-                    )
+    fun `every shared vector reaches the expected result, failure reason included`() {
+        Given("the shared vectors and their two test roots") {
+            assertTrue(cases.size >= 42)
+            for (case in cases) {
+                val name = case.string("name")
+                val result =
+                    When("$name is verified") {
+                        verifyCase(ResponseVerifier(roots), case)
+                    }
+                Then("$name gets exactly the expected result") {
+                    val expected = case["expected"]!!.jsonObject
+                    val wanted =
+                        when (val status = expected.string("status")) {
+                            "verified" -> ResponseVerifier.Result.Verified
+                            "unsigned" -> ResponseVerifier.Result.Unsigned
+                            "failed" ->
+                                ResponseVerifier.Result.Failed(
+                                    ResponseVerifier.Failure.entries.first {
+                                        it.wireName == expected.string("reason")
+                                    },
+                                )
+                            else -> error("$name: unknown status $status")
+                        }
+                    assertEquals(name, wanted, result)
                 }
-                else -> error("$name: unknown status $status")
             }
         }
     }
 
     @Test
-    fun `a credential that verified once is reused for later responses`() {
-        val verifier = ResponseVerifier(roots)
-        val case =
-            vectors["cases"]!!
-                .jsonArray
-                .map { it.jsonObject }
-                .first { it["name"]!!.jsonPrimitive.content == "raw_entitlements_verified" }
-        val context =
-            ResponseVerifier.Context(
-                endpoint = ResponseVerifier.Endpoint.ENTITLEMENTS,
-                apiKey = "pk_test_abc",
-                subject = "user_123",
-                deviceId = "\$SuperwallDevice:ABC-123",
-                nonce = "q83vEjRWeJAAAAAAAAAAAA",
-            )
-        repeat(2) {
-            assertEquals(
-                ResponseVerifier.Result.Verified,
-                verifier.verify(
-                    case["header"]!!.jsonPrimitive.content,
-                    context,
-                    base64(case["body"]!!.jsonPrimitive.content),
-                    case["now"]!!.jsonPrimitive.long,
-                ),
-            )
+    fun `a credential that verified once is reused, and still binds the subject`() {
+        Given("a verifier that has verified one response") {
+            val verifier = ResponseVerifier(roots)
+            val case = case("entitlements_verified")
+            assertEquals(ResponseVerifier.Result.Verified, verifyCase(verifier, case))
+
+            Then("the same credential verifies again from the cache") {
+                assertEquals(ResponseVerifier.Result.Verified, verifyCase(verifier, case))
+            }
+            Then("a cached credential doesn't make another user's response verify") {
+                val otherUser = contextOf(case).copy(subject = "user_456")
+                assertEquals(
+                    ResponseVerifier.Result.Failed(ResponseVerifier.Failure.INVALID_SIGNATURE),
+                    verifyCase(verifier, case, otherUser),
+                )
+            }
         }
-        assertEquals(
-            ResponseVerifier.Result.Failed(ResponseVerifier.Failure.INVALID_SIGNATURE),
-            verifier.verify(
-                case["header"]!!.jsonPrimitive.content,
-                context.copy(subject = "user_456"),
-                base64(case["body"]!!.jsonPrimitive.content),
-                case["now"]!!.jsonPrimitive.long,
-            ),
-        )
     }
 
     @Test
-    fun `base64 round-trips`() {
-        for (size in 0..7) {
-            val bytes = ByteArray(size) { (it * 37 + 200).toByte() }
-            assertArrayEquals(bytes, StrictBase64.decode(StrictBase64.encode(bytes)))
+    fun `off-curve points are rejected on every JVM, not just on Android`() {
+        Given("a valid root key") {
+            val valid = base64(vectorRoots[0])
+            assertTrue(ResponseVerifier.isP256Point(valid))
+
+            Then("a point with one bit changed, or all zeros, is not a key") {
+                val flipped = valid.copyOf().also { it[64] = (it[64].toInt() xor 1).toByte() }
+                val zero = ByteArray(65).also { it[0] = 0x04 }
+                for (point in listOf(flipped, zero, valid.copyOf(64), byteArrayOf(0x02) + valid.copyOfRange(1, 33))) {
+                    assertFalse(ResponseVerifier.isP256Point(point))
+                    assertNull(ResponseVerifier.p256PublicKey(point))
+                }
+            }
         }
-        assertEquals("AQID", StrictBase64.encode(byteArrayOf(1, 2, 3)))
-        assertEquals("AQ==", StrictBase64.encode(byteArrayOf(1)))
     }
-
-    @Test
-    fun `strict base64`() {
-        assertArrayEquals(byteArrayOf(1, 2, 3), StrictBase64.decode("AQID"))
-        assertArrayEquals(byteArrayOf(1, 2), StrictBase64.decode("AQI="))
-        assertArrayEquals(byteArrayOf(1), StrictBase64.decode("AQ=="))
-        assertArrayEquals(byteArrayOf(), StrictBase64.decode(""))
-        assertNull(StrictBase64.decode("AQI"))
-        assertNull(StrictBase64.decode("A=QI"))
-        assertNull(StrictBase64.decode("AQ-_"))
-        assertNull(StrictBase64.decode("A==="))
-    }
-
-    @Test
-    fun `header members may come in any order and unknown ones are ignored`() {
-        val envelope = SignatureEnvelope.parse("sig=:AQ==:,future=1, cred=:AgM=:, kind=raw, t=12, v=1")!!
-        assertEquals(1, envelope.version)
-        assertEquals(12L, envelope.signedAt)
-        assertArrayEquals(byteArrayOf(2, 3), envelope.credential)
-        assertNull(SignatureEnvelope.parse("v=1, v=1, t=1, kind=raw, cred=:AA==:, sig=:AA==:"))
-        assertNull(SignatureEnvelope.parse("v=1, t=-1, kind=raw, cred=:AA==:, sig=:AA==:"))
-        assertNull(SignatureEnvelope.parse("v=1, t=1, kind=x509, cred=:AA==:, sig=:AA==:"))
-    }
-
-    private fun base64(value: String): ByteArray = StrictBase64.decode(value)!!
 
     @Test
     fun `embedded roots are P-256 points, and a bad one is left out`() {
-        for (encoded in listOfNotNull(ResponseSigningRoots.ACTIVE, ResponseSigningRoots.STANDBY)) {
-            assertEquals(1, ResponseSigningRoots.decode(listOf(encoded)).size)
+        Given("the embedded roots") {
+            for (encoded in listOfNotNull(ResponseSigningRoots.ACTIVE, ResponseSigningRoots.STANDBY)) {
+                assertEquals(1, ResponseSigningRoots.decode(listOf(encoded)).size)
+            }
+            val active = ResponseSigningRoots.ACTIVE
+            if (active != null) assertTrue(active != ResponseSigningRoots.STANDBY)
         }
-        val active = ResponseSigningRoots.ACTIVE
-        if (active != null) assertTrue(active != ResponseSigningRoots.STANDBY)
+        Given("roots that aren't P-256 points") {
+            val offCurve = base64(vectorRoots[0]).also { it[64] = (it[64].toInt() xor 1).toByte() }
+            Then("they're left out") {
+                assertEquals(2, ResponseSigningRoots.decode(vectorRoots).size)
+                assertEquals(
+                    0,
+                    ResponseSigningRoots
+                        .decode(listOf("AQID", "not base64", vectorRoots[0].drop(4), StrictBase64.encode(offCurve)))
+                        .size,
+                )
+            }
+        }
+    }
 
-        val vectorRoots = vectors["roots"]!!.jsonArray.map { it.jsonObject["publicKey"]!!.jsonPrimitive.content }
-        assertEquals(2, ResponseSigningRoots.decode(vectorRoots).size)
-        assertEquals(0, ResponseSigningRoots.decode(listOf("AQID", "not base64", vectorRoots[0].drop(4))).size)
+    @Test
+    fun `header members may come in any order, and integers must be canonical`() {
+        Given("a header with its members reversed and an unknown member") {
+            val envelope = SignatureEnvelope.parse("sig=:AQ==:,future=1, cred=:AgM=:, kind=raw, t=12, v=1")!!
+            Then("it parses") {
+                assertEquals(1L, envelope.version)
+                assertEquals(12L, envelope.signedAt)
+                assertArrayEquals(byteArrayOf(2, 3), envelope.credential)
+            }
+        }
+        Given("malformed headers") {
+            Then("duplicates, negative or zero-padded integers and other kinds are rejected") {
+                assertNull(SignatureEnvelope.parse("v=1, v=1, t=1, kind=raw, cred=:AA==:, sig=:AA==:"))
+                assertNull(SignatureEnvelope.parse("v=1, t=-1, kind=raw, cred=:AA==:, sig=:AA==:"))
+                assertNull(SignatureEnvelope.parse("v=1, t=01, kind=raw, cred=:AA==:, sig=:AA==:"))
+                assertNull(SignatureEnvelope.parse("v=1, t=1, kind=x509, cred=:AA==:, sig=:AA==:"))
+            }
+            Then("a 15-digit version still parses, as an unsupported one") {
+                assertEquals(
+                    999_999_999_999_999L,
+                    SignatureEnvelope.parse("v=999999999999999, t=0, kind=raw, cred=:AA==:, sig=:AA==:")!!.version,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `base64 is strict and round-trips`() {
+        Given("byte arrays of every length remainder") {
+            Then("they round-trip") {
+                for (size in 0..7) {
+                    val bytes = ByteArray(size) { (it * 37 + 200).toByte() }
+                    assertArrayEquals(bytes, StrictBase64.decode(StrictBase64.encode(bytes)))
+                }
+                assertEquals("AQID", StrictBase64.encode(byteArrayOf(1, 2, 3)))
+                assertEquals("AQ==", StrictBase64.encode(byteArrayOf(1)))
+            }
+            Then("unpadded, misplaced padding and URL-safe input are rejected") {
+                assertArrayEquals(byteArrayOf(), StrictBase64.decode(""))
+                assertNull(StrictBase64.decode("AQI"))
+                assertNull(StrictBase64.decode("A=QI"))
+                assertNull(StrictBase64.decode("AQ-_"))
+                assertNull(StrictBase64.decode("A==="))
+            }
+        }
     }
 }

@@ -14,12 +14,11 @@ internal object ResponseSigningRoots {
     val STANDBY: String? = null
 
     /** The configured roots. One that doesn't decode to a P-256 point is left out. */
-    val all: List<ResponseVerifier.TrustedRoot>
-        get() = decode(listOfNotNull(ACTIVE, STANDBY))
+    val all: List<ResponseVerifier.TrustedRoot> by lazy { decode(listOfNotNull(ACTIVE, STANDBY)) }
 
     internal fun decode(encoded: List<String>): List<ResponseVerifier.TrustedRoot> =
         encoded
             .mapNotNull { StrictBase64.decode(it) }
-            .filter { it.size == 65 && it[0].toInt() == 0x04 && ResponseVerifier.p256PublicKey(it) != null }
+            .filter { ResponseVerifier.p256PublicKey(it) != null }
             .map { ResponseVerifier.TrustedRoot(it) }
 }
