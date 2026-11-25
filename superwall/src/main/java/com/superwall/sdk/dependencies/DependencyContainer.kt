@@ -103,6 +103,7 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.device.DeviceIpCollector
 import com.superwall.sdk.network.device.DeviceIpState
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.network.signing.ResponseSignatureCheck
 import com.superwall.sdk.notifications.NotificationPermissionStatus
 import com.superwall.sdk.notifications.NotificationTokenLogic
 import com.superwall.sdk.notifications.NotificationTokenManager
@@ -673,6 +674,14 @@ class DependencyContainer internal constructor(
         }
 
         delegateAdapter = SuperwallDelegateAdapter()
+        // Checks the signature on config and entitlements responses; see ResponseSignatureCheck.
+        val responseSignatureCheck =
+            ResponseSignatureCheck(
+                isEnforced = {
+                    this::configManager.isInitialized && configManager.options.shouldEnforceResponseSignatures
+                },
+                report = { failure -> ioScope.launch { trackEvent(failure) } },
+            )
         val httpConnection =
             CustomHttpUrlConnection(
                 json = json(),
@@ -680,7 +689,7 @@ class DependencyContainer internal constructor(
                     RequestExecutor { debugging, requestId ->
                         makeHeaders(debugging, requestId)
                     },
-            )
+            ).also { it.responseSignatureCheck = responseSignatureCheck }
 
         api = Api(networkEnvironment = options.networkEnvironment)
         network =
@@ -714,7 +723,7 @@ class DependencyContainer internal constructor(
                                     RequestExecutor { debugging, requestId ->
                                         makeHeaders(debugging, requestId)
                                     },
-                            ),
+                            ).also { it.responseSignatureCheck = responseSignatureCheck },
                     ),
                 collectorService =
                     CollectorService(

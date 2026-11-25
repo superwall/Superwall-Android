@@ -8,6 +8,7 @@ import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.network.signing.SignedResponse
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -26,8 +27,9 @@ class BaseHostService(
     suspend fun config(
         requestId: String,
         isRetryingCallback: (suspend () -> Unit)? = null,
-    ) = get<Config>(
+    ) = signedGet<Config>(
         "static_config",
+        signedAs = SignedResponse.STATIC_CONFIG,
         requestId = requestId,
         queryItems = listOf(URLQueryItem("pk", factory.storage.apiKey)),
         isRetryingCallback = isRetryingCallback,

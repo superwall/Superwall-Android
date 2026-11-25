@@ -5,6 +5,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.network.NetworkRequestData.HttpMethod
+import com.superwall.sdk.network.signing.SignatureEnvelope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -62,10 +63,15 @@ class RequestExecutor(
                 }
 
             var responseMessage: String? = null
+            var responseBody: ByteArray? = null
+            var signatureHeader: String? = null
 
             when (responseCode) {
                 in 200..299 -> {
-                    responseMessage = request.inputStream.bufferedReader().use { it.readText() }
+                    // The raw bytes are what a response signature covers.
+                    responseBody = request.inputStream.use { it.readBytes() }
+                    responseMessage = String(responseBody, Charsets.UTF_8)
+                    signatureHeader = request.signatureHeader()
                     request.disconnect()
                 }
                 HttpURLConnection.HTTP_MOVED_PERM, HttpURLConnection.HTTP_MOVED_TEMP, HttpURLConnection.HTTP_SEE_OTHER -> {
@@ -124,6 +130,8 @@ class RequestExecutor(
                     responseMessage,
                     requestDuration,
                     headers,
+                    signatureHeader = signatureHeader,
+                    body = responseBody,
                 ),
             )
         } catch (e: Throwable) {
@@ -149,6 +157,11 @@ class RequestExecutor(
         headers.forEach { header ->
             connection.setRequestProperty(header.key, header.value)
         }
+        if (nonce.isNotEmpty()) {
+            connection.setRequestProperty(SignatureEnvelope.NONCE_HEADER, nonce)
+            // A cached response would carry an earlier request's nonce.
+            connection.useCaches = false
+        }
 
         connection.doOutput = method.method == HttpMethod.POST.method
         if (components?.bodyData != null) {
@@ -167,6 +180,15 @@ class RequestExecutor(
 
         return connection
     }
+
+    /** Every `X-Superwall-Signature` value, joined with ", " so a duplicate fails to parse. */
+    private fun HttpURLConnection.signatureHeader(): String? =
+        headerFields
+            .filterKeys { it != null && it.equals(SignatureEnvelope.SIGNATURE_HEADER, ignoreCase = true) }
+            .values
+            .flatten()
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(", ")
 
     @Throws(NetworkError::class)
     private fun HttpURLConnection.getRequestId(

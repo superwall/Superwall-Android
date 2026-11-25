@@ -9,6 +9,8 @@ import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.network.signing.ResponseVerifier
+import com.superwall.sdk.network.signing.SignedResponse
 import com.superwall.sdk.store.testmode.models.SuperwallProductsResponse
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -65,18 +67,25 @@ class SubscriptionService(
     suspend fun webEntitlementsByUserId(
         userId: UserId?,
         deviceId: DeviceVendorId,
-    ) = get<WebEntitlements>(
+    ) = signedGet<WebEntitlements>(
         "users/${userId?.value ?: deviceId.value}/entitlements",
+        signedAs = entitlementsSignedAs(userId?.value ?: deviceId.value, deviceId),
         queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
-        timeout = 5.seconds
+        timeout = 5.seconds,
     )
 
     suspend fun webEntitlementsByDeviceId(deviceId: DeviceVendorId) =
-        get<WebEntitlements>(
+        signedGet<WebEntitlements>(
             "users/${deviceId.value}/entitlements",
+            signedAs = entitlementsSignedAs(deviceId.value, deviceId),
             queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
-            timeout = 5.seconds
+            timeout = 5.seconds,
         )
+
+    private fun entitlementsSignedAs(
+        subject: String,
+        deviceId: DeviceVendorId,
+    ) = SignedResponse(ResponseVerifier.Endpoint.ENTITLEMENTS, subject, deviceId.value)
 
     suspend fun getProducts() = get<SuperwallProductsResponse>("products")
 }

@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.12.0
+
+## Enhancements
+- Checks the signature Superwall adds to config and entitlements responses, so the SDK can tell they weren't changed on the way, for example by a proxy on the device's network. A response that doesn't verify is reported to Superwall and used as before. Set `SuperwallOptions.shouldEnforceResponseSignatures` to `true` to reject such responses instead, keeping the config and entitlements the SDK already has; only turn it on once Superwall has confirmed response signing is enabled for your app.
+
 ## 2.11.0
 
 ## Enhancements

@@ -19,4 +19,12 @@ sealed class NetworkError(
     class NotFound : NetworkError("Not found.")
 
     class InvalidUrl : NetworkError("URL invalid.")
+
+    /**
+     * The response's `X-Superwall-Signature` didn't verify, while
+     * `SuperwallOptions.shouldEnforceResponseSignatures` is on. [reason] says why.
+     */
+    class InvalidResponseSignature(
+        val reason: String,
+    ) : NetworkError("The response signature didn't verify: $reason.")
 }

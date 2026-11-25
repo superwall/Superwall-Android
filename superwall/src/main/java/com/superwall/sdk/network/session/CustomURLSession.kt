@@ -12,6 +12,8 @@ import com.superwall.sdk.network.NetworkRequestData
 import com.superwall.sdk.network.RequestExecutor
 import com.superwall.sdk.network.RequestResult
 import com.superwall.sdk.network.authHeader
+import com.superwall.sdk.network.signing.ResponseSignatureCheck
+import com.superwall.sdk.network.signing.ResponseVerifier
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -20,6 +22,37 @@ class CustomHttpUrlConnection(
     val requestExecutor: RequestExecutor,
     val interceptors: List<(RequestResult) -> RequestResult> = emptyList(),
 ) {
+    /** Checks signed responses (config, entitlements); `null` checks nothing. */
+    @PublishedApi
+    internal var responseSignatureCheck: ResponseSignatureCheck? = null
+
+    /**
+     * The error to fail a signed request with, or `null` to use its response. Only fails when
+     * signatures are enforced; otherwise a failure is just reported.
+     */
+    @PublishedApi
+    internal fun signatureError(
+        requestData: NetworkRequestData<*>,
+        result: RequestResult,
+    ): NetworkError? {
+        val signed = requestData.signedAs ?: return null
+        val check = responseSignatureCheck ?: return null
+        val apiKey =
+            when (signed.endpoint) {
+                ResponseVerifier.Endpoint.STATIC_CONFIG ->
+                    requestData.components?.queryItems?.firstOrNull { it.name == "pk" }?.value
+                ResponseVerifier.Endpoint.ENTITLEMENTS ->
+                    ResponseSignatureCheck.bearerToken(result.headers["Authorization"])
+            }
+        return check.check(
+            signed = signed,
+            apiKey = apiKey,
+            nonce = requestData.nonce,
+            signatureHeader = result.signatureHeader,
+            body = result.body ?: result.responseMessage.toByteArray(Charsets.UTF_8),
+        )
+    }
+
     @Throws(NetworkError::class)
     suspend inline fun <reified Response : @Serializable Any> request(
         crossinline buildRequestData: suspend () -> NetworkRequestData<Response>,
@@ -38,6 +71,13 @@ class CustomHttpUrlConnection(
                         interceptors.fold(it, { res, interceptor -> interceptor(res) })
                     } else {
                         it
+                    }
+                }.flatMap { result ->
+                    val signatureFailure = signatureError(requestData, result)
+                    if (signatureFailure != null) {
+                        Either.Failure(signatureFailure)
+                    } else {
+                        Either.Success<RequestResult, NetworkError>(result)
                     }
                 }.flatMap {
                     try {
