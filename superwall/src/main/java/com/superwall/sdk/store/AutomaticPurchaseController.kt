@@ -115,13 +115,12 @@ class AutomaticPurchaseController internal constructor(
         // background. Play doesn't report that as a purchase update, so ask again.
         scope.launch {
             appForegrounded.collect {
-                if (initialSync.isActive) {
-                    // A launch sync that hasn't read the purchases yet covers this foreground.
-                    // One that has may hold a read from before the app went to the background
-                    // while it waits for the config, so read again once it has finished.
-                    if (!launchSyncReadStarted) return@collect
-                    initialSync.join()
-                }
+                // A launch sync that hasn't read the purchases yet covers this foreground. One
+                // that has may hold a read from before the app went to the background while it
+                // waits for the config, so read again. Don't wait for it to finish first: with
+                // an active purchase it waits until the config is retrieved, which a failed
+                // config may never be. Whichever finishes last, the older read isn't published.
+                if (initialSync.isActive && !launchSyncReadStarted) return@collect
                 syncSubscriptionStatus()
             }
         }

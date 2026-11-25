@@ -242,7 +242,7 @@ class AutomaticPurchaseControllerTest {
         }
 
     @Test
-    fun `a foreground after the launch sync read the purchases reads them again`() =
+    fun `a foreground after the launch sync read the purchases reads them again without waiting for it`() =
         runTest {
             hasInitialized().value = true
             try {
@@ -254,19 +254,61 @@ class AutomaticPurchaseControllerTest {
                     advanceUntilIdle()
                     coVerify(exactly = 1) { store.activePurchases() }
 
-                    When("the app returns to the foreground and the config then arrives") {
+                    When("the app returns to the foreground before the config arrives") {
                         foregrounded.emit(Unit)
                         advanceUntilIdle()
-                        coVerify(exactly = 1) { store.activePurchases() }
-                        configuration.value = ConfigurationStatus.Configured
-                        advanceUntilIdle()
 
-                        Then("Play is asked for the purchases again once the launch sync has finished") {
+                        Then("Play is asked for the purchases again straight away") {
                             coVerify(exactly = 2) { store.activePurchases() }
                         }
                     }
                 }
             } finally {
+                hasInitialized().value = false
+            }
+        }
+
+    @Test
+    fun `a subscription that ended in the background is noticed when the config failed`() =
+        runTest {
+            hasInitialized().value = true
+            Superwall.initialized = true
+            try {
+                Given("a launch sync that read an active subscription, and a config that failed") {
+                    val store = store(listOf(purchase("a", acknowledged = true)))
+                    every { entitlements.byProductId(any()) } returns setOf(Entitlement("pro"))
+                    val configuration = MutableStateFlow<ConfigurationStatus>(ConfigurationStatus.Failed)
+                    val foregrounded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+                    val published = mutableListOf<SubscriptionStatus>()
+                    makeController(store, foregrounded, configuration, setSubscriptionStatus = { published += it })
+                    advanceUntilIdle()
+                    assertTrue(published.isEmpty())
+
+                    When("the subscription ends in the background and the app is foregrounded twice") {
+                        coEvery { store.activePurchases() } returns Result.success(emptyList())
+                        foregrounded.emit(Unit)
+                        advanceUntilIdle()
+                        val afterFirstForeground = published.toList()
+                        foregrounded.emit(Unit)
+                        advanceUntilIdle()
+
+                        Then("each foreground reads Play and publishes that nothing is active") {
+                            coVerify(exactly = 3) { store.activePurchases() }
+                            assertEquals(1, afterFirstForeground.size)
+                            assertTrue(afterFirstForeground.single() !is SubscriptionStatus.Active)
+                            assertEquals(2, published.size)
+                        }
+
+                        And("the launch sync's older read is dropped when the config finally arrives") {
+                            configuration.value = ConfigurationStatus.Configured
+                            advanceUntilIdle()
+                            assertEquals(2, published.size)
+                            assertTrue(published.none { it is SubscriptionStatus.Active })
+                        }
+                    }
+                }
+            } finally {
+                Superwall.initialized = false
                 hasInitialized().value = false
             }
         }
