@@ -5,6 +5,7 @@ import android.view.View
 import android.webkit.WebView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.children
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -17,6 +18,7 @@ import com.dropbox.dropshots.Dropshots
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.superapp.MainActivity
 import com.superwall.superapp.test.EventTimeline
@@ -130,8 +132,10 @@ fun Dropshots.screenshotFlow(
     println("Description:\n ${testCase.description}")
     println("-----------")
     val testReady = MutableStateFlow(false)
-    // launch() has already waited for the activity to resume. Asking for STARTED again fails when
-    // a paywall shown at app launch has covered it in the meantime.
+    // Moving the resumed activity down to STARTED puts ActivityScenario's empty floating activity
+    // on top of it, which dims the screen. The baselines of the app without a paywall were taken
+    // that way. It can't be done when a paywall shown at app launch already covers the activity.
+    runCatching { scenario.moveToState(Lifecycle.State.STARTED) }
     val scope = CoroutineScope(Dispatchers.IO)
     scenario.onActivity {
         val ctx = it
@@ -302,16 +306,17 @@ suspend fun goBack() {
 }
 
 /**
- * Presses back on a paywall and waits for it to close. The SDK hands the press to the paywall's
- * page, which answers by closing, so the paywall is still on screen for a moment afterwards.
- * Fails when it hasn't closed within [timeout].
+ * Closes the paywall and waits for the close event, so what follows doesn't race the dismissal.
+ *
+ * This doesn't press back. The SDK hands a back press to the paywall's page to answer, and a
+ * paywall built on a runtime from before `back_button_input` ignores it and stays up.
  */
 @UiTestDSL
-suspend fun UITestInfo.goBackAndAwaitPaywallClose(timeout: Duration = 10.seconds) {
-    goBack()
+suspend fun UITestInfo.dismissPaywallAndAwaitClose(timeout: Duration = 10.seconds) {
+    Superwall.instance.dismiss()
     timeline.awaitEvent(timeout) { it is SuperwallEvent.PaywallClose }
         ?: throw AssertionError(
-            "The paywall didn't close within $timeout of pressing back. Recorded: ${timeline.eventNames()}",
+            "The paywall didn't close within $timeout of being dismissed. Recorded: ${timeline.eventNames()}",
         )
 }
 

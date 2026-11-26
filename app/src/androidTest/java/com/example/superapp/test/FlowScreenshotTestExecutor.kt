@@ -14,8 +14,8 @@ import com.example.superapp.utils.awaitUntilShimmerDisappears
 import com.example.superapp.utils.awaitUntilWebviewAppears
 import com.example.superapp.utils.clickButtonWith
 import com.example.superapp.utils.delayFor
+import com.example.superapp.utils.dismissPaywallAndAwaitClose
 import com.example.superapp.utils.goBack
-import com.example.superapp.utils.goBackAndAwaitPaywallClose
 import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
@@ -226,7 +226,7 @@ class FlowScreenshotTestExecutor {
                     delayFor(300.milliseconds)
                 }
                 step {
-                    it.goBackAndAwaitPaywallClose()
+                    it.dismissPaywallAndAwaitClose()
                     Superwall.instance.register(placement = "one_time_occurrence")
                     delayFor(300.milliseconds)
                 }
@@ -244,7 +244,7 @@ class FlowScreenshotTestExecutor {
                     delayFor(300.milliseconds)
                 }
                 step {
-                    it.goBackAndAwaitPaywallClose()
+                    it.dismissPaywallAndAwaitClose()
                     Superwall.instance.register(placement = "once_a_minute")
                     delayFor(300.milliseconds)
                 }
