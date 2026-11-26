@@ -376,4 +376,59 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
                 expressionEvaluator.evaluateExpression(rule = ruleExpecting(days = 0), eventData = evaluating),
             )
         }
+
+    // A placement that has never happened has no time since it, so a filter that
+    // compares it doesn't match, whichever way the comparison goes.
+    @Test
+    fun test_time_since_a_placement_that_never_happened() =
+        runTest(timeout = 5.minutes) {
+            val evaluating =
+                EventData(
+                    name = "app_open",
+                    parameters = emptyMap(),
+                    createdAt = Date(),
+                )
+            val storage = mockk<CoreDataManager>()
+            coEvery { storage.getComputedPropertySinceEvent(any(), any()) } returns null
+
+            val expressionEvaluator =
+                evaluatorFor(
+                    storage = storage,
+                    factoryBuilder = attributesFactory,
+                )
+
+            for (comparison in listOf("< 7", ">= 7", "== 0")) {
+                val expression = "device.daysSince(\"paywall_decline\") $comparison"
+                val rule =
+                    TriggerRule(
+                        experimentId = "1",
+                        experimentGroupId = "2",
+                        variants =
+                            listOf(
+                                VariantOption(
+                                    type = Experiment.Variant.VariantType.HOLDOUT,
+                                    id = "3",
+                                    percentage = 20,
+                                    paywallId = null,
+                                ),
+                            ),
+                        expressionCEL = expression,
+                        expressionJs = null,
+                        preload =
+                            TriggerRule.TriggerPreload(
+                                behavior = TriggerPreloadBehavior.ALWAYS,
+                                requiresReEvaluation = false,
+                            ),
+                    )
+
+                assertEquals(
+                    expression,
+                    TriggerRuleOutcome.noMatch(
+                        source = UnmatchedRule.Source.EXPRESSION,
+                        experimentId = "1",
+                    ),
+                    expressionEvaluator.evaluateExpression(rule = rule, eventData = evaluating),
+                )
+            }
+        }
 }
