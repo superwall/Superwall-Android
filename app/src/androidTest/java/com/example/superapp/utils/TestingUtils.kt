@@ -244,8 +244,14 @@ suspend fun awaitPaywallView(timeout: Duration = 60.seconds) {
     } ?: throw AssertionError("No paywall was on screen within $timeout.")
 }
 
+/**
+ * Waits for the paywall's loading placeholder to go. It waits for the paywall to be on screen
+ * first: with none there yet there is no placeholder either, and returning at that point let a
+ * step that starts with this capture the placeholder a moment later.
+ */
 @UiTestDSL
 suspend fun CoroutineScope.awaitUntilShimmerDisappears(): Boolean {
+    awaitPaywallView()
     while (getShimmerFromPaywall()?.visibility == View.VISIBLE) {
         delayFor(100.milliseconds)
     }
