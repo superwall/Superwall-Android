@@ -12,8 +12,10 @@ also check the events the SDK reported.
 - **Google Play, signed in to a Google account.** Most paywalls load products from Play. Without an
   account the SDK doesn't present them, and the test fails with the reason, for example
   `The paywall wasn't presented: no_presentation (… No Google account found …)`. So use a
-  "Google Play" system image and sign in once. A plain CI emulator can't run these tests, which
-  is why CI uses Firebase Test Lab.
+  "Google Play" system image and sign in once, by hand or with `scripts/play_login.sh`, which
+  runs the Maestro login flow with `TEST_USER` and `TEST_PW` from the environment or a
+  git-ignored `.env` in the repository root. A plain CI emulator can't run these tests, which is
+  why CI uses Firebase Test Lab, whose devices are signed in already.
 
 ### Devices and baselines
 
