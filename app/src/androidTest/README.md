@@ -54,8 +54,7 @@ To run one class or test, add
 
 The report is in `app/build/reports/androidTests/connected`. For every failed comparison,
 `app/build/outputs/androidTest-results/connected/debug` holds the screen as it was captured
-(`reference/`) and the baseline, the capture and their difference side by side (`diff/`). In CI
-both folders are in the `screenshot-test-results` artifact.
+(`reference/`) and the baseline, the capture and their difference side by side (`diff/`).
 
 ### Recording baselines
 
@@ -64,11 +63,6 @@ On a connected device, for its own profile:
 ```bash
 ./gradlew :app:recordDebugAndroidTestScreenshots
 ```
-
-For the emulator baselines, prefer the captures from CI over ones from a laptop, so they come
-from the emulator that checks them: download the `screenshot-test-results` artifact of the failed
-`Screenshot tests` run and copy its `reference/` images into `screenshots/`. An emulator on an
-Apple Silicon Mac can render a WebView slightly differently from the x86_64 one in CI.
 
 The Pixel 7 baselines can also be taken from a Firebase Test Lab run, without having the phone.
 A failed comparison leaves the captured screen in the run's results bucket, so after a run that
