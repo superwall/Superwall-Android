@@ -20,6 +20,7 @@ In CI the tests run on Firebase Test Lab, on a physical Pixel 7 that is already 
 pull requests into `main`. There is also a `Screenshot tests` workflow that runs them on a Google
 Play emulator it signs in with that script, but it is manual only: from a GitHub-hosted runner
 Google asks the test account for an extra verification step, which the login flow can't answer.
+Firebase's virtual devices can't run the tests either: Play billing is unavailable on them.
 
 ### Devices and baselines
 
