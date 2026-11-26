@@ -9,6 +9,7 @@ import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
 import com.example.superapp.utils.DeviceStateRule
+import com.example.superapp.utils.awaitPaywallView
 import com.example.superapp.utils.awaitUntilDialogAppears
 import com.example.superapp.utils.awaitUntilShimmerDisappears
 import com.example.superapp.utils.awaitUntilWebviewAppears
@@ -189,6 +190,7 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test63Info) {
                 step {
+                    awaitPaywallView()
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     clickButtonWith("Restore")
@@ -221,6 +223,7 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.testAndroid9Info) {
                 step {
+                    awaitPaywallView()
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(300.milliseconds)
@@ -239,6 +242,7 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.testAndroid18Info) {
                 step {
+                    awaitPaywallView()
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(300.milliseconds)
