@@ -127,13 +127,21 @@ class PaywallActivityInsetsTest {
         }
         assertTrue("The device must have a bottom navigation bar", bottomInset > 0)
 
-        val bitmap = instrumentation.uiAutomation.takeScreenshot()!!
-        File(context.getExternalFilesDir(null), "interface-style-${override.rawValue}.png").outputStream().use {
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
-        }
-        // Left edge of the strip, clear of the navigation buttons and the gesture handle.
-        val pixel = bitmap.getPixel(4, bitmap.height - bottomInset / 2)
-        bitmap.recycle()
+        // The screen can still be fading in a second after launch on a slow emulator, where the
+        // strip reads darker than its colour (#060606 for #0e0e0e). Sample until it matches, and
+        // judge the last sample.
+        var pixel = 0
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        do {
+            val bitmap = instrumentation.uiAutomation.takeScreenshot()!!
+            File(context.getExternalFilesDir(null), "interface-style-${override.rawValue}.png").outputStream().use {
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+            }
+            // Left edge of the strip, clear of the navigation buttons and the gesture handle.
+            pixel = bitmap.getPixel(4, bitmap.height - bottomInset / 2)
+            bitmap.recycle()
+            if (pixel != expected) SystemClock.sleep(250)
+        } while (pixel != expected && SystemClock.uptimeMillis() < deadline)
         assertEquals(
             "navigation bar strip is #${Integer.toHexString(pixel)}, expected #${Integer.toHexString(expected)}",
             expected,
