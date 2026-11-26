@@ -15,6 +15,7 @@ import com.example.superapp.utils.awaitUntilWebviewAppears
 import com.example.superapp.utils.clickButtonWith
 import com.example.superapp.utils.delayFor
 import com.example.superapp.utils.goBack
+import com.example.superapp.utils.goBackAndAwaitPaywallClose
 import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
@@ -78,13 +79,15 @@ class FlowScreenshotTestExecutor {
     fun test_paywall_reappers_with_video() =
         with(dropshots) {
             screenshotFlow(UITestHandler.test4Info) {
-                step("first_paywall") {
+                // The video never stops changing and the test case closes the paywall by itself,
+                // so don't wait for the screen to settle.
+                step("first_paywall", settleTimeout = 300.milliseconds) {
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(500.milliseconds)
                 }
-                step("second_paywall") {
+                step("second_paywall", settleTimeout = 300.milliseconds) {
                     it.waitFor { it is SuperwallEvent.PaywallOpen }
                     awaitUntilWebviewAppears()
                     delayFor(2.seconds)
@@ -223,7 +226,7 @@ class FlowScreenshotTestExecutor {
                     delayFor(300.milliseconds)
                 }
                 step {
-                    goBack()
+                    it.goBackAndAwaitPaywallClose()
                     Superwall.instance.register(placement = "one_time_occurrence")
                     delayFor(300.milliseconds)
                 }
@@ -241,7 +244,7 @@ class FlowScreenshotTestExecutor {
                     delayFor(300.milliseconds)
                 }
                 step {
-                    goBack()
+                    it.goBackAndAwaitPaywallClose()
                     Superwall.instance.register(placement = "once_a_minute")
                     delayFor(300.milliseconds)
                 }

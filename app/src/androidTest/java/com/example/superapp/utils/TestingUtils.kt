@@ -5,7 +5,6 @@ import android.view.View
 import android.webkit.WebView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.children
-import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -55,11 +54,16 @@ class ScreenshotTestFlow(
      * [timeline], when given, is checked against the events recorded so far before the
      * screenshot is compared. Both are always checked, so a failure reports what the SDK did
      * as well as what the screen looked like.
+     *
+     * [settleTimeout] is how long to wait for the screen to stop changing. Shorten it for a
+     * screen that never does, such as a video, when the test moves on by itself: the default
+     * would capture whatever is showing five seconds later.
      */
     @ScreenshotTestDSL
     fun step(
         name: String? = null,
         timeline: (EventTimeline.() -> Unit)? = null,
+        settleTimeout: Duration = 5.seconds,
         action: suspend CoroutineScope.(UITestInfo) -> Unit,
     ) {
         val stepName = name ?: "step_${steps.size + 1}"
@@ -75,7 +79,7 @@ class ScreenshotTestFlow(
                 )
 
                 action(et, it)
-                val frame = awaitScreenSettled()
+                val frame = awaitScreenSettled(timeout = settleTimeout)
                 val timelineFailure = runCatching { timeline?.invoke(testInfo.timeline) }.exceptionOrNull()
                 Log.e("Testing Flow", "Taking screenshot of $step")
                 // A screenshot failure says the screen was wrong. The events say how it got there.
@@ -126,7 +130,8 @@ fun Dropshots.screenshotFlow(
     println("Description:\n ${testCase.description}")
     println("-----------")
     val testReady = MutableStateFlow(false)
-    scenario.moveToState(Lifecycle.State.STARTED)
+    // launch() has already waited for the activity to resume. Asking for STARTED again fails when
+    // a paywall shown at app launch has covered it in the meantime.
     val scope = CoroutineScope(Dispatchers.IO)
     scenario.onActivity {
         val ctx = it
@@ -171,16 +176,31 @@ fun Dropshots.screenshotFlow(
 fun Dropshots.paywallPresentsFor(
     testInfo: UITestInfo,
     config: FlowTestConfiguration = FlowTestConfiguration(),
+    /**
+     * The paywall is shown by the app launching, not by the test case. Its first events, the
+     * open among them, can then fire before the test starts recording, so only the page having
+     * loaded is asserted.
+     */
+    presentedAtLaunch: Boolean = false,
 ) {
     screenshotFlow(testInfo, config) {
-        step("", timeline = { assertPaywallPresented() }) {
+        step(
+            "",
+            timeline = {
+                if (presentedAtLaunch) {
+                    assertContains<SuperwallEvent.PaywallWebviewLoadComplete>()
+                } else {
+                    assertPaywallPresented()
+                }
+            },
+        ) {
             it.timeline.awaitPaywallLoaded()
             awaitUntilShimmerDisappears()
             awaitUntilWebviewAppears()
             // The load event comes before the page's fonts and images, and the open event can
             // come after it. The step then waits for the screen to stop changing.
             awaitPaywallContentReady()
-            it.timeline.awaitEvent { it is SuperwallEvent.PaywallOpen }
+            if (!presentedAtLaunch) it.timeline.awaitEvent { it is SuperwallEvent.PaywallOpen }
         }
     }
 }
@@ -279,6 +299,20 @@ suspend fun setInput(text: String) {
 suspend fun goBack() {
     val device = UiDevice.getInstance(getInstrumentation())
     device.pressBack()
+}
+
+/**
+ * Presses back on a paywall and waits for it to close. The SDK hands the press to the paywall's
+ * page, which answers by closing, so the paywall is still on screen for a moment afterwards.
+ * Fails when it hasn't closed within [timeout].
+ */
+@UiTestDSL
+suspend fun UITestInfo.goBackAndAwaitPaywallClose(timeout: Duration = 10.seconds) {
+    goBack()
+    timeline.awaitEvent(timeout) { it is SuperwallEvent.PaywallClose }
+        ?: throw AssertionError(
+            "The paywall didn't close within $timeout of pressing back. Recorded: ${timeline.eventNames()}",
+        )
 }
 
 @UiTestDSL

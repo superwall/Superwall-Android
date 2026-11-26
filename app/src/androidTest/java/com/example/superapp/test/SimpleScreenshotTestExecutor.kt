@@ -9,6 +9,7 @@ import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
 import com.example.superapp.utils.DeviceStateRule
+import com.example.superapp.utils.configureWithManualSubscriptionStatus
 import com.example.superapp.utils.FlowTestConfiguration
 import com.example.superapp.utils.awaitUntilDialogAppears
 import com.example.superapp.utils.awaitUntilShimmerDisappears
@@ -59,14 +60,8 @@ class SimpleScreenshotTestExecutor {
 
     @Before
     fun setup() {
-        Superwall.configure(
-            getInstrumentation().targetContext.applicationContext as Application,
-            Keys.CONSTANT_API_KEY,
-            options =
-                SuperwallOptions().apply {
-                    paywalls.shouldPreload = false
-                },
-        )
+        // These tests set the subscription status themselves. See ManualSubscriptionPurchaseController.
+        configureWithManualSubscriptionStatus()
     }
 
     @Test

@@ -71,7 +71,7 @@ class AlternativeSetupTest {
                         paywalls.shouldPreload = false
                     },
             )
-            paywallPresentsFor(UITestHandler.test52Info)
+            paywallPresentsFor(UITestHandler.test52Info, presentedAtLaunch = true)
         }
 
     @Test
@@ -85,7 +85,7 @@ class AlternativeSetupTest {
                         paywalls.shouldPreload = false
                     },
             )
-            paywallPresentsFor(UITestHandler.test53Info)
+            paywallPresentsFor(UITestHandler.test53Info, presentedAtLaunch = true)
         }
     /*
     Flaky test due to using old paywall
