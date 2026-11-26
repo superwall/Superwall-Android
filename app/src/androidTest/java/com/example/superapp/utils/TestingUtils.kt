@@ -36,6 +36,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
 import java.util.LinkedList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -181,24 +183,15 @@ fun Dropshots.paywallPresentsFor(
     testInfo: UITestInfo,
     config: FlowTestConfiguration = FlowTestConfiguration(),
     /**
-     * The paywall is shown by the app launching, not by the test case. Its first events, the
-     * open among them, can then fire before the test starts recording, so only the page having
-     * loaded is asserted.
+     * The paywall is shown by the app launching, not by the test case. Any of its events, up to
+     * and including the page load, can then fire before the test starts recording, so the
+     * events aren't asserted and the paywall's view is waited for instead.
      */
     presentedAtLaunch: Boolean = false,
 ) {
     screenshotFlow(testInfo, config) {
-        step(
-            "",
-            timeline = {
-                if (presentedAtLaunch) {
-                    assertContains<SuperwallEvent.PaywallWebviewLoadComplete>()
-                } else {
-                    assertPaywallPresented()
-                }
-            },
-        ) {
-            it.timeline.awaitPaywallLoaded()
+        step("", timeline = if (presentedAtLaunch) null else ({ assertPaywallPresented() })) {
+            if (presentedAtLaunch) awaitPaywallView() else it.timeline.awaitPaywallLoaded()
             awaitUntilShimmerDisappears()
             awaitUntilWebviewAppears()
             // The load event comes before the page's fonts and images, and the open event can
@@ -239,6 +232,16 @@ fun Dropshots.paywallDoesntPresentForNoConfig(
             delayFor(1.seconds)
         }
     }
+}
+
+/** Waits until a paywall is on screen, going by its view where the events can't be relied on. */
+@UiTestDSL
+suspend fun awaitPaywallView(timeout: Duration = 60.seconds) {
+    withContext(Dispatchers.Default) {
+        withTimeoutOrNull(timeout) {
+            while (getWebviewFromPaywall()?.isShown != true) delay(100.milliseconds)
+        }
+    } ?: throw AssertionError("No paywall was on screen within $timeout.")
 }
 
 @UiTestDSL
