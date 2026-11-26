@@ -4,7 +4,7 @@ name: Firebase trial
 # changes to those tests on a device with Play billing (that workflow only runs on PRs into main).
 #
 # Runs only on pushes to the trial branch that touch this file. Delete it once the results are in.
-# Run 4: dimmed launch state restored, limit tests dismiss the paywall, colour tolerance.
+# Run 5: launch-presented paywalls are waited for by their view.
 
 on:
   push:
