@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fixes audience filters for the time since a placement reading zero when they're checked for that same placement. They now measure from the time before it.
+- Fixes audience filters for the time since a placement matching for users who have never triggered that placement.
 
 ## 2.11.0
 

@@ -340,7 +340,7 @@ class CELHostContextTest {
                         val resultSlot = slot<String>()
                         verify { callback.onResult(capture(resultSlot)) }
 
-                        val expectedResult = json.encodeToString(PassableValue.IntValue(0))
+                        val expectedResult = json.encodeToString<PassableValue>(PassableValue.NullValue)
                         assertEquals(expectedResult, resultSlot.captured)
                     }
                 }
@@ -425,11 +425,11 @@ class CELHostContextTest {
                 When("deviceProperty is called with hoursSince function") {
                     superscriptHostContext.deviceProperty("hoursSince", args, callback)
 
-                    Then("it should return IntValue with 0") {
+                    Then("it should return NullValue") {
                         val resultSlot = slot<String>()
                         verify { callback.onResult(capture(resultSlot)) }
 
-                        val expectedResult = json.encodeToString(PassableValue.IntValue(0))
+                        val expectedResult = json.encodeToString<PassableValue>(PassableValue.NullValue)
                         assertEquals(expectedResult, resultSlot.captured)
                     }
                 }
@@ -609,6 +609,67 @@ class CELHostContextTest {
                         val resultSlot = slot<String>()
                         verify { callback.onResult(capture(resultSlot)) }
                         assertEquals(json.encodeToString(PassableValue.IntValue(45)), resultSlot.captured)
+                    }
+                }
+            }
+        }
+
+    // A placement that has never happened has no time since it. Answering zero
+    // would make "less than a week ago" match for someone who never did it.
+    @Test
+    fun test_deviceProperty_daysSince_hasNoValueWhenAnotherPlacementNeverHappened() =
+        runTest {
+            Given("a host context for a placement other than the one asked about") {
+                val evaluating =
+                    EventData(
+                        name = "app_open",
+                        parameters = emptyMap(),
+                        createdAt = Date(),
+                    )
+                val args = json.encodeToString(listOf(PassableValue.StringValue("paywall_decline")))
+                val callback = mockk<ResultCallback>(relaxed = true)
+                coEvery { storage.getComputedPropertySinceEvent(evaluating, any()) } returns null
+                val hostContext = SuperscriptHostContext(json, storage, evaluating)
+
+                When("daysSince is asked for a placement that has never happened") {
+                    hostContext.deviceProperty("daysSince", args, callback)
+
+                    Then("the answer has no value") {
+                        val resultSlot = slot<String>()
+                        verify { callback.onResult(capture(resultSlot)) }
+                        assertEquals(
+                            json.encodeToString<PassableValue>(PassableValue.NullValue),
+                            resultSlot.captured,
+                        )
+                    }
+                }
+            }
+        }
+
+    // The placement being checked is happening now, so the first time it reads
+    // zero rather than having no value.
+    @Test
+    fun test_deviceProperty_daysSince_isZeroTheFirstTimeThePlacementHappens() =
+        runTest {
+            Given("a host context for the first time a placement happens") {
+                val evaluating =
+                    EventData(
+                        name = "paywall_decline",
+                        parameters = emptyMap(),
+                        createdAt = Date(),
+                    )
+                val args = json.encodeToString(listOf(PassableValue.StringValue("paywall_decline")))
+                val callback = mockk<ResultCallback>(relaxed = true)
+                coEvery { storage.getComputedPropertySinceEvent(evaluating, any()) } returns null
+                val hostContext = SuperscriptHostContext(json, storage, evaluating)
+
+                When("daysSince is asked for that same placement") {
+                    hostContext.deviceProperty("daysSince", args, callback)
+
+                    Then("the answer is zero") {
+                        val resultSlot = slot<String>()
+                        verify { callback.onResult(capture(resultSlot)) }
+                        assertEquals(json.encodeToString(PassableValue.IntValue(0)), resultSlot.captured)
                     }
                 }
             }

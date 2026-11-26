@@ -200,23 +200,32 @@ sealed interface TimeSince {
     val event: String
     val propertyRequest: ComputedPropertyRequestType
 
-    suspend operator fun invoke(storage: CoreDataManager): Int = timeSince(storage, evaluating = null)
+    suspend operator fun invoke(storage: CoreDataManager): Int = timeSince(storage, evaluating = null) ?: 0
 }
 
+// The time since the placement last happened, or null if it never has. Without a
+// value an audience filter that compares it doesn't match.
+//
 // `evaluating` is the placement the audience filter is being checked for. It has
 // already been saved, so the time since that same placement is measured from the
-// one before it.
+// one before it. The first time it happens there's none before it, so it reads zero.
 internal suspend fun TimeSince.timeSince(
     storage: CoreDataManager,
     evaluating: EventData?,
-): Int =
-    storage.getComputedPropertySinceEvent(
-        evaluating,
-        ComputedPropertyRequest(
-            propertyRequest,
-            event,
-        ),
-    ) ?: 0
+): Int? {
+    val sinceLast =
+        storage.getComputedPropertySinceEvent(
+            evaluating,
+            ComputedPropertyRequest(
+                propertyRequest,
+                event,
+            ),
+        )
+    if (sinceLast == null && evaluating?.name == event) {
+        return 0
+    }
+    return sinceLast
+}
 
 sealed interface InPeriod {
     enum class Period {
