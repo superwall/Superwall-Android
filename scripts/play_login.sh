@@ -34,7 +34,9 @@ for tool in adb maestro; do
 done
 
 has_google_account() {
-  adb shell dumpsys account | grep -q "type=com.google}"
+  # "Account {name=…, type=com.google}". The authenticator is listed with the same type on
+  # every device, so match the account line only.
+  adb shell dumpsys account | grep -q "Account {.*type=com.google}"
 }
 
 if has_google_account; then
@@ -46,16 +48,39 @@ if ! adb shell pm list packages | grep -q "com.android.vending"; then
   exit 1
 fi
 
-# ${device[@]+...} below: bash 3.2 on macOS treats an empty array as unset under `set -u`.
+# Keeping the credentials out of sight:
+# - They go to Maestro as MAESTRO_* environment variables, not as -e arguments, which any
+#   process on the machine could read from the process list.
+# - Maestro's console output shows the variable names, not the values. But its debug folder
+#   (commands.json, maestro.log, the screen hierarchy) holds what was typed in plain text, so it
+#   is sent to a temporary folder that is always deleted. Only the screenshots are kept after a
+#   failure; they can show the email address, and the password field as dots.
+debug=$(mktemp -d)
+kept=build/play-login
+cleanup() {
+  status=$?
+  if [ "$status" -ne 0 ] && [ -d "$debug" ]; then
+    rm -rf "$kept" && mkdir -p "$kept"
+    find "$debug" -name '*.png' -exec cp {} "$kept/" \; 2>/dev/null || true
+    echo "Screenshots of the failed sign-in are in $kept." >&2
+  fi
+  rm -rf "$debug"
+  exit "$status"
+}
+trap cleanup EXIT
+
 # The flow starts by tapping the Play Store icon on the home screen.
 adb shell input keyevent KEYCODE_HOME
+# ${device[@]+...}: bash 3.2 on macOS treats an empty array as unset under `set -u`.
 device=()
 [ -n "${ANDROID_SERIAL:-}" ] && device=(--device "$ANDROID_SERIAL")
-maestro ${device[@]+"${device[@]}"} test -e "TEST_USER=$TEST_USER" -e "TEST_PW=$TEST_PW" test_app/maestro/login.yaml
+MAESTRO_TEST_USER="$TEST_USER" MAESTRO_TEST_PW="$TEST_PW" \
+  maestro ${device[@]+"${device[@]}"} test --debug-output "$debug" --flatten-debug-output \
+  test_app/maestro/login_from_env.yaml
 
 if ! has_google_account; then
   echo "The flow finished but the device has no Google account. Google may have asked for a" >&2
-  echo "verification step; look at the emulator, or at the screenshot under ~/.maestro/tests." >&2
+  echo "verification step; look at the emulator." >&2
   exit 1
 fi
 echo "Signed in."

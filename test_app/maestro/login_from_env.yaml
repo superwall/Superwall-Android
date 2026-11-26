@@ -1,0 +1,10 @@
+appId: com.superwall.superapp
+---
+# Runs login.yaml with the credentials taken from the MAESTRO_TEST_USER and MAESTRO_TEST_PW
+# environment variables, which Maestro reads by itself. scripts/play_login.sh uses this so the
+# password is never on a command line, where other processes could read it.
+- runFlow:
+    file: login.yaml
+    env:
+      TEST_USER: ${MAESTRO_TEST_USER}
+      TEST_PW: ${MAESTRO_TEST_PW}
