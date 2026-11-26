@@ -16,9 +16,10 @@ also check the events the SDK reported.
   runs the Maestro login flow with `TEST_USER` and `TEST_PW` from the environment or a
   git-ignored `.env` in the repository root.
 
-In CI the tests run in two places. The `Screenshot tests` workflow runs them on every pull request
-into `develop`, on a Google Play emulator it signs in with that script. Firebase Test Lab runs them
-on a physical Pixel 7, which is already signed in, on pull requests into `main`.
+In CI the tests run on Firebase Test Lab, on a physical Pixel 7 that is already signed in, for
+pull requests into `main`. There is also a `Screenshot tests` workflow that runs them on a Google
+Play emulator it signs in with that script, but it is manual only: from a GitHub-hosted runner
+Google asks the test account for an extra verification step, which the login flow can't answer.
 
 ### Devices and baselines
 
@@ -28,7 +29,7 @@ profile is picked from the device a test runs on (`ScreenshotDevice`):
 
 | Profile | Baseline prefix | Used by |
 | --- | --- | --- |
-| `emulator` | `Emulator_Pixel_7_API_33_` | any API 33 emulator: local runs and the `Screenshot tests` workflow |
+| `emulator` | `Emulator_Pixel_7_API_33_` | any API 33 emulator: local runs, and the manual `Screenshot tests` workflow |
 | `pixel_7` | `Google_Pixel_7_` | a physical Pixel 7, which is what Firebase Test Lab runs in CI |
 
 You don't need a particular emulator or to set it up by hand. `DeviceStateRule` puts the device in

@@ -42,7 +42,7 @@ This is the Superwall Android SDK - an open-source framework for remotely config
 - Unit tests: `./gradlew :superwall:test`
 - Integration tests: `./gradlew :app:connectedCheck`
 - Screenshot tests use Dropshot library for UI regression testing
-- Screenshot tests run on any API 33 emulator with Google Play signed in (`DeviceStateRule` forces the screen size, density and settings). Paywalls with products don't present without a Play account, so the device must be signed in: `scripts/play_login.sh` does it with the Maestro login flow. CI runs them on a signed-in Play emulator for PRs into `develop` (`screenshot-tests.yml`) and on Firebase Test Lab for PRs into `main`
+- Screenshot tests run on any API 33 emulator with Google Play signed in (`DeviceStateRule` forces the screen size, density and settings). Paywalls with products don't present without a Play account, so the device must be signed in: `scripts/play_login.sh` does it with the Maestro login flow. CI runs them on Firebase Test Lab for PRs into `main`. `screenshot-tests.yml` runs them on a Play emulator but is manual only, because Google asks for extra verification when the test account signs in from a GitHub-hosted runner
 - Baselines are per device profile (`Emulator_Pixel_7_API_33_*` for emulators, `Google_Pixel_7_*` for the physical Pixel 7 on Firebase Test Lab), picked from the device by `ScreenshotDevice`. See `app/src/androidTest/README.md`
 
 ## Architecture Overview

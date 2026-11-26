@@ -8,11 +8,14 @@ name: Screenshot tests
 # secrets. See that script for how they are kept out of logs and files; nothing from the
 # sign-in is uploaded, as its screenshots can show the account's email address.
 #
+# Manual only for now. Run from a GitHub-hosted runner, Google asks the test account for an extra
+# verification step after the password, which the login flow can't answer. Every run is another
+# sign-in attempt, so this isn't triggered by pull requests until the job runs somewhere Google
+# accepts: a self-hosted runner, or an account Google trusts from these addresses.
+#
 # The physical Pixel 7 on Firebase Test Lab (build+test.yml) stays the check before a release.
 
 on:
-  pull_request:
-    branches: [ develop ]
   workflow_dispatch:
 
 concurrency:
@@ -30,8 +33,6 @@ jobs:
   screenshots:
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    # Pull requests from forks don't get the secrets, and can't sign in.
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
 
     steps:
     - name: Checkout code
