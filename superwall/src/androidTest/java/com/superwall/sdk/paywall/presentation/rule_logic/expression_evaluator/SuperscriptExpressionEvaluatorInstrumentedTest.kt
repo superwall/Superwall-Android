@@ -13,6 +13,7 @@ import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.storage.core_data.CoreDataManager
+import io.mockk.coEvery
 import io.mockk.mockk
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
@@ -315,5 +316,64 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
                 )
 
             assertEquals(TriggerRuleOutcome.match(rule = rule), result)
+        }
+
+    // "Days since" for the placement the filter is being checked for is the time
+    // since the one before it, not since the one that has just been tracked.
+    @Test
+    fun test_time_since_the_placement_being_checked() =
+        runTest(timeout = 5.minutes) {
+            val evaluating =
+                EventData(
+                    name = "paywall_decline",
+                    parameters = emptyMap(),
+                    createdAt = Date(),
+                )
+            // Storage answers 10 days when it's told which placement to skip, and 0
+            // when it isn't, as it would with the placement already saved.
+            val storage = mockk<CoreDataManager>()
+            coEvery { storage.getComputedPropertySinceEvent(null, any()) } returns 0
+            coEvery { storage.getComputedPropertySinceEvent(evaluating, any()) } returns 10
+
+            val expressionEvaluator =
+                evaluatorFor(
+                    storage = storage,
+                    factoryBuilder = attributesFactory,
+                )
+
+            fun ruleExpecting(days: Int) =
+                TriggerRule(
+                    experimentId = "1",
+                    experimentGroupId = "2",
+                    variants =
+                        listOf(
+                            VariantOption(
+                                type = Experiment.Variant.VariantType.HOLDOUT,
+                                id = "3",
+                                percentage = 20,
+                                paywallId = null,
+                            ),
+                        ),
+                    expressionCEL = "device.daysSince(\"paywall_decline\") == $days",
+                    expressionJs = null,
+                    preload =
+                        TriggerRule.TriggerPreload(
+                            behavior = TriggerPreloadBehavior.ALWAYS,
+                            requiresReEvaluation = false,
+                        ),
+                )
+
+            val tenDaysRule = ruleExpecting(days = 10)
+            assertEquals(
+                TriggerRuleOutcome.match(rule = tenDaysRule),
+                expressionEvaluator.evaluateExpression(rule = tenDaysRule, eventData = evaluating),
+            )
+            assertEquals(
+                TriggerRuleOutcome.noMatch(
+                    source = UnmatchedRule.Source.EXPRESSION,
+                    experimentId = "1",
+                ),
+                expressionEvaluator.evaluateExpression(rule = ruleExpecting(days = 0), eventData = evaluating),
+            )
         }
 }

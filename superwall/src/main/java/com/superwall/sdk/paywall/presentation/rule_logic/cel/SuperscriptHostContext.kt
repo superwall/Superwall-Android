@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.supercel.HostContext
@@ -11,6 +12,8 @@ import kotlinx.serialization.json.Json
 class SuperscriptHostContext(
     private val json: Json,
     private val storage: CoreDataManager,
+    // The placement the audience filter is being checked for, if there is one.
+    private val eventData: EventData? = null,
 ) : HostContext {
     companion object ComputedProperties {
         val availableComputedProperties =
@@ -40,7 +43,7 @@ class SuperscriptHostContext(
                 val fn = SuperscriptExposedFunction.from(name, _args)
                 when (fn) {
                     null -> null
-                    is TimeSince -> fn(storage)
+                    is TimeSince -> fn(storage, eventData)
                     is SuperscriptExposedFunction.PlacementCount -> fn(storage)
                     is SuperscriptExposedFunction.ReviewRequestCount -> fn(storage)
                     is SuperscriptExposedFunction.RequestReview -> fn(storage)
@@ -70,7 +73,7 @@ class SuperscriptHostContext(
                 val fn = SuperscriptExposedFunction.from(name, _args)
                 when (fn) {
                     null -> null
-                    is TimeSince -> fn(storage)
+                    is TimeSince -> fn(storage, eventData)
                     is SuperscriptExposedFunction.PlacementCount -> fn(storage)
                     is SuperscriptExposedFunction.ReviewRequestCount -> fn(storage)
                     is SuperscriptExposedFunction.RequestReview -> fn(storage)

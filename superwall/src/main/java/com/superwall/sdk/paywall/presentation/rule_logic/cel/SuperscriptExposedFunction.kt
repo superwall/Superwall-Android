@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.ComputedPropertyRequest.ComputedPropertyRequestType
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.InPeriod.Period.*
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptExposedFunction.Names.*
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
@@ -199,9 +200,15 @@ sealed interface TimeSince {
     val event: String
     val propertyRequest: ComputedPropertyRequestType
 
-    suspend operator fun invoke(storage: CoreDataManager): Int =
+    // `evaluating` is the placement the audience filter is being checked for. It has
+    // already been saved, so the time since that same placement is measured from
+    // the one before it.
+    suspend operator fun invoke(
+        storage: CoreDataManager,
+        evaluating: EventData?,
+    ): Int =
         storage.getComputedPropertySinceEvent(
-            null,
+            evaluating,
             ComputedPropertyRequest(
                 propertyRequest,
                 event,
