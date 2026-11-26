@@ -14,8 +14,11 @@ also check the events the SDK reported.
   `The paywall wasn't presented: no_presentation (… No Google account found …)`. So use a
   "Google Play" system image and sign in once, by hand or with `scripts/play_login.sh`, which
   runs the Maestro login flow with `TEST_USER` and `TEST_PW` from the environment or a
-  git-ignored `.env` in the repository root. A plain CI emulator can't run these tests, which is
-  why CI uses Firebase Test Lab, whose devices are signed in already.
+  git-ignored `.env` in the repository root.
+
+In CI the tests run in two places. The `Screenshot tests` workflow runs them on every pull request
+into `develop`, on a Google Play emulator it signs in with that script. Firebase Test Lab runs them
+on a physical Pixel 7, which is already signed in, on pull requests into `main`.
 
 ### Devices and baselines
 
@@ -25,7 +28,7 @@ profile is picked from the device a test runs on (`ScreenshotDevice`):
 
 | Profile | Baseline prefix | Used by |
 | --- | --- | --- |
-| `emulator` | `Emulator_Pixel_7_API_33_` | any API 33 emulator, for local runs |
+| `emulator` | `Emulator_Pixel_7_API_33_` | any API 33 emulator: local runs and the `Screenshot tests` workflow |
 | `pixel_7` | `Google_Pixel_7_` | a physical Pixel 7, which is what Firebase Test Lab runs in CI |
 
 You don't need a particular emulator or to set it up by hand. `DeviceStateRule` puts the device in
@@ -50,7 +53,8 @@ To run one class or test, add
 
 The report is in `app/build/reports/androidTests/connected`. For every failed comparison,
 `app/build/outputs/androidTest-results/connected/debug` holds the screen as it was captured
-(`reference/`) and the baseline, the capture and their difference side by side (`diff/`).
+(`reference/`) and the baseline, the capture and their difference side by side (`diff/`). In CI
+both folders are in the `screenshot-test-results` artifact.
 
 ### Recording baselines
 
@@ -59,6 +63,11 @@ On a connected device, for its own profile:
 ```bash
 ./gradlew :app:recordDebugAndroidTestScreenshots
 ```
+
+For the emulator baselines, prefer the captures from CI over ones from a laptop, so they come
+from the emulator that checks them: download the `screenshot-test-results` artifact of the failed
+`Screenshot tests` run and copy its `reference/` images into `screenshots/`. An emulator on an
+Apple Silicon Mac can render a WebView slightly differently from the x86_64 one in CI.
 
 The Pixel 7 baselines can also be taken from a Firebase Test Lab run, without having the phone.
 A failed comparison leaves the captured screen in the run's results bucket, so after a run that
