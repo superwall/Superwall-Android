@@ -193,6 +193,7 @@ landscape side bar, then repeat with gesture navigation.
 - Use Given/When/Then DSL (`superwall/src/androidTest/java/utils.kt`)
 - Screenshot regression testing with Dropshot. A `step` waits for the screen to stop changing before it captures, so don't add a sleep before a screenshot
 - Tests about whether a paywall presents check the recorded events as well as the screenshot (`timeline = { assertPaywallPresented() }`, `TimelineExpectations.kt`)
+- Before changing these tests or their helpers, read "Things that have gone wrong before" in `app/src/androidTest/README.md` (subscription status needs a purchase controller, back doesn't close older paywalls, the shimmer wait returns at once with no paywall)
 - End-to-end paywall presentation and purchase flows
 
 ### Test Configuration

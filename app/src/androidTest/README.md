@@ -102,3 +102,29 @@ the assertions (`assertContains`, `assertNone`, `assertInOrder`, `assertPaywallP
 one that already fired, and `awaitPaywallLoaded`, which fails at once with the reason when the SDK
 decides not to present, where waiting for the load event alone would hang until the test times
 out. Both the events and the screenshot are checked, and a failure reports both.
+
+### Things that have gone wrong before
+
+Each of these failed tests on the Firebase device until it was handled:
+
+- **Waiting for a paywall that isn't up yet.** `awaitUntilShimmerDisappears()` returns at once
+  when there is no paywall, so a step that starts with it can capture the loading placeholder.
+  Wait for the paywall first: `it.timeline.awaitPaywallLoaded()`, or `awaitPaywallView()`.
+- **A paywall shown at app launch.** Its events can fire before the test starts recording, so
+  they can't be waited for or asserted. Use `paywallPresentsFor(info, presentedAtLaunch = true)`.
+- **A screen that never settles.** A step waits up to five seconds for the screen to stop
+  changing. For a video on a paywall that the test case closes by itself, that captures whatever
+  is showing five seconds later. Give the step a short `settleTimeout`.
+- **Setting the subscription status.** Without a purchase controller the SDK reads the purchases
+  from Google Play at launch and on every return to the foreground, and publishes what it finds
+  over the status a test set. A class whose tests call `setSubscriptionStatus` configures with
+  `configureWithManualSubscriptionStatus()`.
+- **Closing a paywall with back.** The SDK hands a back press to the paywall's page, and a paywall
+  built on a runtime from before `back_button_input` ignores it. To get a paywall out of the way,
+  use `dismissPaywallAndAwaitClose()`.
+- **State left by the previous test.** The Gradle runs and the Firebase run both clear the app's
+  data between tests (`clearPackageData`). A way of running the tests that doesn't will see
+  cached config, assignments and paywall counts from the test before.
+- **The dimmed home screen.** `screenshotFlow` moves the launched activity to `STARTED`, which
+  puts ActivityScenario's floating activity over it and dims it. The baselines of the app
+  without a paywall look that way on purpose.
