@@ -78,7 +78,11 @@ class ScreenshotTestFlow(
                 val frame = awaitScreenSettled()
                 val timelineFailure = runCatching { timeline?.invoke(testInfo.timeline) }.exceptionOrNull()
                 Log.e("Testing Flow", "Taking screenshot of $step")
-                val screenshotFailure = runCatching { assertSnapshot(frame, step) }.exceptionOrNull()
+                // A screenshot failure says the screen was wrong. The events say how it got there.
+                val screenshotFailure =
+                    runCatching { assertSnapshot(frame, step) }.exceptionOrNull()?.let {
+                        AssertionError("${it.message} Recorded: ${testInfo.timeline.eventNames()}", it)
+                    }
                 Log.e("Testing Flow", "Taken screenshot of $step")
                 when {
                     timelineFailure != null && screenshotFailure != null ->
