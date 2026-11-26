@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.11.1
+
+## Fixes
+- Fixes audience filters for the time since a placement reading zero when they're checked for that same placement. They now measure from the time before it.
+
 ## 2.11.0
 
 ## Enhancements

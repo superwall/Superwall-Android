@@ -6,6 +6,7 @@ import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.assertTrue
 import com.superwall.sdk.models.config.ComputedPropertyRequest
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.supercel.ResultCallback
@@ -22,6 +23,7 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import java.util.Date
 
 class CELHostContextTest {
     private lateinit var json: Json
@@ -538,6 +540,75 @@ class CELHostContextTest {
 
                         val expectedResult = json.encodeToString(PassableValue.IntValue(placementCount))
                         assertEquals(expectedResult, resultSlot.captured)
+                    }
+                }
+            }
+        }
+
+    // A placement is saved before its audience filters are checked. If the host
+    // context doesn't say which placement that is, the time since that same
+    // placement is measured from itself and always comes out as zero.
+    @Test
+    fun test_deviceProperty_daysSince_skipsThePlacementBeingChecked() =
+        runTest {
+            Given("a host context for the placement being checked") {
+                val evaluating =
+                    EventData(
+                        name = "paywall_decline",
+                        parameters = emptyMap(),
+                        createdAt = Date(),
+                    )
+                val args = json.encodeToString(listOf(PassableValue.StringValue("paywall_decline")))
+                val callback = mockk<ResultCallback>(relaxed = true)
+                coEvery { storage.getComputedPropertySinceEvent(null, any()) } returns 0
+                coEvery { storage.getComputedPropertySinceEvent(evaluating, any()) } returns 10
+                val hostContext = SuperscriptHostContext(json, storage, evaluating)
+
+                When("daysSince is asked for that same placement") {
+                    hostContext.deviceProperty("daysSince", args, callback)
+
+                    Then("storage is asked for the time before the placement being checked") {
+                        coVerify(exactly = 1) { storage.getComputedPropertySinceEvent(evaluating, any()) }
+                        coVerify(exactly = 0) { storage.getComputedPropertySinceEvent(null, any()) }
+                    }
+
+                    And("the answer is the time since the one before it") {
+                        val resultSlot = slot<String>()
+                        verify { callback.onResult(capture(resultSlot)) }
+                        assertEquals(json.encodeToString(PassableValue.IntValue(10)), resultSlot.captured)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun test_computedProperty_minutesSince_skipsThePlacementBeingChecked() =
+        runTest {
+            Given("a host context for the placement being checked") {
+                val evaluating =
+                    EventData(
+                        name = "paywall_decline",
+                        parameters = emptyMap(),
+                        createdAt = Date(),
+                    )
+                val args = json.encodeToString(listOf(PassableValue.StringValue("paywall_decline")))
+                val callback = mockk<ResultCallback>(relaxed = true)
+                coEvery { storage.getComputedPropertySinceEvent(null, any()) } returns 0
+                coEvery { storage.getComputedPropertySinceEvent(evaluating, any()) } returns 45
+                val hostContext = SuperscriptHostContext(json, storage, evaluating)
+
+                When("minutesSince is asked for that same placement") {
+                    hostContext.computedProperty("minutesSince", args, callback)
+
+                    Then("storage is asked for the time before the placement being checked") {
+                        coVerify(exactly = 1) { storage.getComputedPropertySinceEvent(evaluating, any()) }
+                        coVerify(exactly = 0) { storage.getComputedPropertySinceEvent(null, any()) }
+                    }
+
+                    And("the answer is the time since the one before it") {
+                        val resultSlot = slot<String>()
+                        verify { callback.onResult(capture(resultSlot)) }
+                        assertEquals(json.encodeToString(PassableValue.IntValue(45)), resultSlot.captured)
                     }
                 }
             }

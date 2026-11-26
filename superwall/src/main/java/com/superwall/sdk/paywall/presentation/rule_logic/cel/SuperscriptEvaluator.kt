@@ -44,11 +44,6 @@ internal class SuperscriptEvaluator(
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
     private val trackError: (Throwable) -> Unit,
-    private val hostContext: SuperscriptHostContext =
-        SuperscriptHostContext(
-            json,
-            storage,
-        ),
 ) : ExpressionEvaluating {
     class NotError(
         val string: String,
@@ -91,7 +86,7 @@ internal class SuperscriptEvaluator(
                     )
 
                 val ctx = json.encodeToString(executionContext)
-                val result = evaluateWithContext(ctx, hostContext)
+                val result = evaluateWithContext(ctx, SuperscriptHostContext(json, storage, eventData))
 
                 val celResult = json.decodeFromString<CELResult>(result)
                 return@asyncWithTracking when (celResult) {
