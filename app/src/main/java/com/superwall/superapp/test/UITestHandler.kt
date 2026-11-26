@@ -29,6 +29,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 object UITestHandler {
@@ -769,8 +771,8 @@ object UITestHandler {
 
                     val result = Superwall.instance.getPresentationResult("holdout")
                     fatalAssert(
-                        result.getOrNull() is PresentationResult.NoAudienceMatch,
-                        "NoRuleMatch expected, received $result",
+                        result.getOrNull() is PresentationResult.Holdout,
+                        "Holdout expected, received $result",
                     )
                     println("!!! TEST 31 !!! $result")
                 }
@@ -1725,18 +1727,15 @@ object UITestHandler {
                 "then the user attributes shouldn't contain first_name",
             testCaseType = TestCaseType.Android,
             test = { scope, events, msg ->
+                // setUserAttributes queues the write, so wait for it to land before reading back.
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
-                val attributes = Superwall.instance.userAttributes
+                val attributes = awaitUserAttributes { it.containsKey("first_name") }
                 println(attributes)
-                scope.launch {
-                    msg.emit(attributes)
-                }
+                msg.emit(attributes)
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to null))
-                val next = Superwall.instance.userAttributes
+                val next = awaitUserAttributes { !it.containsKey("first_name") }
                 println(next)
-                scope.launch {
-                    msg.emit(next)
-                }
+                msg.emit(next)
             },
         )
 
@@ -1923,4 +1922,18 @@ object UITestHandler {
             UITestHandler.testAndroid104Info,
             UITestHandler.testAndroid105Info,
         )
+}
+
+/**
+ * The user attributes once [until] holds for them, or as they are after [timeout] so that the
+ * caller's own check reports what is missing.
+ */
+private suspend fun awaitUserAttributes(
+    timeout: Duration = 5.seconds,
+    until: (Map<String, Any>) -> Boolean,
+): Map<String, Any> {
+    withTimeoutOrNull(timeout) {
+        while (!until(Superwall.instance.userAttributes)) delay(50)
+    }
+    return Superwall.instance.userAttributes
 }
