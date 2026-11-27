@@ -4,7 +4,7 @@ name: Firebase trial
 # paywall and records the redirect back and the redemption, to see what a web purchase test must drive.
 #
 # Runs only on pushes to the trial branch that touch this file. Delete it once the results are in.
-# Purchase probe, run 2: closes the keyboard before looking for Subscribe.
+# Purchase probe, run 3: unticks "save with Link", which otherwise demands a phone number.
 
 on:
   push:

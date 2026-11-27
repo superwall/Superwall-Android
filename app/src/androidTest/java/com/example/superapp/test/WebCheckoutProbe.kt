@@ -161,6 +161,18 @@ class WebCheckoutProbe {
         }
         record("keyboard_closed")
 
+        // Once a card is entered Stripe offers to save it with Link, ticked by default, and then
+        // wants a phone number. Untick it.
+        device.wait(Until.findObject(By.res("enableStripePass")), 3_000)?.let { box ->
+            note("Link box checked=${box.isChecked}")
+            if (box.isChecked) {
+                box.click()
+                Thread.sleep(1_000)
+                note("Link box now checked=${device.findObject(By.res("enableStripePass"))?.isChecked}")
+            }
+        } ?: note("no Link box")
+        record("link_unticked")
+
         // Bring the Subscribe button on screen and press it.
         val height = device.displayHeight
         val width = device.displayWidth
