@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.12.0
+
+## Enhancements
+- Checks the signature Superwall adds to config and entitlements responses, so the SDK can tell they weren't changed on the way, for example by a proxy on the device's network. A response that doesn't verify is reported to Superwall and used as before. Set `SuperwallOptions.shouldEnforceResponseSignatures` to `true` to reject such responses instead, keeping the config and entitlements the SDK already has; only turn it on once Superwall has confirmed response signing is enabled for your app.
+- Web checkout redemption responses are checked the same way, since they grant access too.
+
+## Fixes
+- Fixes web entitlements being cleared when a refresh of them failed, for example while the device was offline or the server returned an error. A failed refresh was treated as "no entitlements", which removed the user's web purchases and could downgrade their subscription status until the next successful refresh. The SDK now keeps the web entitlements it had.
+
 ## 2.11.0
 
 ## Enhancements

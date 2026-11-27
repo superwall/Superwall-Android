@@ -795,7 +795,7 @@ class WebPaywallRedeemerTest {
 
                 coEvery {
                     network.webEntitlementsByDeviceID(any())
-                } returns Either.Failure(NetworkError.Unknown(Error("Device entitlements failed")))
+                } returns Either.Failure(NetworkError.InvalidResponseSignature("unsigned"))
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -815,10 +815,23 @@ class WebPaywallRedeemerTest {
                             DeviceVendorId(VendorId("test_device")),
                         )
 
-                    Then("it should return an empty list") {
-                        assert(result is Either.Success)
-                        val entitlements = (result as Either.Success).value
-                        assert(entitlements.isEmpty())
+                    Then("it fails, and keeps what was stored instead of storing no entitlements") {
+                        assertTrue(result is Either.Failure)
+                        verify(exactly = 0) { storage.write(LatestWebCustomerInfo, any()) }
+                        verify(exactly = 0) { storage.write(LastWebEntitlementsFetchDate, any()) }
+                    }
+                }
+
+                When("a response's signature didn't verify while signatures are enforced") {
+                    val result =
+                        redeemer.checkForWebEntitlements(
+                            null,
+                            DeviceVendorId(VendorId("test_device")),
+                        )
+
+                    Then("it fails with that error, and nothing is stored") {
+                        assertTrue((result as Either.Failure).error is NetworkError.InvalidResponseSignature)
+                        verify(exactly = 0) { storage.write(LatestWebCustomerInfo, any()) }
                     }
                 }
             }

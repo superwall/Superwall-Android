@@ -1,5 +1,6 @@
 package com.superwall.sdk.network
 
+import com.superwall.sdk.network.signing.SignedResponse
 import kotlinx.serialization.Serializable
 import java.net.URI
 import java.util.*
@@ -19,6 +20,12 @@ class NetworkRequestData<Response>(
     val factory: suspend (isForDebugging: Boolean, requestId: String) -> Map<String, String>,
     val timeout: Duration?
 ) where Response : @Serializable Any {
+    /** Set for endpoints whose responses the backend signs; see `ResponseSignatureCheck`. */
+    internal var signedAs: SignedResponse? = null
+
+    /** The `X-Superwall-Nonce` this request sends (entitlements), or empty. */
+    internal var nonce: String = ""
+
     enum class HttpMethod(
         val method: String,
     ) {
@@ -54,5 +61,8 @@ class NetworkRequestData<Response>(
             isForDebugging = isForDebugging,
             factory = factory,
             timeout = timeout
-        )
+        ).also {
+            it.signedAs = signedAs
+            it.nonce = nonce
+        }
 }

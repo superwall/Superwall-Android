@@ -1,6 +1,7 @@
 package com.superwall.sdk.network
 
 import com.superwall.sdk.dependencies.ApiFactory
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.entitlements.RedeemRequest
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.TransactionReceipt
@@ -9,6 +10,8 @@ import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.network.signing.ResponseVerifier
+import com.superwall.sdk.network.signing.SignedResponse
 import com.superwall.sdk.store.testmode.models.SuperwallProductsResponse
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -43,10 +46,8 @@ class SubscriptionService(
         transactionReceipt: List<TransactionReceipt>,
         externalAccountId: String,
         attributionProps: Map<String, JsonElement>?,
-    ) = post<WebRedemptionResponse>(
-        "redeem",
-        retryCount = 0,
-        body =
+    ): Either<WebRedemptionResponse, NetworkError> {
+        val body =
             json
                 .encodeToString(
                     RedeemRequest(
@@ -58,25 +59,39 @@ class SubscriptionService(
                         externalAccountId,
                         attributionProps,
                     ),
-                ).toByteArray(),
-        timeout = 10.seconds
-    )
+                ).toByteArray()
+        // Its customerInfo grants access like entitlements do, so the answer is signed for this body.
+        return signedPost<WebRedemptionResponse>(
+            "redeem",
+            signedAs = SignedResponse.forRequestBody(ResponseVerifier.Endpoint.REDEEM, body),
+            body = body,
+            retryCount = 0,
+            timeout = 10.seconds,
+        )
+    }
 
     suspend fun webEntitlementsByUserId(
         userId: UserId?,
         deviceId: DeviceVendorId,
-    ) = get<WebEntitlements>(
+    ) = signedGet<WebEntitlements>(
         "users/${userId?.value ?: deviceId.value}/entitlements",
+        signedAs = entitlementsSignedAs(userId?.value ?: deviceId.value, deviceId),
         queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
-        timeout = 5.seconds
+        timeout = 5.seconds,
     )
 
     suspend fun webEntitlementsByDeviceId(deviceId: DeviceVendorId) =
-        get<WebEntitlements>(
+        signedGet<WebEntitlements>(
             "users/${deviceId.value}/entitlements",
+            signedAs = entitlementsSignedAs(deviceId.value, deviceId),
             queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
-            timeout = 5.seconds
+            timeout = 5.seconds,
         )
+
+    private fun entitlementsSignedAs(
+        subject: String,
+        deviceId: DeviceVendorId,
+    ) = SignedResponse(ResponseVerifier.Endpoint.ENTITLEMENTS, subject, deviceId.value)
 
     suspend fun getProducts() = get<SuperwallProductsResponse>("products")
 }

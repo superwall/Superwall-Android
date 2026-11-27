@@ -188,6 +188,21 @@ class SuperwallOptions() {
     // Enables experimental device variables. These are subject to change. Defaults to `false`.
     var enableExperimentalDeviceVariables: Boolean = false
 
+    /**
+     * Rejects config and entitlements responses whose Superwall signature doesn't verify.
+     * Defaults to `false`.
+     *
+     * Superwall signs these responses so the SDK can tell they weren't changed on the way, for
+     * example by a proxy on the device's network. The SDK always checks the signature. With this
+     * off, a response that doesn't verify is reported to Superwall and used as before. With it
+     * on, a response that doesn't verify, or isn't signed, fails like a network error: the SDK
+     * keeps the config and entitlements it already had.
+     *
+     * Only turn this on once Superwall has confirmed response signing is enabled for your app;
+     * until then every response is unsigned and would be rejected.
+     */
+    var shouldEnforceResponseSignatures: Boolean = false
+
     // Configuration for printing to the console.
     class Logging() {
         constructor(definition: Logging.() -> Unit) : this() {

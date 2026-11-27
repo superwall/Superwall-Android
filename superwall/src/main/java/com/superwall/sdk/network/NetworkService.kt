@@ -3,6 +3,8 @@ package com.superwall.sdk.network
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.network.NetworkRequestData.HttpMethod
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.network.signing.ResponseSignatureCheck
+import com.superwall.sdk.network.signing.SignedResponse
 import kotlinx.serialization.Serializable
 import java.util.UUID
 import kotlin.time.Duration
@@ -45,6 +47,78 @@ abstract class NetworkService {
             },
             retryCount = retryCount,
             isRetryingCallback = isRetryingCallback,
+        )
+
+    /**
+     * [get] for an endpoint whose response the backend signs. Each attempt gets a fresh nonce when
+     * the endpoint takes one, and `CustomHttpUrlConnection` checks the response's signature.
+     */
+    internal suspend inline fun <reified T> signedGet(
+        path: String,
+        signedAs: SignedResponse,
+        queryItems: List<URLQueryItem>? = null,
+        requestId: String = UUID.randomUUID().toString(),
+        retryCount: Int = NetworkConsts.retryCount(),
+        noinline isRetryingCallback: (suspend () -> Unit)? = null,
+        timeout: Duration? = null,
+    ): Either<T, NetworkError> where T : @Serializable Any =
+        customHttpUrlConnection.request(
+            buildRequestData = {
+                NetworkRequestData<T>(
+                    requestId = requestId,
+                    components =
+                        NetworkRequestData.Components(
+                            host = host,
+                            path = version + path,
+                            queryItems = queryItems,
+                        ),
+                    method = HttpMethod.GET,
+                    factory = this::makeHeaders,
+                    timeout = timeout,
+                ).also {
+                    it.signedAs = signedAs
+                    if (signedAs.takesNonce) {
+                        it.nonce = ResponseSignatureCheck.makeNonce()
+                    }
+                }
+            },
+            retryCount = retryCount,
+            isRetryingCallback = isRetryingCallback,
+        )
+
+    /**
+     * [post] for an endpoint whose response the backend signs, bound to [body]'s hash. Each
+     * attempt gets a fresh nonce, and `CustomHttpUrlConnection` checks the response's signature.
+     */
+    internal suspend inline fun <reified T> signedPost(
+        path: String,
+        signedAs: SignedResponse,
+        body: ByteArray,
+        requestId: String = UUID.randomUUID().toString(),
+        retryCount: Int = 6,
+        timeout: Duration? = null,
+    ): Either<T, NetworkError> where T : @Serializable Any =
+        customHttpUrlConnection.request<T>(
+            buildRequestData = {
+                NetworkRequestData<T>(
+                    requestId = requestId,
+                    components =
+                        NetworkRequestData.Components(
+                            host = host,
+                            path = version + path,
+                            bodyData = body,
+                        ),
+                    method = HttpMethod.POST,
+                    factory = this::makeHeaders,
+                    timeout = timeout,
+                ).also {
+                    it.signedAs = signedAs
+                    if (signedAs.takesNonce) {
+                        it.nonce = ResponseSignatureCheck.makeNonce()
+                    }
+                }
+            },
+            retryCount = retryCount,
         )
 
     suspend inline fun <reified T> post(
