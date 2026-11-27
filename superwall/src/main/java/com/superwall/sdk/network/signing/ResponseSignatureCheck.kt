@@ -2,20 +2,44 @@ package com.superwall.sdk.network.signing
 
 import com.superwall.sdk.analytics.internal.trackable.PrivateSuperwallEvent
 import com.superwall.sdk.network.NetworkError
+import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * What a signed endpoint's response must be about, apart from the API key and nonce, which come
- * from the request as sent. [subject] is the user ID in the entitlements path; [deviceId] its
- * `deviceId` query value. Both are empty for config.
+ * from the request as sent. For entitlements, [subject] is the user ID in the path and [deviceId]
+ * its `deviceId` query value; for redemption, [subject] is the request body's hash. Both are empty
+ * for config.
  */
 internal data class SignedResponse(
     val endpoint: ResponseVerifier.Endpoint,
     val subject: String,
     val deviceId: String,
 ) {
+    /** Whether the request sends a nonce: every signed endpoint but config, which is cached. */
+    val takesNonce: Boolean
+        get() = endpoint != ResponseVerifier.Endpoint.STATIC_CONFIG
+
     companion object {
         val STATIC_CONFIG = SignedResponse(ResponseVerifier.Endpoint.STATIC_CONFIG, "", "")
+
+        /**
+         * A redemption response, bound to the SHA-256 (lowercase hex) of [requestBody], the exact
+         * bytes sent: a request changed on the way (another user, device or code) won't verify.
+         */
+        fun forRequestBody(
+            endpoint: ResponseVerifier.Endpoint,
+            requestBody: ByteArray,
+        ): SignedResponse =
+            SignedResponse(
+                endpoint,
+                MessageDigest
+                    .getInstance("SHA-256")
+                    .digest(requestBody)
+                    .joinToString("") { "%02x".format(it) },
+                "",
+            )
     }
 }
 
@@ -24,6 +48,9 @@ internal data class SignedResponse(
  * failure is only reported, and the response is used as before; with
  * `SuperwallOptions.shouldEnforceResponseSignatures` a response that isn't verified, an unsigned
  * one included, fails like a network error.
+ *
+ * Once roots are embedded, an unsigned response is reported too, so a stripped header shows up
+ * before apps enforce. Each endpoint and reason is reported once per SDK session.
  */
 internal class ResponseSignatureCheck(
     private val isEnforced: () -> Boolean,
@@ -62,6 +89,7 @@ internal class ResponseSignatureCheck(
         body: ByteArray,
     ): NetworkError? {
         val enforce = isEnforced()
+        val reportUnsigned = verifier.hasRoots
         val result =
             if (apiKey.isNullOrEmpty()) {
                 ResponseVerifier.Result.Failed(ResponseVerifier.Failure.MALFORMED_HEADER)
@@ -80,17 +108,24 @@ internal class ResponseSignatureCheck(
                     nowSeconds = nowSeconds(),
                 )
             }
-        return when (val decision = decide(result, enforce)) {
+        return when (val decision = decide(result, enforce, reportUnsigned)) {
             Decision.Accept -> null
             is Decision.Report -> {
-                report(ResponseSignatureFailure(signed.endpoint, decision.reason, isEnforced = false))
+                reportOnce(ResponseSignatureFailure(signed.endpoint, decision.reason, isEnforced = false))
                 null
             }
             is Decision.Reject -> {
-                report(ResponseSignatureFailure(signed.endpoint, decision.reason, isEnforced = true))
+                reportOnce(ResponseSignatureFailure(signed.endpoint, decision.reason, isEnforced = true))
                 NetworkError.InvalidResponseSignature(decision.reason)
             }
         }
+    }
+
+    /** What's been reported this session: config is fetched often, and one report says enough. */
+    private val reported = ConcurrentHashMap.newKeySet<ResponseSignatureFailure>()
+
+    private fun reportOnce(failure: ResponseSignatureFailure) {
+        if (reported.add(failure)) report(failure)
     }
 
     companion object {
@@ -112,14 +147,23 @@ internal class ResponseSignatureCheck(
                 ?.takeIf { it.startsWith("Bearer ") }
                 ?.removePrefix("Bearer ")
 
+        /**
+         * @param reportUnsigned whether an unsigned response is worth reporting when not enforcing:
+         * only once roots are embedded, since until then the backend doesn't sign at all.
+         */
         fun decide(
             result: ResponseVerifier.Result,
             enforce: Boolean,
+            reportUnsigned: Boolean = false,
         ): Decision =
             when (result) {
                 ResponseVerifier.Result.Verified -> Decision.Accept
-                // Unsigned is normal while the backend doesn't sign; it only matters when enforcing.
-                ResponseVerifier.Result.Unsigned -> if (enforce) Decision.Reject("unsigned") else Decision.Accept
+                ResponseVerifier.Result.Unsigned ->
+                    when {
+                        enforce -> Decision.Reject("unsigned")
+                        reportUnsigned -> Decision.Report("unsigned")
+                        else -> Decision.Accept
+                    }
                 is ResponseVerifier.Result.Failed ->
                     if (enforce) {
                         Decision.Reject(result.reason.wireName)

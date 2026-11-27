@@ -22,7 +22,7 @@ class CustomHttpUrlConnection(
     val requestExecutor: RequestExecutor,
     val interceptors: List<(RequestResult) -> RequestResult> = emptyList(),
 ) {
-    /** Checks signed responses (config, entitlements); `null` checks nothing. */
+    /** Checks signed responses (config, entitlements, redemption); `null` checks nothing. */
     @PublishedApi
     internal var responseSignatureCheck: ResponseSignatureCheck? = null
 
@@ -41,7 +41,10 @@ class CustomHttpUrlConnection(
             when (signed.endpoint) {
                 ResponseVerifier.Endpoint.STATIC_CONFIG ->
                     requestData.components?.queryItems?.firstOrNull { it.name == "pk" }?.value
-                ResponseVerifier.Endpoint.ENTITLEMENTS ->
+                ResponseVerifier.Endpoint.ENTITLEMENTS,
+                ResponseVerifier.Endpoint.REDEEM,
+                ResponseVerifier.Endpoint.POLL_REDEMPTION_RESULT,
+                ->
                     ResponseSignatureCheck.bearerToken(result.headers["Authorization"])
             }
         return check.check(

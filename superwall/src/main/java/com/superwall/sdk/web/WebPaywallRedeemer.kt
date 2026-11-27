@@ -450,19 +450,25 @@ class WebPaywallRedeemer(
     private suspend fun fetchWebCustomerInfo(
         userId: UserId?,
         deviceId: DeviceVendorId,
-    ): Either<CustomerInfo, Throwable> =
-        withErrorTracking {
-            val webEntitlementsResult =
-                if (userId == null) {
-                    network.webEntitlementsByDeviceID(deviceId)
-                } else {
-                    network.webEntitlementsByUserId(userId, deviceId)
-                }
-            val webEntitlementsResponse = webEntitlementsResult.getSuccess()
-
+    ): Either<CustomerInfo, Throwable> {
+        val webEntitlementsResult =
+            if (userId == null) {
+                network.webEntitlementsByDeviceID(deviceId)
+            } else {
+                network.webEntitlementsByUserId(userId, deviceId)
+            }
+        // A failed request (offline, a server error, or a response whose signature didn't verify
+        // while signatures are enforced) says nothing about the user's entitlements: fail, so the
+        // caller keeps what it had, rather than reading it as "no entitlements".
+        val webEntitlementsResponse =
+            when (webEntitlementsResult) {
+                is Either.Success -> webEntitlementsResult.value
+                is Either.Failure -> return Either.Failure<Throwable>(webEntitlementsResult.error)
+            }
+        return withErrorTracking {
             // Extract CustomerInfo from response or construct from entitlements
             val webCustomerInfo =
-                webEntitlementsResponse?.customerInfo ?: run {
+                webEntitlementsResponse.customerInfo ?: run {
                     // Fallback for backward compatibility
                     Logger.debug(
                         logLevel = LogLevel.debug,
@@ -488,6 +494,7 @@ class WebPaywallRedeemer(
 
             webCustomerInfo
         }
+    }
 
     private fun storeWebCustomerInfo(webCustomerInfo: CustomerInfo): Set<Entitlement> {
         storage.write(LatestWebCustomerInfo, webCustomerInfo)

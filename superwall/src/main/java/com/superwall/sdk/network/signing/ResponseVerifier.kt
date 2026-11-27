@@ -22,6 +22,10 @@ import java.security.spec.X509EncodedKeySpec
 internal class ResponseVerifier(
     private val roots: List<TrustedRoot>,
 ) {
+    /** Whether any root is embedded. Without one nothing can verify. */
+    val hasRoots: Boolean
+        get() = roots.isNotEmpty()
+
     /** A root the SDK trusts: its 65-byte uncompressed P-256 public key (see [ResponseSigningRoots]). */
     class TrustedRoot(
         val publicKey: ByteArray,
@@ -35,6 +39,12 @@ internal class ResponseVerifier(
     ) {
         STATIC_CONFIG("static_config"),
         ENTITLEMENTS("entitlements"),
+
+        /** `POST /redeem`: its subject is the request body's hash (see [SignedResponse.forRequestBody]). */
+        REDEEM("redeem"),
+
+        /** `POST /checkout/session/poll-redemption-result`, bound like [REDEEM]. */
+        POLL_REDEMPTION_RESULT("poll_redemption_result"),
     }
 
     /**

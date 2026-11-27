@@ -113,11 +113,56 @@ class ResponseSignatureCheckTest {
                 assertEquals("invalid_credential_signature", (error as NetworkError.InvalidResponseSignature).reason)
             }
         }
-        Given("signatures aren't enforced") {
-            val harness = Harness(roots, 0)
-            Then("an unsigned response is used, and not reported") {
+        Given("signatures aren't enforced, and no roots are embedded yet") {
+            val harness = Harness(emptyList(), 0)
+            Then("an unsigned response is used, and not reported: the backend doesn't sign yet") {
                 assertNull(harness.run(case("unsigned")))
                 assertTrue(harness.reported.isEmpty())
+            }
+        }
+        Given("signatures aren't enforced, and roots are embedded") {
+            val harness = Harness(roots, 0)
+            Then("an unsigned response is used, and reported once, so a stripped header shows up") {
+                repeat(3) { assertNull(harness.run(case("unsigned"))) }
+                assertEquals(
+                    listOf(ResponseSignatureFailure(ResponseVerifier.Endpoint.ENTITLEMENTS, "unsigned", false)),
+                    harness.reported,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `each endpoint and reason is reported once per session, but still enforced every time`() {
+        Given("a tampered response, checked repeatedly with enforcement on") {
+            val case = case("statement_tampered")
+            val harness = Harness(roots, case["now"]!!.jsonPrimitive.long, enforce = true)
+            val errors = When("it's checked three times") { List(3) { harness.run(case) } }
+            Then("every check fails, and it's reported once") {
+                assertTrue(errors.all { it is NetworkError.InvalidResponseSignature })
+                assertEquals(1, harness.reported.size)
+            }
+        }
+    }
+
+    @Test
+    fun `a redemption response is bound to the hash of the exact request body`() {
+        Given("a request body") {
+            val signed =
+                SignedResponse.forRequestBody(ResponseVerifier.Endpoint.REDEEM, "abc".toByteArray())
+            Then("its subject is the body's SHA-256 in lowercase hex, and it sends a nonce") {
+                assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", signed.subject)
+                assertEquals("", signed.deviceId)
+                assertTrue(signed.takesNonce)
+                assertTrue(!SignedResponse.STATIC_CONFIG.takesNonce)
+            }
+        }
+        Given("the shared redeem vector") {
+            val case = case("redeem_verified")
+            val harness = Harness(roots, case["now"]!!.jsonPrimitive.long, enforce = true)
+            Then("it's used") { assertNull(harness.run(case)) }
+            Then("a changed request body fails") {
+                assertTrue(harness.run(case("redeem_request_changed")) is NetworkError.InvalidResponseSignature)
             }
         }
     }

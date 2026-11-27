@@ -181,7 +181,11 @@ class RequestExecutor(
         return connection
     }
 
-    /** Every `X-Superwall-Signature` value, joined with ", " so a duplicate fails to parse. */
+    /**
+     * Every `X-Superwall-Signature` line, joined with ", ": several lines mean the same as one
+     * joined value (RFC 9110), and that's all iOS can see, so both read it that way. Two complete
+     * signatures repeat every member and fail to parse.
+     */
     private fun HttpURLConnection.signatureHeader(): String? =
         headerFields
             .filterKeys { it != null && it.equals(SignatureEnvelope.SIGNATURE_HEADER, ignoreCase = true) }

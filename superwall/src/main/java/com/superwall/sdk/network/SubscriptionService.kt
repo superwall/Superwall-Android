@@ -1,6 +1,7 @@
 package com.superwall.sdk.network
 
 import com.superwall.sdk.dependencies.ApiFactory
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.entitlements.RedeemRequest
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.TransactionReceipt
@@ -45,10 +46,8 @@ class SubscriptionService(
         transactionReceipt: List<TransactionReceipt>,
         externalAccountId: String,
         attributionProps: Map<String, JsonElement>?,
-    ) = post<WebRedemptionResponse>(
-        "redeem",
-        retryCount = 0,
-        body =
+    ): Either<WebRedemptionResponse, NetworkError> {
+        val body =
             json
                 .encodeToString(
                     RedeemRequest(
@@ -60,9 +59,16 @@ class SubscriptionService(
                         externalAccountId,
                         attributionProps,
                     ),
-                ).toByteArray(),
-        timeout = 10.seconds
-    )
+                ).toByteArray()
+        // Its customerInfo grants access like entitlements do, so the answer is signed for this body.
+        return signedPost<WebRedemptionResponse>(
+            "redeem",
+            signedAs = SignedResponse.forRequestBody(ResponseVerifier.Endpoint.REDEEM, body),
+            body = body,
+            retryCount = 0,
+            timeout = 10.seconds,
+        )
+    }
 
     suspend fun webEntitlementsByUserId(
         userId: UserId?,

@@ -4,7 +4,6 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.network.NetworkRequestData.HttpMethod
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.network.signing.ResponseSignatureCheck
-import com.superwall.sdk.network.signing.ResponseVerifier
 import com.superwall.sdk.network.signing.SignedResponse
 import kotlinx.serialization.Serializable
 import java.util.UUID
@@ -78,13 +77,48 @@ abstract class NetworkService {
                     timeout = timeout,
                 ).also {
                     it.signedAs = signedAs
-                    if (signedAs.endpoint == ResponseVerifier.Endpoint.ENTITLEMENTS) {
+                    if (signedAs.takesNonce) {
                         it.nonce = ResponseSignatureCheck.makeNonce()
                     }
                 }
             },
             retryCount = retryCount,
             isRetryingCallback = isRetryingCallback,
+        )
+
+    /**
+     * [post] for an endpoint whose response the backend signs, bound to [body]'s hash. Each
+     * attempt gets a fresh nonce, and `CustomHttpUrlConnection` checks the response's signature.
+     */
+    internal suspend inline fun <reified T> signedPost(
+        path: String,
+        signedAs: SignedResponse,
+        body: ByteArray,
+        requestId: String = UUID.randomUUID().toString(),
+        retryCount: Int = 6,
+        timeout: Duration? = null,
+    ): Either<T, NetworkError> where T : @Serializable Any =
+        customHttpUrlConnection.request<T>(
+            buildRequestData = {
+                NetworkRequestData<T>(
+                    requestId = requestId,
+                    components =
+                        NetworkRequestData.Components(
+                            host = host,
+                            path = version + path,
+                            bodyData = body,
+                        ),
+                    method = HttpMethod.POST,
+                    factory = this::makeHeaders,
+                    timeout = timeout,
+                ).also {
+                    it.signedAs = signedAs
+                    if (signedAs.takesNonce) {
+                        it.nonce = ResponseSignatureCheck.makeNonce()
+                    }
+                }
+            },
+            retryCount = retryCount,
         )
 
     suspend inline fun <reified T> post(
