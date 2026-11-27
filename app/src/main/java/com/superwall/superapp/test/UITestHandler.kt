@@ -29,9 +29,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 object UITestHandler {
+    // These run against the web-to-app project (Keys.WEB_2_APP_API_KEY), which has the placements
+    // `test_web` and `test_internal` (the paywall with the Stripe button) and `campaign_trigger`.
     object WebTests {
         val tests =
             listOf(
@@ -39,7 +43,7 @@ object UITestHandler {
                     1000,
                     "Purchase an entitlement from the web and redeem it as anonymous user. Paywall wont show if redemption succeeded.",
                     test = { scope, events, _ ->
-                        Log.e("Registering event", "show_if_web_failed")
+                        Log.e("Registering event", "test_web")
                         Log.e(
                             "Entitlements are",
                             Superwall.instance.entitlements.active
@@ -47,7 +51,7 @@ object UITestHandler {
                                     "${it.id}"
                                 }.joinToString(separator = ", "),
                         )
-                        Superwall.instance.register(placement = "swtest")
+                        Superwall.instance.register(placement = "test_web")
                     },
                 ),
                 UITestInfo(
@@ -55,7 +59,7 @@ object UITestHandler {
                     "Purchase an entitlement from the web and redeem it as anonymous user. Call identify and confirm entitlement has been migrated. Paywall wont show if redemption succeeded.",
                     test = { scope, events, _ ->
                         Superwall.instance.identify("MigratedWebUser")
-                        Log.e("Registering event", "show_if_web_failed")
+                        Log.e("Registering event", "test_web")
                         delay(5.seconds)
                         Log.e(
                             "Entitlements are",
@@ -64,7 +68,7 @@ object UITestHandler {
                                     "${it.id}}"
                                 }.joinToString(separator = ", "),
                         )
-                        Superwall.instance.register(placement = "show_if_web_failed")
+                        Superwall.instance.register(placement = "test_web")
                     },
                 ),
                 UITestInfo(
@@ -74,7 +78,7 @@ object UITestHandler {
                         "Call reset and confirm entitlement was removed.",
                     test = { scope, events, _ ->
                         Superwall.instance.identify("MigratedWebUser")
-                        Log.e("Registering event", "show_if_web_failed")
+                        Log.e("Registering event", "test_web")
                         delay(5.seconds)
                         Log.e(
                             "Entitlements are",
@@ -93,7 +97,7 @@ object UITestHandler {
                                 }.joinToString(separator = ", "),
                         )
                         delay(5.seconds)
-                        Superwall.instance.register(placement = "show_if_web_failed")
+                        Superwall.instance.register(placement = "test_web")
                     },
                 ),
                 UITestInfo(
@@ -116,7 +120,7 @@ object UITestHandler {
                     1004,
                     "Start paywall, will identify. Hit restore, should dismiss paywall",
                     test = { scope, events, _ ->
-                        Superwall.instance.register(placement = "pro_only")
+                        Superwall.instance.register(placement = "test_web")
                         Superwall.instance.identify("MigratedWebUser")
                         Log.e("Registering event", "identify after ${Superwall.instance.userId}")
                     },
@@ -125,7 +129,7 @@ object UITestHandler {
                     1005,
                     "Start paywall anonymously and hit restore. Should ask to open on web.",
                     test = { scope, events, _ ->
-                        Superwall.instance.register(placement = "pro_only")
+                        Superwall.instance.register(placement = "test_web")
                         Log.e("Registering event", "identify after ${Superwall.instance.userId}")
                     },
                 ),
@@ -156,7 +160,7 @@ object UITestHandler {
                     number = 1007,
                     description = "Purchase the product, payment sheet should show, after purchase should be redirected back to app",
                     test = { scope, events, _ ->
-                        Superwall.instance.register(placement = "internal_purchase")
+                        Superwall.instance.register(placement = "test_internal")
                     },
                 ),
                 UITestInfo(
@@ -769,8 +773,8 @@ object UITestHandler {
 
                     val result = Superwall.instance.getPresentationResult("holdout")
                     fatalAssert(
-                        result.getOrNull() is PresentationResult.NoAudienceMatch,
-                        "NoRuleMatch expected, received $result",
+                        result.getOrNull() is PresentationResult.Holdout,
+                        "Holdout expected, received $result",
                     )
                     println("!!! TEST 31 !!! $result")
                 }
@@ -1725,18 +1729,15 @@ object UITestHandler {
                 "then the user attributes shouldn't contain first_name",
             testCaseType = TestCaseType.Android,
             test = { scope, events, msg ->
+                // setUserAttributes queues the write, so wait for it to land before reading back.
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
-                val attributes = Superwall.instance.userAttributes
+                val attributes = awaitUserAttributes { it.containsKey("first_name") }
                 println(attributes)
-                scope.launch {
-                    msg.emit(attributes)
-                }
+                msg.emit(attributes)
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to null))
-                val next = Superwall.instance.userAttributes
+                val next = awaitUserAttributes { !it.containsKey("first_name") }
                 println(next)
-                scope.launch {
-                    msg.emit(next)
-                }
+                msg.emit(next)
             },
         )
 
@@ -1923,4 +1924,18 @@ object UITestHandler {
             UITestHandler.testAndroid104Info,
             UITestHandler.testAndroid105Info,
         )
+}
+
+/**
+ * The user attributes once [until] holds for them, or as they are after [timeout] so that the
+ * caller's own check reports what is missing.
+ */
+private suspend fun awaitUserAttributes(
+    timeout: Duration = 5.seconds,
+    until: (Map<String, Any>) -> Boolean,
+): Map<String, Any> {
+    withTimeoutOrNull(timeout) {
+        while (!until(Superwall.instance.userAttributes)) delay(50)
+    }
+    return Superwall.instance.userAttributes
 }

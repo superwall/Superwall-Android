@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
+import com.example.superapp.utils.DeviceStateRule
 import com.example.superapp.utils.paywallPresentsFor
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -20,7 +21,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AlternativeSetupTest {
-    @get:Rule
+    @get:Rule(order = 0)
+    val deviceState = DeviceStateRule()
+
+    @get:Rule(order = 1)
     val dropshots =
         Dropshots(
             resultValidator = ThresholdValidator(0.01f),
@@ -67,7 +71,7 @@ class AlternativeSetupTest {
                         paywalls.shouldPreload = false
                     },
             )
-            paywallPresentsFor(UITestHandler.test52Info)
+            paywallPresentsFor(UITestHandler.test52Info, presentedAtLaunch = true)
         }
 
     @Test
@@ -81,7 +85,7 @@ class AlternativeSetupTest {
                         paywalls.shouldPreload = false
                     },
             )
-            paywallPresentsFor(UITestHandler.test53Info)
+            paywallPresentsFor(UITestHandler.test53Info, presentedAtLaunch = true)
         }
     /*
     Flaky test due to using old paywall

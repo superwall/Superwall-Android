@@ -8,6 +8,8 @@ import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
+import com.example.superapp.utils.DeviceStateRule
+import com.example.superapp.utils.configureWithManualSubscriptionStatus
 import com.example.superapp.utils.delayFor
 import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
@@ -24,7 +26,10 @@ import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 class PresentationRuleTests {
-    @get:Rule
+    @get:Rule(order = 0)
+    val deviceState = DeviceStateRule()
+
+    @get:Rule(order = 1)
     val dropshots =
         Dropshots(
             resultValidator = ThresholdValidator(0.01f),
@@ -44,14 +49,8 @@ class PresentationRuleTests {
 
     @Before
     fun setup() {
-        Superwall.configure(
-            getInstrumentation().targetContext.applicationContext as Application,
-            Keys.CONSTANT_API_KEY,
-            options =
-                SuperwallOptions().apply {
-                    paywalls.shouldPreload = false
-                },
-        )
+        // These tests set the subscription status themselves. See ManualSubscriptionPurchaseController.
+        configureWithManualSubscriptionStatus()
     }
 
     @Test

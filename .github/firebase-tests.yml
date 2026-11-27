@@ -4,6 +4,14 @@ android-pixel-7:
   app: app/build/outputs/apk/debug/app-debug.apk
   test: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
   directories-to-pull: /sdcard/Download/
+  # Wipe the app's data between tests, as the Gradle runs do (app/build.gradle.kts). Without it
+  # one test's cached config, assignments and paywall counts are still there for the next, and
+  # tests that need a fresh install or no config see a paywall where they expect none.
+  environment-variables:
+    clearPackageData: "true"
+  # The preload benchmark has its own workflow and only times out here.
+  test-targets:
+    - notClass com.example.superapp.benchmark.PaywallPreloadBenchmark
   # Without an explicit timeout gcloud defaults to 15m. The orchestrator runs
   # each test in its own instrumentation invocation, so the whole suite doesn't
   # always fit — Test Lab then kills the device processes mid-run, which

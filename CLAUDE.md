@@ -42,7 +42,8 @@ This is the Superwall Android SDK - an open-source framework for remotely config
 - Unit tests: `./gradlew :superwall:test`
 - Integration tests: `./gradlew :app:connectedCheck`
 - Screenshot tests use Dropshot library for UI regression testing
-- Tests require API 33 Pixel 7 emulator for consistent screenshot results
+- Screenshot tests run on any API 33 emulator with Google Play signed in (`DeviceStateRule` forces the screen size, density and settings). Paywalls with products don't present without a Play account, so the device must be signed in: `scripts/play_login.sh` does it with the Maestro login flow. CI runs them on Firebase Test Lab for PRs into `main`. `screenshot-tests.yml` runs them on a Play emulator but is manual only, because Google asks for extra verification when the test account signs in from a GitHub-hosted runner
+- Baselines are per device profile (`Emulator_Pixel_7_API_33_*` for emulators, `Google_Pixel_7_*` for the physical Pixel 7 on Firebase Test Lab), picked from the device by `ScreenshotDevice`. See `app/src/androidTest/README.md`
 
 ## Architecture Overview
 
@@ -190,12 +191,14 @@ landscape side bar, then repeat with gesture navigation.
 - Located in `app/src/androidTest/`
 - Real device/emulator testing
 - Use Given/When/Then DSL (`superwall/src/androidTest/java/utils.kt`)
-- Screenshot regression testing with Dropshot
+- Screenshot regression testing with Dropshot. A `step` waits for the screen to stop changing before it captures, so don't add a sleep before a screenshot
+- Tests about whether a paywall presents check the recorded events as well as the screenshot (`timeline = { assertPaywallPresented() }`, `TimelineExpectations.kt`)
+- Before changing these tests or their helpers, read "Things that have gone wrong before" in `app/src/androidTest/README.md` (subscription status needs a purchase controller, back doesn't close older paywalls, the shimmer wait returns at once with no paywall)
 - End-to-end paywall presentation and purchase flows
 
 ### Test Configuration
 - Tests require connected Android device or emulator
-- Pixel 7 API 33 recommended for consistent results
+- API 33 is required for screenshot tests; the baselines are recorded on it
 - Test orchestrator used for reliable test execution
 
 ## Common Patterns

@@ -8,11 +8,14 @@ import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
+import com.example.superapp.utils.DeviceStateRule
+import com.example.superapp.utils.awaitPaywallView
 import com.example.superapp.utils.awaitUntilDialogAppears
 import com.example.superapp.utils.awaitUntilShimmerDisappears
 import com.example.superapp.utils.awaitUntilWebviewAppears
 import com.example.superapp.utils.clickButtonWith
 import com.example.superapp.utils.delayFor
+import com.example.superapp.utils.dismissPaywallAndAwaitClose
 import com.example.superapp.utils.goBack
 import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
@@ -37,7 +40,10 @@ import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 class FlowScreenshotTestExecutor {
-    @get:Rule
+    @get:Rule(order = 0)
+    val deviceState = DeviceStateRule()
+
+    @get:Rule(order = 1)
     val dropshots =
         Dropshots(
             resultValidator = ThresholdValidator(0.06f),
@@ -74,13 +80,15 @@ class FlowScreenshotTestExecutor {
     fun test_paywall_reappers_with_video() =
         with(dropshots) {
             screenshotFlow(UITestHandler.test4Info) {
-                step("first_paywall") {
+                // The video never stops changing and the test case closes the paywall by itself,
+                // so don't wait for the screen to settle.
+                step("first_paywall", settleTimeout = 300.milliseconds) {
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(500.milliseconds)
                 }
-                step("second_paywall") {
+                step("second_paywall", settleTimeout = 300.milliseconds) {
                     it.waitFor { it is SuperwallEvent.PaywallOpen }
                     awaitUntilWebviewAppears()
                     delayFor(2.seconds)
@@ -182,6 +190,7 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test63Info) {
                 step {
+                    awaitPaywallView()
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     clickButtonWith("Restore")
@@ -214,12 +223,13 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.testAndroid9Info) {
                 step {
+                    awaitPaywallView()
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(300.milliseconds)
                 }
                 step {
-                    goBack()
+                    it.dismissPaywallAndAwaitClose()
                     Superwall.instance.register(placement = "one_time_occurrence")
                     delayFor(300.milliseconds)
                 }
@@ -232,12 +242,13 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.testAndroid18Info) {
                 step {
+                    awaitPaywallView()
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(300.milliseconds)
                 }
                 step {
-                    goBack()
+                    it.dismissPaywallAndAwaitClose()
                     Superwall.instance.register(placement = "once_a_minute")
                     delayFor(300.milliseconds)
                 }

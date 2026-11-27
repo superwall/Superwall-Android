@@ -3,10 +3,14 @@ package com.example.superapp.test
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
+import com.example.superapp.utils.DeviceStateRule
 import org.junit.Rule
 
 class SurveyTests {
-    @get:Rule
+    @get:Rule(order = 0)
+    val deviceState = DeviceStateRule()
+
+    @get:Rule(order = 1)
     val dropshots =
         Dropshots(
             resultValidator = ThresholdValidator(0.01f),

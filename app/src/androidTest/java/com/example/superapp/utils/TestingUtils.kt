@@ -18,6 +18,7 @@ import com.dropbox.dropshots.Dropshots
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.superapp.MainActivity
 import com.superwall.superapp.test.EventTimeline
@@ -35,6 +36,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
 import java.util.LinkedList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -45,13 +48,26 @@ class ScreenshotTestFlow(
 ) {
     var steps: LinkedList<Step> = LinkedList()
 
-    // Pinned to a stable identifier so snapshot filenames don't shift when the
-    // emulator system image renames Build.MODEL (e.g. sdk_gphone_arm64 vs sdk_gphone64_arm64).
-    private val device = "Google_sdk_gphone64_arm64"
+    // Baselines are kept per device profile, as full-screen captures only compare between
+    // devices with the same screen and system bars. See ScreenshotProfile.
+    private val device = ScreenshotDevice.profile.prefix
 
+    /**
+     * Runs [action], waits for the screen to stop changing and compares it with the baseline.
+     *
+     * [timeline], when given, is checked against the events recorded so far before the
+     * screenshot is compared. Both are always checked, so a failure reports what the SDK did
+     * as well as what the screen looked like.
+     *
+     * [settleTimeout] is how long to wait for the screen to stop changing. Shorten it for a
+     * screen that never does, such as a video, when the test moves on by itself: the default
+     * would capture whatever is showing five seconds later.
+     */
     @ScreenshotTestDSL
     fun step(
         name: String? = null,
+        timeline: (EventTimeline.() -> Unit)? = null,
+        settleTimeout: Duration = 5.seconds,
         action: suspend CoroutineScope.(UITestInfo) -> Unit,
     ) {
         val stepName = name ?: "step_${steps.size + 1}"
@@ -67,12 +83,25 @@ class ScreenshotTestFlow(
                 )
 
                 action(et, it)
-                et.delayFor(300.milliseconds)
+                val frame = awaitScreenSettled(timeout = settleTimeout)
+                val timelineFailure = runCatching { timeline?.invoke(testInfo.timeline) }.exceptionOrNull()
                 Log.e("Testing Flow", "Taking screenshot of $step")
-                assertSnapshot(
-                    step,
-                )
+                // A screenshot failure says the screen was wrong. The events say how it got there.
+                val screenshotFailure =
+                    runCatching { assertSnapshot(frame, step) }.exceptionOrNull()?.let {
+                        AssertionError("${it.message} Recorded: ${testInfo.timeline.eventNames()}", it)
+                    }
                 Log.e("Testing Flow", "Taken screenshot of $step")
+                when {
+                    timelineFailure != null && screenshotFailure != null ->
+                        throw AssertionError(
+                            "Events and screenshot both failed.\nEvents: ${timelineFailure.message}\n" +
+                                "Screenshot: ${screenshotFailure.message}",
+                            timelineFailure,
+                        ).apply { addSuppressed(screenshotFailure) }
+                    timelineFailure != null -> throw timelineFailure
+                    screenshotFailure != null -> throw screenshotFailure
+                }
             },
         )
     }
@@ -95,6 +124,7 @@ fun Dropshots.screenshotFlow(
     config: FlowTestConfiguration = FlowTestConfiguration(),
     flow: ScreenshotTestFlow.() -> Unit,
 ) {
+    ScreenshotDevice.requireComparable()
     val flow = ScreenshotTestFlow(testInfo).apply(flow)
     val scenario = ActivityScenario.launch(MainActivity::class.java)
     val testCase = testInfo
@@ -104,7 +134,10 @@ fun Dropshots.screenshotFlow(
     println("Description:\n ${testCase.description}")
     println("-----------")
     val testReady = MutableStateFlow(false)
-    scenario.moveToState(Lifecycle.State.STARTED)
+    // Moving the resumed activity down to STARTED puts ActivityScenario's empty floating activity
+    // on top of it, which dims the screen. The baselines of the app without a paywall were taken
+    // that way. It can't be done when a paywall shown at app launch already covers the activity.
+    runCatching { scenario.moveToState(Lifecycle.State.STARTED) }
     val scope = CoroutineScope(Dispatchers.IO)
     scenario.onActivity {
         val ctx = it
@@ -142,30 +175,44 @@ fun Dropshots.screenshotFlow(
     scenario.close()
 }
 
+/**
+ * The paywall presents: the events say it loaded and opened, and the screen matches the baseline.
+ */
 @ScreenshotTestDSL
 fun Dropshots.paywallPresentsFor(
     testInfo: UITestInfo,
     config: FlowTestConfiguration = FlowTestConfiguration(),
+    /**
+     * The paywall is shown by the app launching, not by the test case. Any of its events, up to
+     * and including the page load, can then fire before the test starts recording, so the
+     * events aren't asserted and the paywall's view is waited for instead.
+     */
+    presentedAtLaunch: Boolean = false,
 ) {
     screenshotFlow(testInfo, config) {
-        step("") {
-            it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
-            // Since there is a delay between webview finishing loading and the actual render
-            // We need to wait for the webview to finish loading before taking the snapshot
+        step("", timeline = if (presentedAtLaunch) null else ({ assertPaywallPresented() })) {
+            if (presentedAtLaunch) awaitPaywallView() else it.timeline.awaitPaywallLoaded()
             awaitUntilShimmerDisappears()
             awaitUntilWebviewAppears()
-            delay(1000)
+            // The load event comes before the page's fonts and images, and the open event can
+            // come after it. The step then waits for the screen to stop changing.
+            awaitPaywallContentReady()
+            if (!presentedAtLaunch) it.timeline.awaitEvent { it is SuperwallEvent.PaywallOpen }
         }
     }
 }
 
+/**
+ * The paywall doesn't present: the events say the request was turned down and nothing opened,
+ * and the screen still matches the baseline of the app without a paywall.
+ */
 @ScreenshotTestDSL
 fun Dropshots.paywallDoesntPresentFor(
     testInfo: UITestInfo,
     config: FlowTestConfiguration = FlowTestConfiguration(),
 ) {
     screenshotFlow(testInfo, config) {
-        step("") {
+        step("", timeline = { assertPaywallNotPresented() }) {
             it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
             delayFor(1.seconds)
@@ -179,7 +226,7 @@ fun Dropshots.paywallDoesntPresentForNoConfig(
     config: FlowTestConfiguration = FlowTestConfiguration(false),
 ) {
     screenshotFlow(testInfo, config) {
-        step("") {
+        step("", timeline = { assertPaywallNotPresented() }) {
             it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
             delayFor(1.seconds)
@@ -187,6 +234,21 @@ fun Dropshots.paywallDoesntPresentForNoConfig(
     }
 }
 
+/** Waits until a paywall is on screen, going by its view where the events can't be relied on. */
+@UiTestDSL
+suspend fun awaitPaywallView(timeout: Duration = 60.seconds) {
+    withContext(Dispatchers.Default) {
+        withTimeoutOrNull(timeout) {
+            while (getWebviewFromPaywall()?.isShown != true) delay(100.milliseconds)
+        }
+    } ?: throw AssertionError("No paywall was on screen within $timeout.")
+}
+
+/**
+ * Waits for the paywall's loading placeholder to go. With no paywall up there is no placeholder,
+ * so this returns at once: a step that expects a paywall must wait for it first
+ * ([awaitPaywallView] or a load event), or it can capture the placeholder a moment later.
+ */
 @UiTestDSL
 suspend fun CoroutineScope.awaitUntilShimmerDisappears(): Boolean {
     while (getShimmerFromPaywall()?.visibility == View.VISIBLE) {
@@ -249,6 +311,21 @@ suspend fun setInput(text: String) {
 suspend fun goBack() {
     val device = UiDevice.getInstance(getInstrumentation())
     device.pressBack()
+}
+
+/**
+ * Closes the paywall and waits for the close event, so what follows doesn't race the dismissal.
+ *
+ * This doesn't press back. The SDK hands a back press to the paywall's page to answer, and a
+ * paywall built on a runtime from before `back_button_input` ignores it and stays up.
+ */
+@UiTestDSL
+suspend fun UITestInfo.dismissPaywallAndAwaitClose(timeout: Duration = 10.seconds) {
+    Superwall.instance.dismiss()
+    timeline.awaitEvent(timeout) { it is SuperwallEvent.PaywallClose }
+        ?: throw AssertionError(
+            "The paywall didn't close within $timeout of being dismissed. Recorded: ${timeline.eventNames()}",
+        )
 }
 
 @UiTestDSL
