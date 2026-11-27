@@ -151,15 +151,24 @@ class WebCheckoutProbe {
         fill("billingPostalCode", "94107")
         record("filled")
 
+        // The last field leaves the keyboard up, over the lower half of the page. Back closes
+        // the keyboard while it is showing, and would close the tab if it weren't.
+        val keyboardUp = device.executeShellCommand("dumpsys input_method").contains("mInputShown=true")
+        note("keyboard up=$keyboardUp")
+        if (keyboardUp) {
+            device.pressBack()
+            Thread.sleep(1_500)
+        }
+        record("keyboard_closed")
+
         // Bring the Subscribe button on screen and press it.
         val height = device.displayHeight
         val width = device.displayWidth
-        repeat(6) {
-            val button = device.findObject(By.clazz("android.widget.Button").text("Subscribe"))
-            val bounds = button?.visibleBounds
-            if (bounds != null && bounds.height() > 40 && bounds.bottom < height - 80) return@repeat
-            device.swipe(width / 2, height * 2 / 3, width / 2, height / 3, 20)
-            Thread.sleep(800)
+        for (i in 0 until 8) {
+            val bounds = device.findObject(By.clazz("android.widget.Button").text("Subscribe"))?.visibleBounds
+            if (bounds != null && bounds.height() > 40 && bounds.bottom < height - 120) break
+            device.swipe(width / 2, height * 6 / 10, width / 2, height * 3 / 10, 25)
+            Thread.sleep(900)
         }
         record("before_subscribe")
         device.findObject(By.clazz("android.widget.Button").text("Subscribe"))?.click() ?: note("no Subscribe button")
