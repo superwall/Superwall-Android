@@ -37,9 +37,18 @@ class WebCheckoutProbe {
     private val dir by lazy {
         File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "probe").apply { mkdirs() }
     }
-    private val log by lazy { File(dir, "log.txt") }
+    // Kept in memory and written to a new file each time: appending to a file in Download
+    // was refused on the Firebase device.
+    private val notes = java.util.concurrent.CopyOnWriteArrayList<String>()
+    private var written = 0
 
-    private fun note(line: String) = log.appendText("${System.currentTimeMillis() % 1_000_000} $line\n")
+    private fun note(line: String) {
+        notes.add("${System.currentTimeMillis() % 1_000_000} $line")
+    }
+
+    private fun flush() {
+        runCatching { File(dir, "log_${written++}.txt").writeText(notes.joinToString("\n") + "\n") }
+    }
 
     private fun record(name: String) {
         runCatching {
@@ -50,6 +59,7 @@ class WebCheckoutProbe {
         runCatching { device.dumpWindowHierarchy(File(dir, "$name.xml")) }
         val texts = device.findObjects(By.textStartsWith("")).mapNotNull { it.text }.filter { it.isNotBlank() }.distinct()
         note("SCREEN $name package=${device.currentPackageName} texts=${texts.take(80)}")
+        flush()
     }
 
     @Test
@@ -89,10 +99,11 @@ class WebCheckoutProbe {
         val button = device.findObjects(By.text(purchase)).firstOrNull()
         note("purchase button=${button?.text}")
         button?.click() ?: return
-        for ((i, wait) in listOf(4_000L, 8_000L, 15_000L).withIndex()) {
+        for ((i, wait) in listOf(4_000L, 8_000L, 15_000L, 20_000L).withIndex()) {
             Thread.sleep(wait)
             record("${i + 2}_after_tap")
         }
         note("END status=${Superwall.instance.subscriptionStatus.value} entitlements=${Superwall.instance.entitlements.active.map { it.id }}")
+        flush()
     }
 }

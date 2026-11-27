@@ -87,7 +87,8 @@ jobs:
           gsutil -m -q cp "$base/$device/**/screenshots/**/diff/*.png" "results/$device/diff/" || true
           mkdir -p "results/$device/probe"
           gsutil -m -q cp "$base/$device/**/Download/probe/*" "results/$device/probe/" || true
-          cat "results/$device/probe/log.txt" 2>/dev/null || echo "no probe log"
+          # Second probe run: the log is written as a new file per screen.
+          cat "$(ls results/$device/probe/log_*.txt 2>/dev/null | sort -V | tail -n 1)" 2>/dev/null || echo "no probe log"
         done
         python3 - <<'PY'
         import glob, os, xml.etree.ElementTree as ET
