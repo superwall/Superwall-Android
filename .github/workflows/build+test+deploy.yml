@@ -96,6 +96,12 @@ jobs:
           echo "release-exists=false" >> "$GITHUB_OUTPUT"
         fi
 
+    # Response signing: a release must embed both roots, or no signed response can verify
+    # (apps that enforce signatures would reject every one).
+    - name: Check response-signing roots
+      if: steps.check-tag.outputs.tag-exists == 'false'
+      run: scripts/check-response-signing-roots.sh
+
     - name: Import GPG key
       if: steps.check-tag.outputs.tag-exists == 'false'
       run: |
