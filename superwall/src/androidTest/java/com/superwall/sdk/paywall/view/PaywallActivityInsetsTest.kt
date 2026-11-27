@@ -127,9 +127,10 @@ class PaywallActivityInsetsTest {
         }
         assertTrue("The device must have a bottom navigation bar", bottomInset > 0)
 
-        // The screen can still be fading in a second after launch on a slow emulator, where the
-        // strip reads darker than its colour (#060606 for #0e0e0e). Sample until it matches, and
-        // judge the last sample.
+        // Sample for a few seconds and judge the last sample. On CI the strip has read #060606
+        // for #0e0e0e, and kept doing so for five seconds, so it isn't the enter animation: the
+        // whole screen is being dimmed by something on top of the paywall. The failure message
+        // names the focused window so the next one says what that was.
         var pixel = 0
         val deadline = SystemClock.uptimeMillis() + 5_000
         do {
@@ -142,12 +143,24 @@ class PaywallActivityInsetsTest {
             bitmap.recycle()
             if (pixel != expected) SystemClock.sleep(250)
         } while (pixel != expected && SystemClock.uptimeMillis() < deadline)
+        val focus =
+            if (pixel == expected) {
+                ""
+            } else {
+                shell("dumpsys window").lineSequence().filter { "mCurrentFocus" in it || "mFocusedApp" in it }.joinToString { it.trim() }
+            }
         assertEquals(
-            "navigation bar strip is #${Integer.toHexString(pixel)}, expected #${Integer.toHexString(expected)}",
+            "navigation bar strip is #${Integer.toHexString(pixel)}, expected #${Integer.toHexString(expected)}. Focus: $focus",
             expected,
             pixel,
         )
     }
+
+    private fun shell(command: String): String =
+        android.os.ParcelFileDescriptor
+            .AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(command))
+            .bufferedReader()
+            .use { it.readText() }
 
     private fun finishActivity() {
         instrumentation.runOnMainSync { activity?.finish() }
