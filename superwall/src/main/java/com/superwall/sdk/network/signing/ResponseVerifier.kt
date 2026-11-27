@@ -278,24 +278,68 @@ internal class ResponseVerifier(
             }
         }
 
-        /** ECDSA P-256 / SHA-256 with a DER signature. Malformed input is `false`. */
+        /**
+         * ECDSA P-256 / SHA-256 with a DER signature. Malformed input is `false`. The encoding is
+         * checked here rather than left to the provider, which differs between JVMs and Android.
+         */
         internal fun verifyEcdsa(
             publicKey: PublicKey,
             derSignature: ByteArray,
             message: ByteArray,
         ): Boolean =
-            try {
-                Signature.getInstance("SHA256withECDSA").run {
-                    initVerify(publicKey)
-                    update(message)
-                    verify(derSignature)
+            isStrictDerSignature(derSignature) &&
+                try {
+                    Signature.getInstance("SHA256withECDSA").run {
+                        initVerify(publicKey)
+                        update(message)
+                        verify(derSignature)
+                    }
+                } catch (error: GeneralSecurityException) {
+                    // Includes `SignatureException` for a signature that isn't valid DER.
+                    false
+                } catch (error: IllegalArgumentException) {
+                    false
                 }
-            } catch (error: GeneralSecurityException) {
-                // Includes `SignatureException` for a signature that isn't valid DER.
-                false
-            } catch (error: IllegalArgumentException) {
-                false
+
+        /**
+         * A DER `SEQUENCE { INTEGER r, INTEGER s }` as the spec requires: minimal lengths, each
+         * integer positive and minimal with at most 32 bytes of magnitude, nothing after it.
+         */
+        internal fun isStrictDerSignature(der: ByteArray): Boolean {
+            var offset = 0
+
+            fun readLength(): Int? {
+                if (offset >= der.size) return null
+                val first = der[offset++].toInt() and 0xff
+                if (first < 0x80) return first
+                val count = first and 0x7f
+                if (count == 0 || count > 2 || offset + count > der.size) return null
+                var length = 0
+                for (index in 0 until count) {
+                    val byte = der[offset++].toInt() and 0xff
+                    if (index == 0 && byte == 0) return null
+                    length = length * 256 + byte
+                }
+                return length.takeIf { it >= 0x80 }
             }
+
+            fun readInteger(): Boolean {
+                if (offset >= der.size || der[offset++] != 0x02.toByte()) return false
+                val length = readLength() ?: return false
+                if (length == 0 || offset + length > der.size) return false
+                val first = der[offset].toInt() and 0xff
+                if ((first and 0x80) != 0) return false
+                if (length > 1 && first == 0 && (der[offset + 1].toInt() and 0x80) == 0) return false
+                val magnitude = if (first == 0) length - 1 else length
+                offset += length
+                return magnitude <= 32
+            }
+
+            if (der.isEmpty() || der[offset++] != 0x30.toByte()) return false
+            val length = readLength() ?: return false
+            if (offset + length != der.size) return false
+            return readInteger() && readInteger() && offset == der.size
+        }
 
         internal fun sha256(bytes: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(bytes)
     }

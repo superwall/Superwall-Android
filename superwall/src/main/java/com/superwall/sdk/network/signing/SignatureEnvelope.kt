@@ -22,11 +22,15 @@ internal class SignatureEnvelope(
         const val VERSION = 1L
         const val KIND_RAW = "raw"
 
-        /** Returns `null` for anything malformed. */
+        /**
+         * Returns `null` for anything malformed. Only visible ASCII, spaces and tabs are allowed,
+         * and members are trimmed of spaces and tabs only, so every platform splits the same way.
+         */
         fun parse(value: String): SignatureEnvelope? {
+            if (!value.all { it == '\t' || it in ' '..'~' }) return null
             val members = HashMap<String, String>()
             for (part in value.split(",")) {
-                val member = part.trim()
+                val member = part.trim { it == ' ' || it == '\t' }
                 val equals = member.indexOf('=')
                 if (equals <= 0) return null
                 val key = member.substring(0, equals)
@@ -60,7 +64,7 @@ internal class SignatureEnvelope(
     }
 }
 
-/** Standard, padded base64. `java.util.Base64` needs API 26, so it's done by hand. */
+/** Standard, padded, canonical base64. `java.util.Base64` needs API 26, so it's done by hand. */
 internal object StrictBase64 {
     private const val ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
@@ -104,6 +108,8 @@ internal object StrictBase64 {
             }
             index += 4
         }
-        return out
+        // Canonical: the unused bits of the last character are zero, so each byte string has one
+        // encoding (`QR==` is refused; `QQ==` is the same byte).
+        return out.takeIf { encode(it) == value }
     }
 }
